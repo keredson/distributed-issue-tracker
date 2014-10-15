@@ -1,4 +1,4 @@
-import bleach, git, json, markdown, os, re, uuid
+import bleach, git, json, markdown, os, re, traceback, uuid
 
 bleach.ALLOWED_TAGS.append('p')
 
@@ -15,8 +15,13 @@ class Index(object):
       if blob is None: return
       if not blob.path.startswith('.dit/'): return
       if not blob.path.endswith('.json'): return
-      o = json.load(blob.data_stream)
-      uid = uuid.UUID(o['id'])
+      uid = None
+      try:
+        o = json.load(blob.data_stream)
+        uid = uuid.UUID(o['id'])
+      except Exception as e:
+        traceback.print_exc()
+        print 'could not decode', blob.path
       author = str(commit.author)
       original = None
       if uid in self._issues_by_id: original = self._issues_by_id[uid]
@@ -54,8 +59,9 @@ class Index(object):
     issues_dir = os.path.join(self.root,'issues')
     for fn in os.listdir(issues_dir):
       issue_path = os.path.join(issues_dir,fn)
-      if os.path.isdir(issue_path):
-        with open(os.path.join(issue_path,'issue.json'),'r') as f:
+      issue_fn = os.path.join(issue_path,'issue.json')
+      if os.path.isfile(issue_fn):
+        with open(issue_fn,'r') as f:
           issue = json.load(f)
           issue['_comments'] = []
           issue['_authors'] = []
@@ -82,7 +88,7 @@ class Index(object):
     if 'id' in issue:
       uid = uuid.UUID(issue['id'])
       fn = os.path.join(self._issue_path(issue['id']),'issue.json')
-      issue = save(issue, fn)
+      issue = self._save(issue, fn)
       self._issues_by_id[uid].update(issue)
     else:
       uid = uuid.uuid4()
@@ -92,7 +98,7 @@ class Index(object):
       issue_path = os.path.join(issues_dir, issue_dir)
       os.mkdir(issue_path)
       fn = os.path.join(issue_path,'issue.json')
-      issue = save(issue, fn)
+      issue = self._save(issue, fn)
       issue['__path'] = issue_path
       self._issues_by_id[uid] = issue
     return issue
@@ -107,7 +113,7 @@ class Index(object):
         c = json.load(f)
         if c['id'] == comment['id']:
           return fn
-    return os.path.join(comment_path, '%s--%s' % (slugify(comment['text']), comment['id']))
+    return os.path.join(comment_path, '%s--%s.json' % (slugify(comment['text']), comment['id']))
 
   def save_comment(self, comment):
     print comment
@@ -115,7 +121,7 @@ class Index(object):
     else: comment['id'] = str(uuid.uuid4())
     comment['issue_id'] = str(uuid.UUID(comment['issue_id']))
     fn = self._get_comment_path(comment)
-    save(comment, fn)
+    self._save(comment, fn)
     comment['_text'] = bleach.clean(markdown.markdown(comment['text']))
     issue = self._issues_by_id[uuid.UUID(comment['issue_id'])]
     comments = issue.get('_comments')
@@ -126,15 +132,23 @@ class Index(object):
     return comment
 
 
-def save(o, fn):
-  o = o.copy()
-  with open(fn,'w') as f:
-    for k in o.keys():
-      if k.startswith('_'):
-        del o[k]
-    print 'writing', fn
-    json.dump(o,f, sort_keys=True, indent=4)
-  return o
+  def _save(self, o, fn):
+    o = o.copy()
+    created = not os.path.isfile(fn)
+    with open(fn,'w') as f:
+      for k in o.keys():
+        if k.startswith('_'):
+          del o[k]
+      print 'os.path.isfile(fn)', os.path.isfile(fn)
+      print 'created', created
+      print 'writing', fn
+      json.dump(o,f, sort_keys=True, indent=4)
+    if created:
+      project_dir = os.path.dirname(self.root)
+      repo = git.Repo(project_dir)
+      print 'adding', fn
+      repo.index.add([fn])
+    return o
 
 def find_root(path):
   candidate = os.path.join(path,'.dit')
@@ -145,5 +159,5 @@ def find_root(path):
     
     
 def slugify(s):
-  return '-'.join(re.split(r'\W+', s)).strip('-')
+  return '-'.join(re.split(r'\W+', s))[:30].strip('-')
 
