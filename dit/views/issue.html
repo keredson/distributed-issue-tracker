@@ -1,0 +1,32 @@
+
+<div ng-controller="IssueCtrl"> 
+    <a href='/issues'>issue</a> / <a href='/issue/{{issue.id}}'>{{issue.id}}</a>
+
+    <h1 ng-hide="editorEnabled">
+      {{issue.title}}
+      <a href="#" ng-click="editorEnabled=!editorEnabled" class='glyphicon glyphicon-edit'></a>
+    </h1>
+    <h1 ng-show="editorEnabled">
+      <form name="titleform" class='form-inline' ng-submit="saveTitle()">
+          <input type="text" class='form-control' ng-model="issue.title" ng-model-options="{ updateOn: 'submit' }" name="title" size=30>
+          <button type="submit" class='btn btn-primary' ng-click="titleform.title.$commitViewValue(); editorEnabled=!editorEnabled">save</button>
+          <button type="button" class='btn btn-default' ng-click="titleform.title.$rollbackViewValue(); editorEnabled=!editorEnabled">cancel</button>
+      </form>
+    </h1>
+
+    <p ng-bind-html='issue._description'></p>
+    
+</div>
+  
+<script>
+var app = angular.module('ditApp');
+app.controller('IssueCtrl', function($scope, $http, $sce) {
+  $scope.issue = ##issue##;
+  $scope.issue._description = $sce.trustAsHtml($scope.issue._description);
+  $scope.saveTitle = function() {
+    $http.post('/issue/save', $scope.issue).success(function(data) {
+    });
+  };
+});
+</script>
+

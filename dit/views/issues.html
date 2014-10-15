@@ -1,0 +1,19 @@
+
+<div ng-controller="IssuesCtrl"> 
+    <table>
+      <tr ng-repeat="issue in issues">
+        <td>
+          <a href='/issue/{{issue.id}}'>{{issue.title}}</a>
+        </td>
+        <td>{{issue.description_html}}</td>
+      </tr>
+    </table>
+</div>
+  
+<script>
+ditApp.controller('IssuesCtrl', function ($scope, $http) {
+  $http.get('/json/issues').success(function(data) {
+    $scope.issues = data.issues;
+  });
+});
+</script>

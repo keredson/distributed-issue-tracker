@@ -1,0 +1,45 @@
+<!doctype html>
+<html ng-app='ditApp'>
+  <head>
+    <script src="/static/angular.min.js"></script>
+    <script src="/static/controllers.js"></script>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <script src="/static/js/bootstrap.min.js"></script>
+    <link href="/static/jumbotron-narrow.css" rel="stylesheet">
+    <link href="/static/dit.css" rel="stylesheet">
+  </head>
+  <body ng-controller="BaseCtrl">
+  
+    <div class='container'>
+    <div class="header">
+        <ul class="nav nav-pills pull-right">
+          <li class="active"><a href="#">Home</a></li>
+          <li><a href="#">About</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+        <h3 class="text-muted">{{repo.project}}</h3>
+    </div>
+    
+  ##__content__##
+
+
+      <div class="footer">
+        <p>
+          <a href='github.com/keredson/distributed-issue-tracker'>Distributed Issue Tracker</a>
+          <span class='pull-right'>{{repo.project_dir}} - {{repo.origin}}</span>
+        </p>
+      </div>
+</div>
+
+
+  </body>
+  <script>
+var ditApp = angular.module('ditApp');
+ditApp.controller('BaseCtrl', function ($scope, $http) {
+  $http.get('/json/repo').success(function(data) {
+    $scope.repo = data;
+  });
+});//*/
+  </script>
+</html>
+
