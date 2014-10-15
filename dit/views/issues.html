@@ -1,5 +1,33 @@
 
 <div ng-controller="IssuesCtrl"> 
+  
+  <p>
+    <div class="row">
+      <div class="col-lg-10">
+        <div class="input-group">
+          <div class="input-group-btn">
+            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">Filter <span class="caret"></span></button>
+            <ul class="dropdown-menu" role="menu"
+              <li><a href="#">Action</a></li>
+              <li><a href="#">Another action</a></li>
+              <li><a href="#">Something else here</a></li>
+              <li class="divider"></li>
+              <li><a href="#">Separated link</a></li>
+            </ul>
+          </div><!-- /btn-group -->
+          <input type="text" class="form-control" placeholder='Search...'>
+        </div><!-- /input-group -->
+      </div>
+      <div class="col-lg-2">
+        <span class='pull-right'>
+          <a href='/issue/new' class='btn btn-primary btn-x'>New Issue</a>
+        </span>
+      </div>
+    </div>
+  </p>
+
+  <div class="panel panel-default">
+    <div class="panel-heading">{{issues.length}} issue{{issues.length==1 ? '' : 's'}}</div>
     <table class='table'>
       <tr ng-repeat="issue in issues">
         <td>
@@ -11,7 +39,9 @@
         </td>
       </tr>
     </table>
-    <p></p>
+  </div>
+  
+  
 </div>
   
 <script>
@@ -21,3 +51,4 @@ ditApp.controller('IssuesCtrl', function ($scope, $http) {
   });
 });
 </script>
+
