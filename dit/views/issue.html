@@ -23,13 +23,13 @@
     By: <span ng-repeat="author in issue._authors">{{author}}{{$last ? '' : ','}}</span>
   </p>
 
-  <div ng-repeat="comment in issue._comments" class="panel panel-default panel-comment">
+  <div ng-repeat="comment in issue._comments | orderBy: '_committed_on'" class="panel panel-default panel-comment">
     <div class="panel-heading">
       <span class='pull-right text-muted'>
-        when
+        {{comment._committed_on_human ? comment._committed_on_human : '(uncommitted)'}}
       </span>
       <span ng-repeat="author in comment._authors">{{author}}{{$last ? '' : ','}}</span>
-      <span ng-hide="comment._authors.length">You (uncommitted)</span>
+      <span ng-hide="comment._authors.length">You</span>
     </div>
     <div class="panel-body" ng-bind-html='comment._text'></div>
   </div>
@@ -56,6 +56,9 @@ app.controller('IssueCtrl', function($scope, $http, $sce) {
   };
   angular.forEach($scope.issue._comments, function(comment) {
     comment._text = $sce.trustAsHtml(comment._text);
+    if (comment._committed_on) {
+      comment._committed_on_human = new Date(comment._committed_on * 1000).toLocaleString();
+    }
   });
   
   $scope.saveTitle = function() {

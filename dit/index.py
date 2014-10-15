@@ -13,16 +13,19 @@ class Index(object):
   def index_history(self):
     def index(commit, diff, blob):
       if blob is None: return
+      if not blob.path.startswith('.dit/'): return
       if not blob.path.endswith('.json'): return
       o = json.load(blob.data_stream)
       uid = uuid.UUID(o['id'])
       author = str(commit.author)
-      authors_list = self._issues_by_id[uid]['_authors'] if uid in self._issues_by_id else None
+      original = None
+      if uid in self._issues_by_id: original = self._issues_by_id[uid]
+      if uid in self._comments_by_id: original = self._comments_by_id[uid]
       print uid, author
-      if uid in self._comments_by_id:
-        authors_list = self._comments_by_id[uid]['_authors']
-      if authors_list is not None and author not in authors_list:
-        authors_list.append(author)
+      if original is not None:
+        if author not in original['_authors']:
+          original['_authors'].append(author)
+        original['_committed_on'] = commit.committed_date
     project_dir = os.path.dirname(self.root)
     repo = git.Repo(project_dir)
     for commit in repo.iter_commits():
@@ -34,12 +37,14 @@ class Index(object):
   def repo(self):
     project_dir = os.path.dirname(self.root)
     repo = git.Repo(project_dir)
+    print 'repo.is_dirty()', repo.is_dirty()
     return {
       'project_dir': project_dir,
       'project': os.path.split(project_dir)[-1],
       'origin': repo.remotes.origin.url if len(repo.remotes) else '(no origin)',
-      '__dit_version__': '0.1',
+      'dit_version': '0.1',
       'branch': repo.head.reference.name,
+      'is_dirty': repo.is_dirty(),
     }
     
   def issues(self):

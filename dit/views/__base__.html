@@ -15,22 +15,20 @@
         <ul class="nav nav-pills pull-right">
           <li class="active"><a href="#">Home</a></li>
           <li><a href="#">About</a></li>
-          <li><a href="#">Contact</a></li>
         </ul>
         <h3 class="text-muted">{{repo.project}}</h3>
     </div>
     
   ##__content__##
 
-
       <div class="footer" style='clear:both;'>
         <p>
           <span class='pull-right'>
-            {{repo.project_dir}} - {{repo.branch}}<br>
+            {{repo.project_dir}}<br>
             {{repo.origin}}
           </span>
-          <a href='github.com/keredson/distributed-issue-tracker'>Distributed Issue Tracker</a><br>
-          Version: {{repo.__dit_version__}}
+          <a href='github.com/keredson/distributed-issue-tracker'>Distributed Issue Tracker</a> v{{repo.dit_version}}<br>
+          Branch: <b>{{repo.branch}}</b> ({{ repo.is_dirty ? 'dirty' : 'clean' }})
         </p>
       </div>
 </div>
