@@ -60,13 +60,15 @@ class Index(object):
           issue['_comments'] = []
           issue['_authors'] = []
           issue['__path'] = issue_path
-          for cfn in os.listdir(os.path.join(issue_path,'comments')):
-            cfn = os.path.join(issue_path,'comments',cfn)
-            with open(cfn,'r') as cf:
-              comment = json.load(cf)
-              comment['_authors'] = []
-              comment['_text'] = bleach.clean(markdown.markdown(comment['text']))
-              issue['_comments'].append(comment)
+          comments_dir = os.path.join(issue_path,'comments')
+          if os.path.isdir(comments_dir):
+            for cfn in os.listdir(comments_dir):
+              cfn = os.path.join(issue_path,'comments',cfn)
+              with open(cfn,'r') as cf:
+                comment = json.load(cf)
+                comment['_authors'] = []
+                comment['_text'] = bleach.clean(markdown.markdown(comment['text']))
+                issue['_comments'].append(comment)
           yield issue
   
   def issue(self, uid):
@@ -77,10 +79,23 @@ class Index(object):
     return self._issues_by_id[uid]['__path']
   
   def save_issue(self, issue):
-    uid = uuid.UUID(issue['id'])
-    fn = os.path.join(self._issue_path(issue['id']),'issue.json')
-    issue = save(issue, fn)
-    self._issues_by_id[uid].update(issue)
+    if 'id' in issue:
+      uid = uuid.UUID(issue['id'])
+      fn = os.path.join(self._issue_path(issue['id']),'issue.json')
+      issue = save(issue, fn)
+      self._issues_by_id[uid].update(issue)
+    else:
+      uid = uuid.uuid4()
+      issue['id'] = str(uid)
+      issues_dir = os.path.join(self.root,'issues')
+      issue_dir = '%s--%s' % (slugify(issue['title']), issue['id'])
+      issue_path = os.path.join(issues_dir, issue_dir)
+      os.mkdir(issue_path)
+      fn = os.path.join(issue_path,'issue.json')
+      issue = save(issue, fn)
+      issue['__path'] = issue_path
+      self._issues_by_id[uid] = issue
+    return issue
   
   def _get_comment_path(self, comment):
     comment_path = os.path.join(self._issue_path(comment['issue_id']),'comments')
@@ -92,7 +107,7 @@ class Index(object):
         c = json.load(f)
         if c['id'] == comment['id']:
           return fn
-    return os.path.join(comment_path, '%s-%s' % (slugify(comment['text']), comment['id']))
+    return os.path.join(comment_path, '%s--%s' % (slugify(comment['text']), comment['id']))
 
   def save_comment(self, comment):
     print comment
@@ -102,6 +117,12 @@ class Index(object):
     fn = self._get_comment_path(comment)
     save(comment, fn)
     comment['_text'] = bleach.clean(markdown.markdown(comment['text']))
+    issue = self._issues_by_id[uuid.UUID(comment['issue_id'])]
+    comments = issue.get('_comments')
+    if comments is None:
+      comments = []
+      issue['_comments'] = comments
+    comments.append(comment)
     return comment
 
 
@@ -124,5 +145,5 @@ def find_root(path):
     
     
 def slugify(s):
-  return '-'.join(re.split(r'\W+', s))
+  return '-'.join(re.split(r'\W+', s)).strip('-')
 

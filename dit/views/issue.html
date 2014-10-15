@@ -13,13 +13,13 @@
   </h1>
   <h1 ng-show="editorEnabled">
     <form name="titleform" class='form-inline' ng-submit="saveTitle()">
-      <input type="text" class='form-control' ng-model="issue.title" ng-model-options="{ updateOn: 'submit' }" name="title" size=30>
+      <input type="text" class='form-control' ng-model="issue.title" ng-model-options="{ updateOn: 'submit' }" name="title" size=30 placeholder="Title...">
       <button type="submit" class='btn btn-primary' ng-click="titleform.title.$commitViewValue(); editorEnabled=!editorEnabled">Save</button>
       <button type="button" class='btn btn-default' ng-click="titleform.title.$rollbackViewValue(); editorEnabled=!editorEnabled">Cancel</button>
     </form>
   </h1>
   
-  <p class='text-muted' style='margin-top:-1em;'>
+  <p class='text-muted' style='margin-top:-.9em;' ng-show='issue._authors.length'>
     By: <span ng-repeat="author in issue._authors">{{author}}{{$last ? '' : ','}}</span>
   </p>
 
@@ -51,6 +51,7 @@
 var app = angular.module('ditApp');
 app.controller('IssueCtrl', function($scope, $http, $sce) {
   $scope.issue = ##issue##;
+  if (!$scope.issue.title) $scope.editorEnabled = true;
   $scope.newcomment = {
     'issue_id': $scope.issue.id,
   };

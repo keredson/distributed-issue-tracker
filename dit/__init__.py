@@ -33,14 +33,18 @@ def json_repo():
 
 @bottle.route('/issue/<uid>')
 def issue(uid):
-  uid = uuid.UUID(uid)
-  return render('issue.html', issue=json.dumps(index.issue(uid)))
+  if uid=='new':
+    return render('new_issue.html')
+  else:
+    uid = uuid.UUID(uid)
+    issue = index.issue(uid)
+    return render('issue.html', issue=json.dumps(issue))
 
 @bottle.post('/issue/save')
 def issue_save():
   issue = bottle.request.json
-  index.save_issue(issue)
-  return 'ok'
+  issue = index.save_issue(issue)
+  return issue
 
 @bottle.post('/comment/save')
 def comment_save():
