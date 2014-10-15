@@ -1,13 +1,17 @@
 
 <div ng-controller="IssuesCtrl"> 
-    <table>
+    <table class='table'>
       <tr ng-repeat="issue in issues">
         <td>
           <a href='/issue/{{issue.id}}'>{{issue.title}}</a>
         </td>
-        <td>{{issue.description_html}}</td>
+        <td align='right' class='text-muted'>
+          <span class='glyphicon glyphicon-comment'></span>
+          {{issue._comments.length}}
+        </td>
       </tr>
     </table>
+    <p></p>
 </div>
   
 <script>

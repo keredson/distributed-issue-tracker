@@ -23,10 +23,14 @@
   ##__content__##
 
 
-      <div class="footer">
+      <div class="footer" style='clear:both;'>
         <p>
-          <a href='github.com/keredson/distributed-issue-tracker'>Distributed Issue Tracker</a>
-          <span class='pull-right'>{{repo.project_dir}} - {{repo.origin}}</span>
+          <span class='pull-right'>
+            {{repo.project_dir}} - {{repo.branch}}<br>
+            {{repo.origin}}
+          </span>
+          <a href='github.com/keredson/distributed-issue-tracker'>Distributed Issue Tracker</a><br>
+          Version: {{repo.__dit_version__}}
         </p>
       </div>
 </div>

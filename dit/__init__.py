@@ -42,6 +42,11 @@ def issue_save():
   index.save_issue(issue)
   return 'ok'
 
+@bottle.post('/comment/save')
+def comment_save():
+  comment = bottle.request.json
+  return index.save_comment(comment)
+
 def render(fn, **kwargs):
   with open(os.path.join(VIEWS_PATH,'__base__.html'),'r') as bf:
     base = '\n'.join(bf.readlines())
