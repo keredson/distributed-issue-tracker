@@ -86,7 +86,10 @@ class Index(object):
   
   def issue(self, uid):
     issue = self._issues_by_id[uid]
-    issue['_comments'] = [self._comments_by_id[cid] for cid in self._comment_ids_by_issue_id[uuid.UUID(issue['id'])]]
+    comments = [self._comments_by_id[cid] for cid in self._comment_ids_by_issue_id[uuid.UUID(issue['id'])]]
+    comments.sort(cmp_comments)
+    print '\n'.join([str(c) for c in comments])
+    issue['_comments'] = comments
     return issue
   
   def _issue_path(self, uid):
@@ -97,6 +100,7 @@ class Index(object):
     if 'id' in issue:
       uid = uuid.UUID(issue['id'])
       fn = os.path.join(self._issue_path(issue['id']),'issue.json')
+      issue['type'] = 'issue'
       issue = self._save(issue, fn)
       self._issues_by_id[uid].update(issue)
     else:
@@ -107,6 +111,7 @@ class Index(object):
       issue_path = os.path.join(issues_dir, issue_dir)
       os.mkdir(issue_path)
       fn = os.path.join(issue_path,'issue.json')
+      issue['type'] = 'issue'
       issue = self._save(issue, fn)
       issue['__path'] = issue_path
       self._issues_by_id[uid] = issue
@@ -125,13 +130,13 @@ class Index(object):
     return os.path.join(comment_path, '%s--%s.json' % (slugify(comment['text']), comment['id']))
 
   def save_comment(self, comment):
-    print comment
     if 'id' in comment: comment['id'] = str(uuid.UUID(comment['id']))
     else: comment['id'] = str(uuid.uuid4())
     comment['issue_id'] = str(uuid.UUID(comment['issue_id']))
     fn = self._get_comment_path(comment)
     comment = self._save(comment, fn)
     comment['_text'] = bleach.clean(markdown.markdown(comment['text']))
+    comment['type'] = 'comment'
     issue = self._issues_by_id[uuid.UUID(comment['issue_id'])]
     self._index_comment(comment)
     return comment
@@ -140,13 +145,11 @@ class Index(object):
   def _save(self, o, fn):
     o = o.copy()
     created = not os.path.isfile(fn)
+    if created: o['created_on'] = int(time.time())
     with open(fn,'w') as f:
       for k in o.keys():
         if k.startswith('_'):
           del o[k]
-      print 'os.path.isfile(fn)', os.path.isfile(fn)
-      print 'created', created
-      print 'writing', fn
       json.dump(o,f, sort_keys=True, indent=4)
     if created:
       project_dir = os.path.dirname(self.root)
@@ -166,3 +169,12 @@ def find_root(path):
 def slugify(s):
   return '-'.join(re.split(r'\W+', s))[:30].strip('-')
 
+
+def get_timestamps(o):
+  timestamps = [o.get('_committed_on'), o.get('created_on')]
+  return [ts for ts in timestamps if ts]
+
+def cmp_comments(a,b):
+  return cmp(get_timestamps(a), get_timestamps(b))
+  
+  
