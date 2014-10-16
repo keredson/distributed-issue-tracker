@@ -1,4 +1,4 @@
-import bleach, git, json, markdown, os, re, traceback, uuid
+import bleach, collections, git, json, markdown, os, re, traceback, uuid
 
 bleach.ALLOWED_TAGS.append('p')
 
@@ -6,8 +6,9 @@ class Index(object):
 
   def __init__(self):
     self.root = find_root(os.getcwd())
+    self._comments_by_id = {}
+    self._comment_ids_by_issue_id = collections.defaultdict(set)
     self._issues_by_id = {uuid.UUID(issue['id']):issue for issue in self._load_issues()}
-    self._comments_by_id = {uuid.UUID(comment['id']):comment for issue in self._issues_by_id.values() for comment in issue['_comments']}
     self.index_history()
   
   def index_history(self):
@@ -53,7 +54,10 @@ class Index(object):
     }
     
   def issues(self):
-    return self._issues_by_id.values()
+    issues = self._issues_by_id.values()
+    for issue in issues:
+      issue['_comments'] = ['' for cid in self._comment_ids_by_issue_id[uuid.UUID(issue['id'])]]
+    return issues
     
   def _load_issues(self):
     issues_dir = os.path.join(self.root,'issues')
@@ -63,7 +67,6 @@ class Index(object):
       if os.path.isfile(issue_fn):
         with open(issue_fn,'r') as f:
           issue = json.load(f)
-          issue['_comments'] = []
           issue['_authors'] = []
           issue['__path'] = issue_path
           comments_dir = os.path.join(issue_path,'comments')
@@ -74,11 +77,17 @@ class Index(object):
                 comment = json.load(cf)
                 comment['_authors'] = []
                 comment['_text'] = bleach.clean(markdown.markdown(comment['text']))
-                issue['_comments'].append(comment)
+                self._index_comment(comment)
           yield issue
   
+  def _index_comment(self, comment):
+    self._comments_by_id[uuid.UUID(comment['id'])] = comment
+    self._comment_ids_by_issue_id[uuid.UUID(comment['issue_id'])].add(uuid.UUID(comment['id']))
+  
   def issue(self, uid):
-    return self._issues_by_id[uid]
+    issue = self._issues_by_id[uid]
+    issue['_comments'] = [self._comments_by_id[cid] for cid in self._comment_ids_by_issue_id[uuid.UUID(issue['id'])]]
+    return issue
   
   def _issue_path(self, uid):
     uid = uuid.UUID(uid)
@@ -121,14 +130,10 @@ class Index(object):
     else: comment['id'] = str(uuid.uuid4())
     comment['issue_id'] = str(uuid.UUID(comment['issue_id']))
     fn = self._get_comment_path(comment)
-    self._save(comment, fn)
+    comment = self._save(comment, fn)
     comment['_text'] = bleach.clean(markdown.markdown(comment['text']))
     issue = self._issues_by_id[uuid.UUID(comment['issue_id'])]
-    comments = issue.get('_comments')
-    if comments is None:
-      comments = []
-      issue['_comments'] = comments
-    comments.append(comment)
+    self._index_comment(comment)
     return comment
 
 

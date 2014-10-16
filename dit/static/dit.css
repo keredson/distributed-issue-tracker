@@ -3,11 +3,17 @@ h1 .glyphicon {
 }
 
 .panel-comment .panel-heading {
-  padding: 5px 15px;
+  padding: .5em 1em;
   font-size: 10pt;
 }
 
+.panel-comment .panel-heading .glyphicon {
+  font-size: 8pt;
+  margin-right:-.5em;
+  margin-left:.5em
+}
+
 .panel-comment .panel-body {
-  padding-bottom: 5px;
+  padding-bottom: .5em;
 }
 
