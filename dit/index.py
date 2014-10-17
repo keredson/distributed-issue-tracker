@@ -7,7 +7,7 @@ class Index(object):
   def __init__(self):
     self.root = find_root(os.getcwd())
     print 'dit root:', self.root
-    self._comments_by_id = {}
+    self._comments_by_id = collections.defaultdict(dict)
     self._comment_ids_by_issue_id = collections.defaultdict(set)
     self._commits_by_issue_id = collections.defaultdict(list)
     self._issues_by_id = {uuid.UUID(issue['id']):issue for issue in self._load_issues()}
@@ -115,7 +115,7 @@ class Index(object):
           yield issue
   
   def _index_comment(self, comment):
-    self._comments_by_id[uuid.UUID(comment['id'])] = comment
+    self._comments_by_id[uuid.UUID(comment['id'])].update(comment)
     self._comment_ids_by_issue_id[uuid.UUID(comment['issue_id'])].add(uuid.UUID(comment['id']))
   
   def issue(self, uid):
