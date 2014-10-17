@@ -2,8 +2,6 @@
 <div ng-controller="IssuesCtrl"> 
   
   <p>
-    <div class="row">
-      <div class="col-lg-10">
         <div class="input-group">
           <div class="input-group-btn">
             <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">Filter <span class="caret"></span></button>
@@ -17,13 +15,6 @@
           </div><!-- /btn-group -->
           <input type="text" class="form-control" placeholder='Search...'>
         </div><!-- /input-group -->
-      </div>
-      <div class="col-lg-2">
-        <span class='pull-right'>
-          <a href='/issue/new' class='btn btn-primary btn-x'>New Issue</a>
-        </span>
-      </div>
-    </div>
   </p>
 
   <div class="panel panel-default">
@@ -32,6 +23,9 @@
       <tr ng-repeat="issue in issues">
         <td>
           <a href='/issue/{{issue.id}}'>{{issue.title}}</a>
+        </td>
+        <td align='right' class='text-muted'>
+          {{issue._committed_on ? issue._committed_on_human : '(new)'}}
         </td>
         <td align='right' class='text-muted'>
           <span class='glyphicon glyphicon-comment'></span>
@@ -48,6 +42,11 @@
 ditApp.controller('IssuesCtrl', function ($scope, $http) {
   $http.get('/json/issues').success(function(data) {
     $scope.issues = data.issues;
+    angular.forEach($scope.issues, function(issue) {
+      if (issue._committed_on) {
+        issue._committed_on_human = new Date(issue._committed_on * 1000).toLocaleString();
+      }
+    });
   });
 });
 </script>

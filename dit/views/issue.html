@@ -4,12 +4,12 @@
   <ol class="breadcrumb">
     <li><a href="/">home</a></li>
     <li><a href='/issues'>issues</a></li>
-    <li class="active"><a href='/issue/{{issue.id}}'>{{issue.id}}</a></li>
+    <li class="active">{{issue.id}}</li>
   </ol>
 
   <h1 ng-hide="editorEnabled">
     {{issue.title}}
-    <a href="#" ng-click="editorEnabled=!editorEnabled" class='glyphicon glyphicon-edit'></a>
+    <a href="#" ng-click="editorEnabled=!editorEnabled" class='glyphicon glyphicon-pencil'></a>
   </h1>
   <h1 ng-show="editorEnabled">
     <form name="titleform" class='form-inline' ng-submit="saveTitle()">
@@ -19,30 +19,46 @@
     </form>
   </h1>
   
+  <p class='pull-right text-muted' style='margin-top:-.9em;'>{{issue._committed_on_human}}</p>
   <p class='text-muted' style='margin-top:-.9em;' ng-show='issue._authors.length'>
     By: <span ng-repeat="author in issue._authors">{{author}}{{$last ? '' : ','}}</span>
   </p>
 
-  <div ng-repeat="comment in issue._comments | orderBy: '_committed_on'" class="panel panel-default panel-comment">
-    <div class="panel-heading">
-      <span class='pull-right text-muted'>
-        {{comment._committed_on_human ? comment._committed_on_human : '(uncommitted)'}}
-        <a href="#" ng-click="comment._editing=!comment._editing" class='glyphicon glyphicon-pencil'></a>
-      </span>
-      <span ng-repeat="author in comment._authors">{{author}}{{$last ? '' : ','}}</span>
-      <span ng-hide="comment._authors.length">You</span>
+  <div ng-repeat="comment in issue._comments | orderBy: '_committed_on'">
+    <div class="panel panel-default panel-comment" ng-hide="{{comment.type=='commit'}}">
+      <div class="panel-heading">
+        <span class='pull-right text-muted'>
+          {{comment._committed_on_human ? comment._committed_on_human : '(uncommitted)'}}
+          <a href="#" ng-click="comment._editing=!comment._editing" class='glyphicon glyphicon-pencil'></a>
+        </span>
+        <span ng-repeat="author in comment._authors">{{author}}{{$last ? '' : ','}}</span>
+        <span ng-hide="comment._authors.length">You</span>
+      </div>
+      <div class="panel-body" ng-bind-html='comment._text' ng-hide='comment._editing'></div>
+      <div class="panel-body" ng-show='comment._editing'>
+        <form ng-submit="saveComment(comment)">
+          <p>
+            <textarea class='form-control' ng-model='comment.text' placeholder='Add a comment...'></textarea>
+          </p>
+          <p class='pull-right'>
+            <button type="submit" class='btn btn-primary'>Save</button>
+            <button class='btn btn-default' ng-click='comment._editing=false'>Cancel</button>
+          </p>
+        </form>
+      </div>
     </div>
-    <div class="panel-body" ng-bind-html='comment._text' ng-hide='comment._editing'></div>
-    <div class="panel-body" ng-show='comment._editing'>
-      <form ng-submit="saveComment(comment)">
-        <p>
-          <textarea class='form-control' ng-model='comment.text' placeholder='Add a comment...'></textarea>
-        </p>
-        <p class='pull-right'>
-          <button type="submit" class='btn btn-primary'>Save</button>
-          <button class='btn btn-default' ng-click='comment._editing=false'>Cancel</button>
-        </p>
-      </form>
+    <div ng-show="{{comment.type=='commit'}}" class="panel panel-default panel-comment">
+      <div class="panel-heading">
+        <span class='pull-right text-muted'>{{comment._committed_on_human}}</span>
+        Commit: {{comment.hexsha}}
+      </div>
+      <div class="panel-body">
+        <ul>
+          <li ng-repeat="(fn, details) in comment.files">
+            {{fn}} - changes: {{details.lines}} (<span style='color:red'>{{details.deletions}}</span>/<span style='color:green'>{{details.insertions}}</span>)
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -64,6 +80,9 @@ var app = angular.module('ditApp');
 app.controller('IssueCtrl', function($scope, $http, $sce) {
   $scope.issue = ##issue##;
   if (!$scope.issue.title) $scope.editorEnabled = true;
+  if ($scope.issue._committed_on) {
+    $scope.issue._committed_on_human = new Date($scope.issue._committed_on * 1000).toLocaleString();
+  }
   $scope.newcomment = {
     'issue_id': $scope.issue.id,
   };
