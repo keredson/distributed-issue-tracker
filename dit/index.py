@@ -11,6 +11,8 @@ class Index(object):
     self._objects_by_id = collections.defaultdict(dict)
     self._comment_ids_by_issue_id = collections.defaultdict(set)
     self._commits_by_issue_id = collections.defaultdict(list)
+    self._authors_by_id = collections.defaultdict(list)
+    self._meta_by_id = collections.defaultdict(dict)
     self._path_by_id = {} # rel to repo base
     self._id_by_path = {}
     self._load_issues()
@@ -38,11 +40,12 @@ class Index(object):
       original = None
       if uid in self._objects_by_id: original = self._objects_by_id[uid]
       print uid, author
-      if original is not None:
-        if author not in original['_authors']:
-          original['_authors'].append(author)
-        original['_commit_id'] = commit.hexsha
-        original['_committed_on'] = commit.committed_date
+      meta = self._meta_by_id[uid]
+      if '_authors' not in meta: meta['_authors'] = []
+      if author not in meta['_authors']:
+        meta['_authors'].append(author)
+      meta['_commit_id'] = commit.hexsha
+      meta['_committed_on'] = commit.committed_date
     repo = git.Repo(self.repo_root)
     try:
       c = 0
@@ -69,7 +72,7 @@ class Index(object):
       print 'indexed', c, 'commits'
       
       for diff in repo.index.diff(None):
-        self._objects_by_id[self._id_by_path[diff.a_blob.path]]['_dirty'] = True
+        self._meta_by_id[self._id_by_path[diff.a_blob.path]]['_dirty'] = True
       
     except ValueError as e:
       # message: Reference at 'refs/heads/master' does not exist
@@ -100,9 +103,15 @@ class Index(object):
   def _load_object(self, fn):
     with open(fn,'r') as f:
       o = json.load(f)
-      o['_authors'] = []
       uid = uuid.UUID(o.get('id'))
       self._objects_by_id[uid] = o
+      if 'text' in o:
+        self._meta_by_id[uid]['_text'] = bleach.clean(markdown.markdown(o['text']))
+      if 'type' not in o:
+        dname = os.path.basename(os.path.dirname(fn))
+        print 'dname', dname
+        if dname=='issues': o['type'] = 'issue'
+        if dname=='comments': o['type'] = 'comment'
       return o
     
   def _load_issues(self):
@@ -120,7 +129,6 @@ class Index(object):
             cfn = os.path.join(issue_path,'comments',cfn)
             comment = self._load_object(cfn)
             if 'type' not in comment: comment['type'] = 'comment'
-            comment['_text'] = bleach.clean(markdown.markdown(comment['text']))
             self._index_comment(comment)
   
   def _index_comment(self, comment):
@@ -129,21 +137,24 @@ class Index(object):
   
   def issue(self, uid):
     issue = self._objects_by_id[uid]
+    issue.update(self._meta_by_id[uid])
     comments = [self._objects_by_id[cid] for cid in self._comment_ids_by_issue_id[uuid.UUID(issue['id'])]]
+    for comment in comments:
+      comment.update(self._meta_by_id[uuid.UUID(comment['id'])])
     comments += self._commits_by_issue_id[uid]
     comments.sort(cmp_comments)
     print '\n'.join([str(c) for c in comments])
     issue['_comments'] = comments
     return issue
   
-  def _issue_path(self, uid):
+  def _issue_dir_full(self, uid):
     uid = uuid.UUID(uid)
-    return os.path.join(self.repo_root, self._path_by_id[uid])
+    return os.path.dirname(os.path.join(self.repo_root, self._path_by_id[uid]))
   
   def save_issue(self, issue):
     if 'id' in issue:
       uid = uuid.UUID(issue['id'])
-      fn = os.path.join(self._issue_path(issue['id']),'issue.json')
+      fn = os.path.join(self._issue_dir_full(issue['id']),'issue.json')
       issue['type'] = 'issue'
       issue = self._save(issue, fn)
       self._objects_by_id[uid].update(issue)
@@ -163,15 +174,11 @@ class Index(object):
     return issue
   
   def _get_comment_path(self, comment):
-    comment_path = os.path.join(self._issue_path(comment['issue_id']),'comments')
+    uid = uuid.UUID(comment['id'])
+    if uid in self._path_by_id: return self._path_by_id[uid]
+    comment_path = os.path.join(self._issue_dir_full(comment['issue_id']),'comments')
     if not os.path.isdir(comment_path):
       os.mkdir(comment_path)
-    for fn in os.listdir(comment_path):
-      fn = os.path.join(comment_path,fn)
-      with open(fn,'r') as f:
-        c = json.load(f)
-        if c['id'] == comment['id']:
-          return fn
     return os.path.join(comment_path, '%s--%s.json' % (slugify(comment['text']), comment['id']))
 
   def save_comment(self, comment):
@@ -181,6 +188,7 @@ class Index(object):
     fn = self._get_comment_path(comment)
     comment = self._save(comment, fn)
     comment['_text'] = bleach.clean(markdown.markdown(comment['text']))
+    self._meta_by_id[uuid.UUID(comment['id'])]['_text'] = comment['_text']
     comment['type'] = 'comment'
     issue = self._objects_by_id[uuid.UUID(comment['issue_id'])]
     self._index_comment(comment)
@@ -199,6 +207,9 @@ class Index(object):
       repo = git.Repo(self.repo_root)
       print 'adding', fn
       repo.index.add([fn])
+    uid = uuid.UUID(o['id'])
+    self._meta_by_id[uid]['_dirty'] = True
+    o.update(self._meta_by_id[uid])
     return o
     
   def revert(self, o):
@@ -207,7 +218,11 @@ class Index(object):
     print 'reverting', uid, 'at', path
     repo = git.Repo(self.repo_root)
     repo.git.checkout(path)
-    
+    o = self._load_object(path)
+    self._meta_by_id[uid]['_dirty'] = False
+    o.update(self._meta_by_id[uid])
+    print o
+    return o
     
 
 def find_root(path):
