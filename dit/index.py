@@ -35,34 +35,54 @@ class Index(object):
       except Exception as e:
         traceback.print_exc()
         print 'could not decode', blob.path
-      author = str(commit.author)
-      print 'author', author
-      original = None
-      if uid in self._objects_by_id: original = self._objects_by_id[uid]
-      print uid, author
-      meta = self._meta_by_id[uid]
-      if '_authors' not in meta: meta['_authors'] = []
-      if author not in meta['_authors']:
-        meta['_authors'].append(author)
-      meta['_commit_id'] = commit.hexsha
-      meta['_committed_on'] = commit.committed_date
+      if uid:
+        author = str(commit.author)
+        print 'author', author
+        meta = self._meta_by_id[uid]
+        if '_authors' not in meta: meta['_authors'] = []
+        if author not in meta['_authors']:
+          meta['_authors'].append(author)
+        meta['_commit_id'] = commit.hexsha
+        meta['_committed_on'] = commit.committed_date
     repo = git.Repo(self.repo_root)
     try:
       c = 0
       for commit in repo.iter_commits():
         c += 1
-        print commit.message
         files = commit.stats.files
+        add_to_issues = set()
+
         for match in ISSUE_ID_RE.findall(commit.message):
-          print 'match', match
           issue_id = uuid.UUID(match[1:])
+          add_to_issues.add(issue_id)
+
+        found_non_dit_file = False
+        conditional_add_to_issues = set()
+        for fn in files.keys():
+          if not fn.startswith('.dit/'):
+            found_non_dit_file = True
+            continue
+          oid = self._id_by_path[fn]
+          if not oid: continue
+          o = self._objects_by_id[oid]
+          if not o: continue
+          dname = os.path.basename(os.path.dirname(fn))
+          if o.get('type')=='issue' or dname=='issues':
+            conditional_add_to_issues.add(uuid.UUID(o['id']))
+          if o.get('type')=='comment' or dname=='comments':
+            conditional_add_to_issues.add(uuid.UUID(o['issue_id']))
+        if found_non_dit_file:
+          add_to_issues |= conditional_add_to_issues
+            
+        for issue_id in add_to_issues:
           self._commits_by_issue_id[issue_id].append({
             'hexsha': commit.hexsha,
             '_committed_on': commit.committed_date,
-            'files': files,
+            'files': {k:v for k,v in files.items() if not k.startswith('.dit/')},
             'message': commit.message,
             'type': 'commit',
           })
+          
         for o in commit.tree.traverse():
           if not isinstance(o, git.objects.blob.Blob): continue
           if o.path not in files: continue
@@ -271,7 +291,7 @@ def slugify(s):
 
 
 def get_timestamps(o):
-  timestamps = [o.get('_committed_on'), o.get('created_on')]
+  timestamps = [o.get('_committed_on',1000000000000), o.get('created_on',1000000000000)]
   return [ts for ts in timestamps if ts]
 
 def cmp_comments(a,b):
