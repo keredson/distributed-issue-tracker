@@ -51,6 +51,11 @@ def comment_save():
   comment = bottle.request.json
   return index.save_comment(comment)
 
+@bottle.post('/repo/revert')
+def repo_revert():
+  o = bottle.request.json
+  return index.revert(o)
+
 def render(fn, **kwargs):
   with open(os.path.join(VIEWS_PATH,'__base__.html'),'r') as bf:
     base = '\n'.join(bf.readlines())

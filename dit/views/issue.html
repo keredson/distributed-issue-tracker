@@ -27,9 +27,31 @@
   <div ng-repeat="comment in issue._comments | orderBy: '_committed_on'">
     <div class="panel panel-default panel-comment" ng-hide="{{comment.type=='commit'}}">
       <div class="panel-heading">
+        <div class="dropdown pull-right" ng-show="comment._dirty">
+          <a data-toggle="dropdown" class='glyphicon glyphicon-chevron-down' href="#"></a>
+          <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+            <li role="presentation">
+              <a role="menuitem" tabindex="-1" href="#" ng-click="commit(comment)" title='Commit'>
+                <span class='glyphicon glyphicon-floppy-disk'></span>
+              </a>
+            </li>
+            <li role="presentation">
+              <a role="menuitem" tabindex="-1" href="#" ng-click="comment._editing=!comment._editing" title='Edit'>
+                <span class='glyphicon glyphicon-pencil'></span>
+              </a>
+            </li>
+            <li role="presentation">
+              <a role="menuitem" tabindex="-1" href="#" ng-click="revert(comment)" title='Revert'>
+                <span class='glyphicon glyphicon-floppy-remove'></span>
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div class="dropdown pull-right" ng-hide="comment._dirty">
+          <a href="#" class='glyphicon glyphicon-pencil' ng-click="comment._editing=!comment._editing" title='Edit'></a>
+        </div>
         <span class='pull-right text-muted'>
           {{comment._committed_on_human ? comment._committed_on_human : '(uncommitted)'}}
-          <a href="#" ng-click="comment._editing=!comment._editing" class='glyphicon glyphicon-pencil'></a>
         </span>
         <span ng-repeat="author in comment._authors">{{author}}{{$last ? '' : ','}}</span>
         <span ng-hide="comment._authors.length">You</span>
@@ -109,6 +131,17 @@ app.controller('IssueCtrl', function($scope, $http, $sce) {
       comment._text = $sce.trustAsHtml(data._text)
       comment.text = data.text
       comment._editing = false
+      comment._dirty = data._dirty
+    });
+  };
+  $scope.revert = function(o) {
+    $http.post('/repo/revert', o).success(function(data) {
+      if (data.type=='comment') {
+        o._text = $sce.trustAsHtml(data._text)
+        o.text = data.text
+        o._editing = false
+        o._dirty = data._dirty
+      }
     });
   };
 });
