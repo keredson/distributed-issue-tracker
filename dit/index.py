@@ -73,6 +73,12 @@ class Index(object):
       
       for diff in repo.index.diff(None):
         self._meta_by_id[self._id_by_path[diff.a_blob.path]]['_dirty'] = True
+      print self._id_by_path
+      for path in repo.git.diff("--cached", "--name-only", "--diff-filter=A").split('\n'):
+        if not path.startswith('.dit/'): continue
+        if not path.endswith('.json'): continue
+        self._meta_by_id[self._id_by_path[path]]['_dirty'] = True
+        
       
     except ValueError as e:
       # message: Reference at 'refs/heads/master' does not exist
@@ -84,7 +90,6 @@ class Index(object):
   
   def repo(self):
     repo = git.Repo(self.repo_root)
-    print 'repo.is_dirty()', repo.is_dirty()
     return {
       'project_dir': self.repo_root,
       'project': os.path.split(self.repo_root)[-1],
@@ -112,6 +117,8 @@ class Index(object):
         print 'dname', dname
         if dname=='issues': o['type'] = 'issue'
         if dname=='comments': o['type'] = 'comment'
+      self._path_by_id[uid] = fn[len(self.repo_root)+1:]
+      self._id_by_path[self._path_by_id[uid]] = uid
       return o
     
   def _load_issues(self):
@@ -138,7 +145,8 @@ class Index(object):
   def issue(self, uid):
     issue = self._objects_by_id[uid]
     issue.update(self._meta_by_id[uid])
-    comments = [self._objects_by_id[cid] for cid in self._comment_ids_by_issue_id[uuid.UUID(issue['id'])]]
+    comments = [self._objects_by_id.get(cid) for cid in self._comment_ids_by_issue_id[uuid.UUID(issue['id'])]]
+    comments = [comment for comment in comments if comment is not None]
     for comment in comments:
       comment.update(self._meta_by_id[uuid.UUID(comment['id'])])
     comments += self._commits_by_issue_id[uid]
@@ -182,15 +190,20 @@ class Index(object):
     return os.path.join(comment_path, '%s--%s.json' % (slugify(comment['text']), comment['id']))
 
   def save_comment(self, comment):
-    if 'id' in comment: comment['id'] = str(uuid.UUID(comment['id']))
-    else: comment['id'] = str(uuid.uuid4())
+    if 'id' in comment:
+      uid = uuid.UUID(comment['id'])
+    else:
+      uid = uuid.uuid4()
+      comment['id'] = str(uid)
     comment['issue_id'] = str(uuid.UUID(comment['issue_id']))
+    comment['type'] = 'comment'
     fn = self._get_comment_path(comment)
     comment = self._save(comment, fn)
-    comment['_text'] = bleach.clean(markdown.markdown(comment['text']))
-    self._meta_by_id[uuid.UUID(comment['id'])]['_text'] = comment['_text']
-    comment['type'] = 'comment'
-    issue = self._objects_by_id[uuid.UUID(comment['issue_id'])]
+    self._meta_by_id[uid]['_text'] = bleach.clean(markdown.markdown(comment['text']))
+    comment.update(self._meta_by_id[uid])
+    self._path_by_id[uid] = fn[len(self.repo_root)+1:]
+    self._id_by_path[self._path_by_id[uid]] = uid
+    print 'self._path_by_id', self._path_by_id, uid
     self._index_comment(comment)
     return comment
 
@@ -217,11 +230,17 @@ class Index(object):
     path = self._path_by_id.get(uid)
     print 'reverting', uid, 'at', path
     repo = git.Repo(self.repo_root)
-    repo.git.checkout(path)
-    o = self._load_object(path)
-    self._meta_by_id[uid]['_dirty'] = False
-    o.update(self._meta_by_id[uid])
-    return o
+    if path in repo.git.diff("--cached", "--name-only", "--diff-filter=A").split('\n'):
+      repo.git.rm('--cached', path)
+      os.remove(os.path.join(self.repo_root, path))
+      del self._objects_by_id[uid]
+      return {'_delete':True}
+    else:
+      repo.git.checkout(path)
+      o = self._load_object(path)
+      self._meta_by_id[uid]['_dirty'] = False
+      o.update(self._meta_by_id[uid])
+      return o
     
   def commit(self, o):
     uid = uuid.UUID(o.get('id'))
