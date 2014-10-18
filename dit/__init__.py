@@ -56,6 +56,11 @@ def repo_revert():
   o = bottle.request.json
   return index.revert(o)
 
+@bottle.post('/repo/commit')
+def repo_commit():
+  o = bottle.request.json
+  return index.commit(o)
+
 def render(fn, **kwargs):
   with open(os.path.join(VIEWS_PATH,'__base__.html'),'r') as bf:
     base = '\n'.join(bf.readlines())

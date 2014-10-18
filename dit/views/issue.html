@@ -144,6 +144,16 @@ app.controller('IssueCtrl', function($scope, $http, $sce) {
       }
     });
   };
+  $scope.commit = function(o) {
+    $http.post('/repo/commit', o).success(function(data) {
+      if (data.type=='comment') {
+        o._text = $sce.trustAsHtml(data._text)
+        o.text = data.text
+        o._editing = false
+        o._dirty = data._dirty
+      }
+    });
+  };
 });
 </script>
 

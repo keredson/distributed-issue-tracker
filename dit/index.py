@@ -221,7 +221,17 @@ class Index(object):
     o = self._load_object(path)
     self._meta_by_id[uid]['_dirty'] = False
     o.update(self._meta_by_id[uid])
-    print o
+    return o
+    
+  def commit(self, o):
+    uid = uuid.UUID(o.get('id'))
+    path = self._path_by_id.get(uid)
+    print 'committing', uid, 'at', path
+    repo = git.Repo(self.repo_root)
+    repo.git.commit(path, m='saved via dit')
+    o = self._load_object(path)
+    self._meta_by_id[uid]['_dirty'] = False
+    o.update(self._meta_by_id[uid])
     return o
     
 
