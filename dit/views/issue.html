@@ -47,19 +47,20 @@
         </form>
       </div>
     </div>
-    <div ng-show="{{comment.type=='commit'}}" class="panel panel-default panel-comment">
-      <div class="panel-heading">
-        <span class='pull-right text-muted'>{{comment._committed_on_human}}</span>
-        Commit: {{comment.hexsha}}
-      </div>
-      <div class="panel-body">
-        <ul>
-          <li ng-repeat="(fn, details) in comment.files">
-            {{fn}} - changes: {{details.lines}} (<span style='color:red'>{{details.deletions}}</span>/<span style='color:green'>{{details.insertions}}</span>)
-          </li>
-        </ul>
-      </div>
-    </div>
+    <ul ng-show="{{comment.type=='commit'}}" class='dit-commit'>
+      <li>
+        <span class='pull-right text-muted'>
+          {{comment._committed_on_human}}
+        </span>
+        <a href='/commit/{{comment.hexsha}}'><code>{{comment.message}}</code></a><br>
+        <span ng-repeat="(fn, details) in comment.files" style='font-size:8pt; padding-left:4px;'>
+          {{fn}}
+          (<span style='color:red'>{{details.deletions}}</span>/<span style='color:green'
+          >{{details.insertions}}</span>)<span ng-hide="$last">,</span>
+        </span>
+
+      </li>
+    </ul>
   </div>
 
     

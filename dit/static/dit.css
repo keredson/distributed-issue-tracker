@@ -17,3 +17,21 @@ h1 .glyphicon {
   padding-bottom: .5em;
 }
 
+code {
+  color: #333;
+  background-color: #f8f8f8;
+}
+
+.dit-commit {
+  margin-bottom:20px;  
+  padding-left: 20px;  
+}
+
+.dit-commit li {
+  list-style-type: none;  
+}
+
+.dit-commit .pull-right {
+  font-size:13px;
+  padding-top:2px;
+}
