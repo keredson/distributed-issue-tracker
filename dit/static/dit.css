@@ -36,19 +36,19 @@ code {
   padding-top:2px;
 }
 
-.panel-heading .dropdown-menu {
+.dropdown-menu {
   min-width:0px;
 }
 
-.panel-heading .dropdown-menu .glyphicon {
+.dropdown-menu .glyphicon {
   margin:0px;
 }
 
-.panel-heading .dropdown-menu a {
+.dropdown-menu a {
   padding: 1px 10px;
 }
 
-.panel-heading .dropdown-menu li.presentation {
+.dropdown-menu li.presentation {
   font-size:13px;
 }
 

@@ -173,7 +173,6 @@ class Index(object):
       comment.update(self._meta_by_id[uuid.UUID(comment['id'])])
     comments += self._commits_by_issue_id[uid]
     comments.sort(cmp_comments)
-    print '\n'.join([str(c) for c in comments])
     issue['_comments'] = comments
     return issue
   
@@ -201,11 +200,14 @@ class Index(object):
       issue['type'] = 'issue'
       issue = self._save(issue, fn)
       self._objects_by_id[uid] = issue
+    issue.update(self._meta_by_id[uid])
+    print issue
     return issue
   
   def _get_comment_path(self, comment):
     uid = uuid.UUID(comment['id'])
-    if uid in self._path_by_id: return self._path_by_id[uid]
+    if uid in self._path_by_id: 
+      return os.path.join(self.repo_root, self._path_by_id[uid])
     comment_path = os.path.join(self._issue_dir_full(comment['issue_id']),'comments')
     if not os.path.isdir(comment_path):
       os.mkdir(comment_path)
@@ -225,7 +227,6 @@ class Index(object):
     comment.update(self._meta_by_id[uid])
     self._path_by_id[uid] = fn[len(self.repo_root)+1:]
     self._id_by_path[self._path_by_id[uid]] = uid
-    print 'self._path_by_id', self._path_by_id, uid
     self._index_comment(comment)
     return comment
 
@@ -253,13 +254,13 @@ class Index(object):
     print 'reverting', uid, 'at', path
     repo = git.Repo(self.repo_root)
     if path in repo.git.diff("--cached", "--name-only", "--diff-filter=A").split('\n'):
-      repo.git.rm('--cached', path)
+      repo.git.rm('--cached', '-f', path)
       os.remove(os.path.join(self.repo_root, path))
       del self._objects_by_id[uid]
       return {'_delete':True}
     else:
       repo.git.checkout(path)
-      o = self._load_object(path)
+      o = self._load_object(os.path.join(self.repo_root,path))
       self._meta_by_id[uid]['_dirty'] = False
       o.update(self._meta_by_id[uid])
       return o

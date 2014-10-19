@@ -8,9 +8,11 @@
   </ol>
 
   <h1 ng-hide="editorEnabled">
-    {{issue.title}}
-    <a href="#" ng-click="editorEnabled=!editorEnabled" class='glyphicon glyphicon-pencil'></a>
+    <span>{{issue.title}}</span>
+      <a href="#" class='glyphicon glyphicon-pencil' ng-click="editorEnabled=!editorEnabled" title='Edit'></a>
+      <a ng-show='issue._dirty' href="#" ng-click="revert(issue)" title='Revert' class='glyphicon glyphicon-floppy-remove'></a>
   </h1>
+
   <h1 ng-show="editorEnabled">
     <form name="titleform" class='form-inline' ng-submit="saveTitle()">
       <input type="text" class='form-control' ng-model="issue.title" ng-model-options="{ updateOn: 'submit' }" name="title" size=30 placeholder="Title...">
@@ -27,23 +29,9 @@
   <div ng-repeat="comment in issue._comments | orderBy: '_committed_on'">
     <div class="panel panel-default panel-comment" ng-hide="{{comment.type=='commit'}}">
       <div class="panel-heading">
-        <div class="dropdown pull-right" ng-show="comment._dirty">
-          <a data-toggle="dropdown" class='glyphicon glyphicon-chevron-down' href="#"></a>
-          <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-            <li role="presentation">
-              <a role="menuitem" tabindex="-1" href="#" ng-click="comment._editing=!comment._editing" title='Edit'>
-                <span class='glyphicon glyphicon-pencil'></span>
-              </a>
-            </li>
-            <li role="presentation">
-              <a role="menuitem" tabindex="-1" href="#" ng-click="revert(comment)" title='Revert'>
-                <span class='glyphicon glyphicon-floppy-remove'></span>
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div class="dropdown pull-right" ng-hide="comment._dirty">
+        <div class="dropdown pull-right">
           <a href="#" class='glyphicon glyphicon-pencil' ng-click="comment._editing=!comment._editing" title='Edit'></a>
+          <a href="#" class='glyphicon glyphicon-floppy-remove' ng-click="revert(comment)" title='Revert' ng-show="comment._dirty"></a>
         </div>
         <span class='pull-right text-muted'>
           {{comment._committed_on_human ? comment._committed_on_human : '(uncommitted)'}}
@@ -84,7 +72,7 @@
   <form name="commentform" ng-submit="addComment()">
     <p>
       <textarea class='form-control' ng-model='newcomment.text' placeholder='Add a comment...' 
-                rows='{{newcomment._rows}}' ng-focus='newcomment._rows=10' ng-blur='newcomment._rows=""'></textarea>
+                rows='{{newcomment._rows}}' ng-change='newcomment._rows=countLines(newcomment.text)+2'></textarea>
     </p>
     <p class='pull-right'>
       <button type="submit" class='btn btn-primary'>Comment</button>
@@ -113,13 +101,21 @@ app.controller('IssueCtrl', function($scope, $http, $sce) {
   });
   
   $scope.saveTitle = function() {
-    $http.post('/issue/save', $scope.issue).success(function(data) {});
+    $http.post('/issue/save', $scope.issue).success(function(data) {
+      $scope.issue._dirty = data._dirty
+    });
   };
+
+  $scope.countLines = function(text) {
+    return (text.match(/\n/g)||[]).length
+  };
+  
   $scope.addComment = function() {
     $http.post('/comment/save', $scope.newcomment).success(function(data) {
       data._text = $sce.trustAsHtml(data._text);
       $scope.issue._comments.push(data)
       $scope.newcomment.text = ''
+      $scope.newcomment._rows=''
     });
   };
   $scope.saveComment = function(comment) {
@@ -135,12 +131,15 @@ app.controller('IssueCtrl', function($scope, $http, $sce) {
       if (data['_delete']) {
         $scope.issue._comments.splice($scope.issue._comments.indexOf(o),1);
       }
-      else if (comment.type=='comment') {
+      else if (o.type=='comment') {
         o._text = $sce.trustAsHtml(data._text)
         o.text = data.text
-        o._editing = false
-        o._dirty = data._dirty
       }
+      else if (o.type=='issue') {
+        o.title = data.title
+      }
+      o._editing = false
+      o._dirty = data._dirty
     });
   };
 });
