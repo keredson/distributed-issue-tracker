@@ -122,7 +122,9 @@ class Index(object):
   def issues(self):
     issues = [issue for issue in self._objects_by_id.values() if issue['type']=='issue']
     for issue in issues:
-      issue['_comments'] = ['' for cid in self._comment_ids_by_issue_id[uuid.UUID(issue['id'])]]
+      issue_id = uuid.UUID(issue['id'])
+      issue.update(self._meta_by_id[issue_id])
+      issue['_comments'] = ['' for cid in self._comment_ids_by_issue_id[issue_id]]
     return issues
 
   def _load_object(self, fn):
@@ -261,18 +263,7 @@ class Index(object):
       self._meta_by_id[uid]['_dirty'] = False
       o.update(self._meta_by_id[uid])
       return o
-    
-  def commit(self, o):
-    uid = uuid.UUID(o.get('id'))
-    path = self._path_by_id.get(uid)
-    print 'committing', uid, 'at', path
-    repo = git.Repo(self.repo_root)
-    repo.git.commit(path, m='saved via dit')
-    o = self._load_object(path)
-    self._meta_by_id[uid]['_dirty'] = False
-    o.update(self._meta_by_id[uid])
-    return o
-    
+        
 
 def find_root(path):
   candidate = os.path.join(path,'.dit')

@@ -31,11 +31,6 @@
           <a data-toggle="dropdown" class='glyphicon glyphicon-chevron-down' href="#"></a>
           <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
             <li role="presentation">
-              <a role="menuitem" tabindex="-1" href="#" ng-click="commit(comment)" title='Commit'>
-                <span class='glyphicon glyphicon-floppy-disk'></span>
-              </a>
-            </li>
-            <li role="presentation">
               <a role="menuitem" tabindex="-1" href="#" ng-click="comment._editing=!comment._editing" title='Edit'>
                 <span class='glyphicon glyphicon-pencil'></span>
               </a>
@@ -88,7 +83,8 @@
     
   <form name="commentform" ng-submit="addComment()">
     <p>
-      <textarea class='form-control' ng-model='newcomment.text' placeholder='Add a comment...'></textarea>
+      <textarea class='form-control' ng-model='newcomment.text' placeholder='Add a comment...' 
+                rows='{{newcomment._rows}}' ng-focus='newcomment._rows=10' ng-blur='newcomment._rows=""'></textarea>
     </p>
     <p class='pull-right'>
       <button type="submit" class='btn btn-primary'>Comment</button>
@@ -140,16 +136,6 @@ app.controller('IssueCtrl', function($scope, $http, $sce) {
         $scope.issue._comments.splice($scope.issue._comments.indexOf(o),1);
       }
       else if (comment.type=='comment') {
-        o._text = $sce.trustAsHtml(data._text)
-        o.text = data.text
-        o._editing = false
-        o._dirty = data._dirty
-      }
-    });
-  };
-  $scope.commit = function(o) {
-    $http.post('/repo/commit', o).success(function(data) {
-      if (data.type=='comment') {
         o._text = $sce.trustAsHtml(data._text)
         o.text = data.text
         o._editing = false
