@@ -40,6 +40,14 @@ def issue(uid):
     issue = index.issue(uid)
     return render('issue.html', issue=json.dumps(issue))
 
+@bottle.post('/issue/<uid>/change-state/<state>')
+def issue_change_state(uid, state):
+  uid = uuid.UUID(uid)
+  issue = index.issue(uid)
+  issue['state'] = state
+  issue = index.save_issue(issue)
+  return issue
+
 @bottle.post('/issue/save')
 def issue_save():
   issue = bottle.request.json

@@ -229,9 +229,16 @@ class Index(object):
     self._id_by_path[self._path_by_id[uid]] = uid
     self._index_comment(comment)
     return comment
+  
+  def _sanity_check_and_clean(self, o):
+    o = o.copy()
+    if 'type' not in o or o['type']=='issue':
+      if o.get('status') not in ('open','closed'):
+        o['status'] = None
+    return o
 
   def _save(self, o, fn):
-    o = o.copy()
+    o = self._sanity_check_and_clean(o)
     created = not os.path.isfile(fn)
     if created: o['created_on'] = int(time.time())
     with open(fn,'w') as f:

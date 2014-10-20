@@ -7,6 +7,11 @@
     <li class="active">{{issue.id}}</li>
   </ol>
 
+  <p class='pull-right'>
+    <span class='label label-success' ng-hide='issue.state=="closed"'>Open</span>
+    <span class='label label-danger' ng-show='issue.state=="closed"'>Closed</span>
+  </p>
+  
   <h1 ng-hide="editorEnabled">
     <span>{{issue.title}}</span>
       <a href="#" class='glyphicon glyphicon-pencil' ng-click="editorEnabled=!editorEnabled" title='Edit'></a>
@@ -75,7 +80,9 @@
                 rows='{{newcomment._rows}}' ng-change='newcomment._rows=countLines(newcomment.text)+2'></textarea>
     </p>
     <p class='pull-right'>
-      <button type="submit" class='btn btn-primary'>Comment</button>
+      <button ng-click='changeState("closed")' class='btn btn-default' ng-hide='issue.state=="closed"'>Close Issue</button>
+      <button ng-click='changeState("open")' class='btn btn-default' ng-show='issue.state=="closed"'>Reopen Issue</button>
+      <button type="submit" class='btn btn-primary' ng-disabled='!newcomment.text || newcomment.text.length==0'>Comment</button>
     </p>
   </form>
     
@@ -110,7 +117,14 @@ app.controller('IssueCtrl', function($scope, $http, $sce) {
     return (text.match(/\n/g)||[]).length
   };
   
+  $scope.changeState = function(state) {
+    $http.post('/issue/'+$scope.issue.id+'/change-state/'+state).success(function(data) {
+      $scope.issue.state = data.state;
+      $scope.issue._dirty = data._dirty;
+    });
+  }
   $scope.addComment = function() {
+    if (!$scope.newcomment.text) return;
     $http.post('/comment/save', $scope.newcomment).success(function(data) {
       data._text = $sce.trustAsHtml(data._text);
       $scope.issue._comments.push(data)
@@ -137,6 +151,7 @@ app.controller('IssueCtrl', function($scope, $http, $sce) {
       }
       else if (o.type=='issue') {
         o.title = data.title
+        o.state = data.state
       }
       o._editing = false
       o._dirty = data._dirty
