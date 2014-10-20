@@ -1,4 +1,4 @@
-import bleach, collections, git, json, markdown, os, re, time, traceback, uuid
+import bleach, collections, git, itertools, json, markdown, os, re, time, traceback, uuid
 
 bleach.ALLOWED_TAGS.append('p')
 
@@ -17,9 +17,35 @@ class Index(object):
     self._id_by_path = {}
     self._load_issues()
     self.index_history()
+    
+    self._ngrams = collections.defaultdict(set)
+    self._index_objects()
+    
     print 'len(self._objects_by_id)', len(self._objects_by_id)
     print 'len(self._comment_ids_by_issue_id)', len(self._comment_ids_by_issue_id)
     print 'len(self._commits_by_issue_id)', len(self._commits_by_issue_id)
+    
+#    for k,v in sorted(self._ngrams.iteritems()):
+#      print k,len(v)
+    
+  def _index_objects(self):
+    def index(uid, items):
+      for k,v in items:
+        if k=='id': continue
+        if k.startswith('_'): continue
+        if k=='files':
+          v = u' '.join(v.keys())
+        if not isinstance(v,basestring): continue
+        for ngram in ngrams(v):
+          self._ngrams[ngram].add(uid)
+    for uid, o in self._objects_by_id.iteritems():
+      #o.update(self._meta_by_id[uid])
+      #if '_text' in o: del ['_text'] # don't index the markdown
+      index(uid, o.iteritems())
+    for uid, commits in self._commits_by_issue_id.iteritems():
+      for commit in commits:
+        index(uid, commit.iteritems())
+      
   
   def index_history(self):
     def index(commit, diff, blob):
@@ -119,8 +145,22 @@ class Index(object):
       'is_dirty': repo.is_dirty(),
     }
     
-  def issues(self):
-    issues = [issue for issue in self._objects_by_id.values() if issue['type']=='issue']
+  def issues(self, q=None):
+    print 'q', q
+    if q:
+      scores_by_issue_id = collections.defaultdict(int)
+      for ngram in ngrams(q):
+        print ngram
+        for uid in self._ngrams[ngram]:
+          o = self._objects_by_id[uid]
+          if o.get('type')=='comment': uid = uuid.UUID(o['issue_id'])
+          scores_by_issue_id[uid] += 1
+      print 'scores_by_issue_id', [x for x in sorted([(y[1],y[0]) for y in scores_by_issue_id.items()], reverse=True)]
+      issue_ids = [x[1] for x in sorted([(y[1],y[0]) for y in scores_by_issue_id.items()], reverse=True)]
+      issues = [self._objects_by_id[uid] for uid in issue_ids]
+      print 'issues', issues
+    else:
+      issues = [issue for issue in self._objects_by_id.values() if issue['type']=='issue']
     for issue in issues:
       issue_id = uuid.UUID(issue['id'])
       issue.update(self._meta_by_id[issue_id])
@@ -136,7 +176,6 @@ class Index(object):
         self._meta_by_id[uid]['_text'] = bleach.clean(markdown.markdown(o['text']))
       if 'type' not in o:
         dname = os.path.basename(os.path.dirname(fn))
-        print 'dname', dname
         if dname=='issues': o['type'] = 'issue'
         if dname=='comments': o['type'] = 'comment'
       self._path_by_id[uid] = fn[len(self.repo_root)+1:]
@@ -298,4 +337,17 @@ def cmp_comments(a,b):
   
 
 ISSUE_ID_RE = re.compile('#[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}')
+
+
+def ngrams(text, n=5):
+  text = re.sub(r'[^0-9a-zA-Z\s]+', ' ', text)
+  text = text.lower()
+  ngrams = text.split()
+  s = 0
+  e = len(ngrams)
+  for s in range(e):
+    for i in range(min(n,e-s)):
+      yield tuple(ngrams[s:s+i+1])
+  
+  
 

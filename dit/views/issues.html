@@ -2,6 +2,7 @@
 <div ng-controller="IssuesCtrl"> 
   
   <p>
+    <form ng-submit="search()">
         <div class="input-group">
           <div class="input-group-btn">
             <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">Filter <span class="caret"></span></button>
@@ -13,8 +14,12 @@
               <li><a href="#">Separated link</a></li>
             </ul>
           </div><!-- /btn-group -->
-          <input type="text" class="form-control" placeholder='Search...'>
+          <input type="text" class="form-control" placeholder='Search...' ng-model='q'>
+          <span class="input-group-btn">
+            <button type="submit" class="btn btn-default">Search</button>
+          </span><!-- /btn-group -->
         </div><!-- /input-group -->
+    </form>
   </p>
 
   <div class="panel panel-default">
@@ -40,7 +45,11 @@
   
 <script>
 ditApp.controller('IssuesCtrl', function ($scope, $http) {
-  $http.get('/json/issues').success(function(data) {
+  $scope.search = function() {
+    window.location.href = '/issues?q='+$scope.q;
+  }
+  $scope.q = getParameterByName('q');
+  $http.get('/json/issues?q='+$scope.q).success(function(data) {
     $scope.issues = data.issues;
     angular.forEach($scope.issues, function(issue) {
       if (issue._committed_on) {
@@ -49,5 +58,11 @@ ditApp.controller('IssuesCtrl', function ($scope, $http) {
     });
   });
 });
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
 </script>
 

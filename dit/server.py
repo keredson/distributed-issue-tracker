@@ -24,7 +24,7 @@ def issues():
 @bottle.route('/json/issues')
 def json_issues():
   return {
-    'issues':index.issues(),
+    'issues':index.issues(q=bottle.request.query.q),
   }
 
 @bottle.route('/json/repo')
