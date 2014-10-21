@@ -7,10 +7,11 @@
           <div class="input-group-btn">
             <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">Filter <span class="caret"></span></button>
             <ul class="dropdown-menu" role="menu">
-              <li><a href="#" ng-click="q='state:open'; search()">Open</a></li>
-              <li><a href="#" ng-click="q='state:closed'; search()">Closed</a></li>
+              <li><a href="#" ng-click="q='is:open'; search()">Open</a></li>
+              <li><a href="#" ng-click="q='is:closed'; search()">Closed</a></li>
+              <li><a href="#" ng-click="q='is:dirty'; search()">Changed</a></li>
               <li class="divider"></li>
-              <li><a href="#" ng-click="q=''; search()">Clear</a></li>
+              <li><a href="#" ng-click="q=''; search()">All</a></li>
             </ul>
           </div><!-- /btn-group -->
           <input type="text" class="form-control" placeholder='Search...' ng-model='q'>
@@ -25,9 +26,12 @@
     <div class="panel-heading">{{issues.length}} issue{{issues.length==1 ? '' : 's'}}</div>
     <table class='table'>
       <tr ng-repeat="issue in issues">
+        <td style='width: 1px; padding-right:0px;'>
+          <span class='glyphicon glyphicon-eye-open' style='color:#6cc644' ng-show="issue.state=='open'" title='Open'></span>
+          <span class='glyphicon glyphicon-eye-close' style='color:#bd2c00' ng-show="issue.state=='closed'" title='Closed'></span>
+        </td>
         <td>
           <a href='/issue/{{issue.id}}'>{{issue.title}}</a>
-        </td>
         <td align='right' class='text-muted'>
           {{issue._committed_on ? issue._committed_on_human : '(new)'}}
         </td>

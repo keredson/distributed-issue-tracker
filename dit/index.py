@@ -29,24 +29,28 @@ class Index(object):
 #      print k,len(v)
     
   def _index_objects(self):
-    def index(uid, items):
-      for k,v in items:
-        if k=='id': continue
-        if k=='_text': continue # don't index the markdown
-        if k=='_authors': v = u' '.join([' '.join(x.values()) for x in v])
-        if k=='files': v = u' '.join(v.keys())
-        if k=='state': v = 'state:%s' % v
-        if not isinstance(v,basestring): continue
-        for ngram in ngrams(v):
-          self._ngrams[ngram].add(uid)
     for uid, o in self._objects_by_id.iteritems():
       o = o.copy()
       o.update(self._meta_by_id[uid])
-      index(uid, o.iteritems())
+      self._index_object(uid, o)
     for uid, commits in self._commits_by_issue_id.iteritems():
       for commit in commits:
-        index(uid, commit.iteritems())
-      
+        self._index_object(uid, commit)
+
+  def _index_object(self, uid, o, clear=False):
+    if clear:
+      for uids in self._ngrams.itervalues():
+        uids.discard(uid)
+    for k,v in o.iteritems():
+      if k=='id': continue
+      if k=='_text': continue # don't index the markdown
+      if k=='_authors': v = u' '.join([' '.join(x.values()) for x in v])
+      if k=='files': v = u' '.join(v.keys())
+      if k=='state': v = 'is:%s' % v
+      if k=='_dirty': v = 'is:dirty' if v else 'is:clean'
+      if not isinstance(v,basestring): continue
+      for ngram in ngrams(v):
+        self._ngrams[ngram].add(uid)
   
   def index_history(self):
     def index(commit, diff, blob):
@@ -118,6 +122,8 @@ class Index(object):
 
       print 'indexed', c, 'commits'
       
+      for o in self._meta_by_id.values():
+        o['_dirty'] = False
       for diff in repo.index.diff(None):
         self._meta_by_id[self._id_by_path[diff.a_blob.path]]['_dirty'] = True
       print self._id_by_path
@@ -179,6 +185,7 @@ class Index(object):
         dname = os.path.basename(os.path.dirname(fn))
         if dname=='issues': o['type'] = 'issue'
         if dname=='comments': o['type'] = 'comment'
+      if o.get('type')=='issue' and 'state' not in o: o['state'] = 'open'
       self._path_by_id[uid] = fn[len(self.repo_root)+1:]
       self._id_by_path[self._path_by_id[uid]] = uid
       return o
@@ -192,7 +199,6 @@ class Index(object):
       if os.path.isfile(issue_fn):
         issue = self._load_object(issue_fn)
         if 'type' not in issue: issue['type'] = 'issue'
-        if 'state' not in issue: issue['state'] = 'open'
         comments_dir = os.path.join(issue_path,'comments')
         if os.path.isdir(comments_dir):
           for cfn in os.listdir(comments_dir):
@@ -294,6 +300,7 @@ class Index(object):
     uid = uuid.UUID(o['id'])
     self._meta_by_id[uid]['_dirty'] = True
     o.update(self._meta_by_id[uid])
+    self._index_object(uid, o, clear=True)
     return o
     
   def revert(self, o):
@@ -311,6 +318,7 @@ class Index(object):
       o = self._load_object(os.path.join(self.repo_root,path))
       self._meta_by_id[uid]['_dirty'] = False
       o.update(self._meta_by_id[uid])
+      self._index_object(uid, o, clear=True)
       return o
         
 
