@@ -118,7 +118,6 @@ class Index(object):
           if not isinstance(o, git.objects.blob.Blob): continue
           if o.path not in files: continue
           index(commit, None, o)
-          print o.path
 
       print 'indexed', c, 'commits'
       
@@ -126,7 +125,6 @@ class Index(object):
         o['_dirty'] = False
       for diff in repo.index.diff(None):
         self._meta_by_id[self._id_by_path[diff.a_blob.path]]['_dirty'] = True
-      print self._id_by_path
       for path in repo.git.diff("--cached", "--name-only", "--diff-filter=A").split('\n'):
         if not path.startswith('.dit/'): continue
         if not path.endswith('.json'): continue
@@ -153,21 +151,18 @@ class Index(object):
     }
     
   def issues(self, q=None):
-    print 'q', q
     if q:
       scores_by_issue_id = collections.defaultdict(int)
       for ngram in ngrams(q):
-        print ngram
         for uid in self._ngrams[ngram]:
           o = self._objects_by_id[uid]
           if o.get('type')=='comment': uid = uuid.UUID(o['issue_id'])
           scores_by_issue_id[uid] += 1
-      print 'scores_by_issue_id', [x for x in sorted([(y[1],y[0]) for y in scores_by_issue_id.items()], reverse=True)]
       issue_ids = [x[1] for x in sorted([(y[1],y[0]) for y in scores_by_issue_id.items()], reverse=True)]
       issues = [self._objects_by_id[uid] for uid in issue_ids]
-      print 'issues', issues
+      issues = [issue for issue in issues if len(issue)] # purge empty dicts
     else:
-      issues = [issue for issue in self._objects_by_id.values() if issue['type']=='issue']
+      issues = [o for o in self._objects_by_id.values() if o['type']=='issue']
     for issue in issues:
       issue_id = uuid.UUID(issue['id'])
       issue.update(self._meta_by_id[issue_id])
