@@ -1,0 +1,70 @@
+<div ng-controller="CommitCtrl"> 
+
+
+  <ol class="breadcrumb">
+    <li><a href="/">home</a></li>
+    <li><a href='/issues'>commits</a></li>
+    <li class="active">{{commit.hexsha}}</li>
+  </ol>
+
+  <p>
+    Committed on {{commit._committed_on_human}} by <a href='mailto:{{commit.author.email}}'>{{commit.author.name}}</a>
+  </p>
+  
+  <p>
+    <pre>{{commit.message}}</pre>
+  </p>
+  
+
+  <div ng-repeat="parent in commit.parents | orderBy: '_committed_on'">
+    <p>Diff from parent
+      <a href='/commit/{{parent.hexsha}}'><code>{{parent.message}}</code></a>
+      on {{parent._committed_on_human}}
+    </p>
+    <div class="panel panel-default" ng-repeat="diff in parent.diffs">
+      <div class="panel-heading">
+        <span ng-show='diff.new_file'>
+          <code>{{diff.b_path}}</code>
+          <span style='color:green'>(new)</span>
+        </span>
+        <span ng-show='diff.deleted_file'>
+          <code>{{diff.a_path}}</code>
+          <span style='color:red'>(deleted)</span>
+        </span>
+        <span ng-show='diff.renamed'>
+          Renamed <code>{{diff.rename_from}}</code> to <code>{{diff.rename_to}}</code>
+        </span>
+        <span ng-hide='diff.renamed || diff.deleted_file || diff.new_file'>
+          <code>{{diff.a_path}}</code>
+        </span>
+      </div>
+      <div class="panel-body display-diff">
+        <pre ng-bind-html='diff.html'></pre>
+      </div>
+    </div>
+  </div>
+
+
+
+</div>
+  
+<script>
+var app = angular.module('ditApp');
+app.controller('CommitCtrl', function($scope, $http, $sce) {
+  $scope.commit = ##commit##;
+  $scope.commit._committed_on_human = new Date($scope.commit._committed_on * 1000).toLocaleString();
+  angular.forEach($scope.commit.parents, function(parent) {
+    if (parent._committed_on) {
+      parent._committed_on_human = new Date(parent._committed_on * 1000).toLocaleString();
+    }
+    var dmp = new diff_match_patch();
+    angular.forEach(parent.diffs, function(diff) {
+      var d = dmp.diff_main(diff.a_blob, diff.b_blob);
+      dmp.diff_cleanupSemantic(d);
+      var ds = dmp.diff_prettyHtml(d);
+      diff.html = $sce.trustAsHtml(ds);
+    });
+  });
+});
+</script>
+

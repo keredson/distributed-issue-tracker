@@ -52,3 +52,19 @@ code {
   font-size:13px;
 }
 
+.display-diff pre {
+  border: 0px;
+  margin: 0px;
+  padding: 0px;
+  background-color: white;
+}
+
+.display-diff ins {
+  text-decoration: none;
+}
+
+.display-diff del {
+  text-decoration: none;
+}
+
+

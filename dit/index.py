@@ -150,6 +150,35 @@ class Index(object):
       'is_dirty': repo.is_dirty(),
     }
     
+  def commit_detail(self, ref):
+    repo = git.Repo(self.repo_root)
+    commit = repo.commit(ref)
+    commit_detail = {
+            'hexsha': commit.hexsha,
+            '_committed_on': commit.committed_date,
+            'parents': [{
+              'hexsha':parent.hexsha, 
+              'message':parent.message, 
+              '_committed_on': parent.committed_date,
+              'diffs': [{
+                'a_path': diff.a_blob.path if diff.a_blob else None,
+                'b_path': diff.b_blob.path if diff.b_blob else None,
+                'a_blob': diff.a_blob.data_stream.read() if diff.a_blob else '',
+                'b_blob': diff.b_blob.data_stream.read() if diff.b_blob else '',
+                'new_file': diff.new_file,
+                'deleted_file': diff.deleted_file,
+                'renamed': diff.renamed,
+                'rename_from': diff.rename_from,
+                'rename_to': diff.rename_to,
+              } for diff in parent.diff(commit)],
+            } for parent in commit.parents],
+            'message': commit.message,
+            'type': 'commit',
+            'author': {'name':commit.author.name, 'email':commit.author.email},
+          }
+    return commit_detail
+    
+  
   def issues(self, q=None):
     if q:
       scores_by_issue_id = collections.defaultdict(int)

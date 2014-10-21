@@ -40,6 +40,11 @@ def issue(uid):
     issue = index.issue(uid)
     return render('issue.html', issue=json.dumps(issue))
 
+@bottle.route('/commit/<ref>')
+def commit(ref):
+  commit = index.commit_detail(ref)
+  return render('commit_detail.html', commit=json.dumps(commit))
+
 @bottle.post('/issue/<uid>/change-state/<state>')
 def issue_change_state(uid, state):
   uid = uuid.UUID(uid)
