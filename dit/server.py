@@ -15,7 +15,7 @@ def server_static(filepath):
 
 @bottle.route('/')
 def home():
-  return bottle.redirect('/issues')
+  return render('home.html')
 
 @bottle.route('/issues')
 def issues():
