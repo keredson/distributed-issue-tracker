@@ -86,6 +86,7 @@ def render(fn, **kwargs):
         data = data.replace('##%s##'%k,str(v))
       return base.replace('##__content__##',data)
   
+def serve():
+  bottle.run(host='localhost', port=4920, debug=True)
 
-bottle.run(host='localhost', port=4920, debug=True)
 
