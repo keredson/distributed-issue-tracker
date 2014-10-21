@@ -111,7 +111,7 @@ class Index(object):
             'files': {k:v for k,v in files.items() if not k.startswith('.dit/')},
             'message': commit.message,
             'type': 'commit',
-            'author': '%s <%s>' % (commit.author.name, commit.author.email),
+            'author': {'name':commit.author.name, 'email':commit.author.email},
           })
           
         for o in commit.tree.traverse():
@@ -149,6 +149,13 @@ class Index(object):
       'branch': repo.head.reference.name,
       'is_dirty': repo.is_dirty(),
     }
+    
+  def commits(self):
+    commits = []
+    for commits_for_issue in self._commits_by_issue_id.values():
+      commits.extend(commits_for_issue)
+    commits.sort(lambda x,y: cmp(x['_committed_on'],y['_committed_on']), reverse=True)
+    return commits
     
   def commit_detail(self, ref):
     repo = git.Repo(self.repo_root)

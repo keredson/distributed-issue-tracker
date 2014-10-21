@@ -1,0 +1,31 @@
+<div ng-controller="CommitsCtrl"> 
+
+    <ul class='dit-commit' style='padding:0px'>
+      <li ng-repeat='commit in commits' style='margin-bottom:12px;'>
+        <span class='pull-right text-muted' style='text-align:right;'>
+          {{commit._committed_on_human}}<br>
+          <a href='mailto:{{commit.author.email}}'>{{commit.author.name}}</a>
+        </span>
+        <a href='/commit/{{commit.hexsha}}'><code>{{commit.message}}</code></a><br>
+        <span ng-repeat="(fn, details) in commit.files" style='font-size:8pt; padding-left:4px;'>
+          {{fn}}
+          (<span style='color:red'>{{details.deletions}}</span>/<span style='color:green'
+          >{{details.insertions}}</span>)<span ng-hide="$last">,</span>
+        </span>
+
+      </li>
+    </ul>
+
+  
+<script>
+var app = angular.module('ditApp');
+app.controller('CommitsCtrl', function($scope, $http, $sce) {
+  $scope.commits = ##commits##;
+  angular.forEach($scope.commits, function(commit) {
+    if (commit._committed_on) {
+      commit._committed_on_human = new Date(commit._committed_on * 1000).toLocaleString();
+    }
+  });
+});
+</script>
+

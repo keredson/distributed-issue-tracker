@@ -40,6 +40,12 @@ def issue(uid):
     issue = index.issue(uid)
     return render('issue.html', issue=json.dumps(issue))
 
+@bottle.route('/commits')
+def commits():
+  commits = index.commits()
+  print commits
+  return render('commits.html', commits=json.dumps(commits))
+
 @bottle.route('/commit/<ref>')
 def commit(ref):
   commit = index.commit_detail(ref)
@@ -71,7 +77,7 @@ def repo_revert():
 
 def render(fn, **kwargs):
   with open(os.path.join(VIEWS_PATH,'__base__.html'),'r') as bf:
-    base = '\n'.join(bf.readlines())
+    base = ''.join(bf.readlines())
     
     with open(os.path.join(VIEWS_PATH,fn),'r') as f:
       data = '\n'.join(f.readlines())

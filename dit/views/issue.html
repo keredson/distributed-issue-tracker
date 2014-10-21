@@ -59,8 +59,9 @@
     </div>
     <ul ng-show="{{comment.type=='commit'}}" class='dit-commit'>
       <li>
-        <span class='pull-right text-muted'>
-          {{comment._committed_on_human}}
+        <span class='pull-right text-muted' style='text-align:right;'>
+          {{comment._committed_on_human}}<br>
+          <a href='mailto:{{comment.author.email}}'>{{comment.author.name}}</a>
         </span>
         <a href='/commit/{{comment.hexsha}}'><code>{{comment.message}}</code></a><br>
         <span ng-repeat="(fn, details) in comment.files" style='font-size:8pt; padding-left:4px;'>
