@@ -32,15 +32,16 @@ class Index(object):
     def index(uid, items):
       for k,v in items:
         if k=='id': continue
-        if k.startswith('_'): continue
-        if k=='files':
-          v = u' '.join(v.keys())
+        if k=='_text': continue # don't index the markdown
+        if k=='_authors': v = u' '.join([' '.join(x.values()) for x in v])
+        if k=='files': v = u' '.join(v.keys())
+        if k=='state': v = 'state:%s' % v
         if not isinstance(v,basestring): continue
         for ngram in ngrams(v):
           self._ngrams[ngram].add(uid)
     for uid, o in self._objects_by_id.iteritems():
-      #o.update(self._meta_by_id[uid])
-      #if '_text' in o: del ['_text'] # don't index the markdown
+      o = o.copy()
+      o.update(self._meta_by_id[uid])
       index(uid, o.iteritems())
     for uid, commits in self._commits_by_issue_id.iteritems():
       for commit in commits:
@@ -62,8 +63,7 @@ class Index(object):
         traceback.print_exc()
         print 'could not decode', blob.path
       if uid:
-        author = str(commit.author)
-        print 'author', author
+        author = {'name':commit.author.name, 'email':commit.author.email}
         meta = self._meta_by_id[uid]
         if '_authors' not in meta: meta['_authors'] = []
         if author not in meta['_authors']:
@@ -107,6 +107,7 @@ class Index(object):
             'files': {k:v for k,v in files.items() if not k.startswith('.dit/')},
             'message': commit.message,
             'type': 'commit',
+            'author': '%s <%s>' % (commit.author.name, commit.author.email),
           })
           
         for o in commit.tree.traverse():
@@ -191,6 +192,7 @@ class Index(object):
       if os.path.isfile(issue_fn):
         issue = self._load_object(issue_fn)
         if 'type' not in issue: issue['type'] = 'issue'
+        if 'state' not in issue: issue['state'] = 'open'
         comments_dir = os.path.join(issue_path,'comments')
         if os.path.isdir(comments_dir):
           for cfn in os.listdir(comments_dir):
@@ -340,7 +342,7 @@ ISSUE_ID_RE = re.compile('#[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0
 
 
 def ngrams(text, n=5):
-  text = re.sub(r'[^0-9a-zA-Z\s]+', ' ', text)
+  text = re.sub(r'[^0-9a-zA-Z\s:]+', ' ', text)
   text = text.lower()
   ngrams = text.split()
   s = 0

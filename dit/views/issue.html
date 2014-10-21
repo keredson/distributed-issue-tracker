@@ -28,7 +28,7 @@
   
   <p class='pull-right text-muted' style='margin-top:-.9em;'>{{issue._committed_on_human}}</p>
   <p class='text-muted' style='margin-top:-.9em;' ng-show='issue._authors.length'>
-    By: <span ng-repeat="author in issue._authors">{{author}}{{$last ? '' : ','}}</span>
+    By: <span ng-repeat="author in issue._authors"><a href='mailto:{{author.email}}'>{{author.name}}</a>{{$last ? '' : ','}}</span>
   </p>
 
   <div ng-repeat="comment in issue._comments | orderBy: '_committed_on'">
@@ -41,7 +41,7 @@
         <span class='pull-right text-muted'>
           {{comment._committed_on_human ? comment._committed_on_human : '(uncommitted)'}}
         </span>
-        <span ng-repeat="author in comment._authors">{{author}}{{$last ? '' : ','}}</span>
+        <span ng-repeat="author in comment._authors"><a href='mailto:{{author.email}}'>{{author.name}}</a>{{$last ? '' : ','}}</span>
         <span ng-hide="comment._authors.length">You</span>
       </div>
       <div class="panel-body" ng-bind-html='comment._text' ng-hide='comment._editing'></div>
