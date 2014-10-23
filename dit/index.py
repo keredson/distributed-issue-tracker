@@ -1,6 +1,7 @@
 import bleach, collections, git, itertools, json, markdown, os, re, time, traceback, uuid
 
-bleach.ALLOWED_TAGS.append('p')
+bleach.ALLOWED_TAGS.extend(['p','img'])
+bleach.ALLOWED_ATTRIBUTES['img'] = ['src']
 
 class Index(object):
 
@@ -250,6 +251,15 @@ class Index(object):
     for comment in comments:
       comment.update(self._meta_by_id[uuid.UUID(comment['id'])])
     comments += self._commits_by_issue_id[uid]
+    if 'original_github' in issue:
+      comment = {
+        'type':'comment',
+        'text': issue['original_github']['body'],
+      }
+      comment['_text'] = bleach.clean(markdown.markdown(comment['text']))
+      if '_committed_on' in issue: comment['_committed_on'] = issue['_committed_on']
+      if 'created_on' in issue: comment['created_on'] = issue['created_on']
+      comments.append(comment)
     comments.sort(cmp_comments)
     issue['_comments'] = comments
     return issue
@@ -279,7 +289,6 @@ class Index(object):
       issue = self._save(issue, fn)
       self._objects_by_id[uid] = issue
     issue.update(self._meta_by_id[uid])
-    print issue
     return issue
   
   def _get_comment_path(self, comment):

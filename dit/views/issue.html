@@ -30,6 +30,10 @@
   <p class='text-muted' style='margin-top:-.9em;' ng-show='issue._authors.length'>
     By: <span ng-repeat="author in issue._authors"><a href='mailto:{{author.email}}'>{{author.name}}</a>{{$last ? '' : ','}}</span>
   </p>
+  
+  <p class='text-muted' ng-show='issue.original_github'>
+    Imported from GitHub - <a href='{{issue.original_github.html_url}}'>view original</a>.
+  </p>
 
   <div ng-repeat="comment in issue._comments | orderBy: '_committed_on'">
     <div class="panel panel-default panel-comment" ng-hide="{{comment.type=='commit'}}">
@@ -39,6 +43,7 @@
           <a href="#" class='glyphicon glyphicon-floppy-remove' ng-click="revert(comment)" title='Revert' ng-show="comment._dirty"></a>
         </div>
         <span class='pull-right text-muted'>
+          <span ng-show='comment.original_github'><a href='{{comment.original_github.html_url}}'>view original</a> - </span>
           {{comment._committed_on_human ? comment._committed_on_human : '(uncommitted)'}}
         </span>
         <span ng-repeat="author in comment._authors"><a href='mailto:{{author.email}}'>{{author.name}}</a>{{$last ? '' : ','}}</span>
