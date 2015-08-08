@@ -1,3 +1,9 @@
+
+function gid() {
+  return 'gid' + Math.floor( Math.random()*1000000)
+}
+
+
 var Frame = React.createClass({
   render: function() {
     return (
@@ -57,11 +63,11 @@ var IssueList = React.createClass({
       );
     });
     return (
-      <table className="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp">
+      <table className="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp" width='100%'>
         <thead>
           <tr>
-            <th className="mdl-data-table__cell--non-numeric">Issue</th>
-            <th></th>
+            <th className="mdl-data-table__cell--non-numeric">Id</th>
+            <th className="mdl-data-table__cell--non-numeric" width='100%'>Issue</th>
           </tr>
         </thead>
         <tbody>
@@ -97,16 +103,25 @@ var Issue = React.createClass({
     }.bind(this));
   },
   render: function() {
+    var author = '';
+    if (this.state.author) {
+      author = (
+        <div style={{'margin-top':'-24px'}}>
+          -- {this.state.author.name}
+        </div>
+      );
+    }
     return (
       <div>
         <h1>
           {this.state.title}
-          <button className="mdl-button mdl-js-button mdl-js-ripple-effect" style={{'margin-left':'1em'}}>
+          <button className="mdl-button mdl-js-button mdl-js-ripple-effect" style={{marginLeft:'1em'}}>
             Edit
           </button>
         </h1>
+        {author}
         <CommentList src={this.state.comments_url} />
-        <NewCommentForm issue_id={this.state.id} />
+        <NewCommentForm reply_to={this.state.id} />
       </div>
     );
   }
@@ -143,28 +158,30 @@ var NewIssueForm = React.createClass({
 
 var NewCommentForm = React.createClass({
   getInitialState: function() {
-    return {text: '', rows: 1};
+    return {text: '', editing: false, id:gid()};
   },
   handleFocus: function() {
-    this.state.rows = 4
+    this.state.editing = true
     this.setState(this.state)
   },
   handleBlur: function() {
-    this.state.rows = 1
-    this.setState(this.state)
+    if (!$('#'+this.state.id).val()) {
+      this.state.editing = false
+      this.setState(this.state)
+    }
   },
   render: function() {
     return (
-      <form method='post' action={document.location + '/new-comment'}>
+      <form method='post' action={'/reply-to/'+this.props.reply_to}>
         <div>
           <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
-            <textarea className="mdl-textfield__input" type="text" rows={this.state.rows} name='comment' id="sample5" onFocus={this.handleFocus} onBlur={this.handleBlur}></textarea>
-            <label className="mdl-textfield__label" for="sample5">Add a comment...</label>
+            <textarea className="mdl-textfield__input" type="text" rows={this.state.editing ? 4 : 1} name='comment' id={this.state.id} onFocus={this.handleFocus} onBlur={this.handleBlur}></textarea>
+            <label className="mdl-textfield__label" for="sample5">{this.props.placeholder || 'Add a comment...'}</label>
           </div>
         </div>
-        <div>
+        <div style={{display: this.state.editing ? 'block' : 'none', paddingLeft:'2em;'}}>
           <button className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
-            Add Comment
+            {this.props.button || 'Add Comment'}
           </button>
         </div>
       </form>
@@ -174,15 +191,20 @@ var NewCommentForm = React.createClass({
 
 var CommentList = React.createClass({
   getInitialState: function() {
+    if (this.props.comments) {
+      return {comments: this.props.comments};
+    }
     return {comments: []};
   },
   componentDidMount: function() {
     this.doLoad()
   },
   doLoad: function() {
-    $.getJSON(this.props.src, function( data ) {
-      this.setState(data);
-    }.bind(this));
+    if (this.props.src) {
+      $.getJSON(this.props.src, function( data ) {
+        this.setState(data);
+      }.bind(this));
+    }
   },
   componentDidUpdate: function(prevProps, prevState) {
     if (prevProps.src != this.props.src) {
@@ -197,7 +219,7 @@ var CommentList = React.createClass({
       );
     });
     return (
-      <div>
+      <div style={{paddingLeft:'1em'}}>
         {nodes}
       </div>
     );
@@ -205,12 +227,35 @@ var CommentList = React.createClass({
 });
 
 var Comment = React.createClass({
+  getInitialState: function() {
+    return {replying: false};
+  },
+  handleClick: function() {
+    this.state.replying = !this.state.replying
+    this.setState(this.state)
+  },
   render: function() {
-    return (
-      <div className="mdl-card mdl-shadow--2dp demo-card-wide" style={{"min-height":"1px", width:"80%", margin:'1em'}}>
-        <div className="mdl-card__supporting-text">
-          {this.props.data.text}
+    var author = '';
+    if (this.props.data.author) {
+      author = (
+        <div>
+          -- {this.props.data.author.name}
         </div>
+      );
+    }
+    return (
+      <div>
+        <div className="mdl-card mdl-shadow--2dp demo-card-wide" style={{minHeight:"1px", width:"auto", 'margin':'1em 0em'}} 
+             onClick={this.handleClick} key={this.props.data.id}>
+          <div className="mdl-card__supporting-text">
+            {this.props.data.text}
+            {author}
+          </div>
+        </div>
+        <div style={{display: this.state.replying ? 'block' : 'none'}}>
+          <NewCommentForm placeholder="Reply..." button='Reply' reply_to={this.props.data.id} />
+        </div>
+        <CommentList comments={this.props.data.comments} />
       </div>
     );
   }

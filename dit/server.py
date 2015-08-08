@@ -29,13 +29,17 @@ def issue_json(issue_id):
 def comments_json(issue_id):
   issue = idx[issue_id]
   return {
-    'comments': [comment.as_dict() for comment in issue.comments],
+    'comments': [comment.as_dict() for comment in idx.comments[issue.id]],
   }
   
 @bottle.get('/issues/<issue_id>')
 def issue(issue_id):
   issue = idx[issue_id]
   return _html(title=issue.title, react='issue')
+  
+@bottle.get('/account.json')
+def account_json():
+  return idx.account.as_dict()
   
 @bottle.post('/issues/new')
 def issues_new():
@@ -47,13 +51,13 @@ def issues_new():
   comment.save()
   return bottle.redirect('/issues/%s' % issue.short_id())
   
-@bottle.post('/issues/<issue_id>/new-comment')
-def comment_new(issue_id):
-  issue = idx[issue_id]
-  comment = issue.new_comment()
+@bottle.post('/reply-to/<item_id>')
+def replay(item_id):
+  item = idx[item_id]
+  comment = item.new_comment()
   comment.text = bottle.request.forms['comment']
   comment.save()
-  return bottle.redirect('/issues/%s' % issue.short_id())
+  return bottle.redirect('/issues/%s' % comment.get_issue().short_id())
   
 @bottle.get('/issues.json')
 def issues_json():
