@@ -7,37 +7,39 @@ function gid() {
 var Frame = React.createClass({
   render: function() {
     return (
-      <div className="mdl-layout mdl-js-layout mdl-layout--fixed-drawer
-                  mdl-layout--fixed-header">
-        <header className="mdl-layout__header">
-          <div className="mdl-layout__header-row">
-            <div className="mdl-layout-spacer"></div>
-            <div className="mdl-textfield mdl-js-textfield mdl-textfield--expandable
-                        mdl-textfield--floating-label mdl-textfield--align-right">
-              <label className="mdl-button mdl-js-button mdl-button--icon"
-                     for="fixed-header-drawer-exp">
-                <i className="material-icons">search</i>
-              </label>
-              <div className="mdl-textfield__expandable-holder">
-                <input className="mdl-textfield__input" type="text" name="sample"
-                       id="fixed-header-drawer-exp" />
+      <div>
+        <div className="mdl-layout mdl-js-layout mdl-layout--fixed-drawer
+                    mdl-layout--fixed-header">
+          <header className="mdl-layout__header">
+            <div className="mdl-layout__header-row">
+              <div className="mdl-layout-spacer"></div>
+              <div className="mdl-textfield mdl-js-textfield mdl-textfield--expandable
+                          mdl-textfield--floating-label mdl-textfield--align-right">
+                <label className="mdl-button mdl-js-button mdl-button--icon"
+                       for="fixed-header-drawer-exp">
+                  <i className="material-icons">search</i>
+                </label>
+                <div className="mdl-textfield__expandable-holder">
+                  <input className="mdl-textfield__input" type="text" name="sample"
+                         id="fixed-header-drawer-exp" />
+                </div>
               </div>
             </div>
+          </header>
+          <div className="mdl-layout__drawer">
+            <span className="mdl-layout-title">D.I.T.</span>
+            <nav className="mdl-navigation">
+              <a className="mdl-navigation__link" href="/">Home</a>
+              <a className="mdl-navigation__link" href="/issues">Issues</a>
+              <a className="mdl-navigation__link" href="/issues/new">New Issue</a>
+            </nav>
           </div>
-        </header>
-        <div className="mdl-layout__drawer">
-          <span className="mdl-layout-title">D.I.T.</span>
-          <nav className="mdl-navigation">
-            <a className="mdl-navigation__link" href="/">Home</a>
-            <a className="mdl-navigation__link" href="/issues">Issues</a>
-            <a className="mdl-navigation__link" href="/issues/new">New Issue</a>
-          </nav>
+          <main className="mdl-layout__content">
+            <div className="page-content">
+              {this.props.children}
+            </div>
+          </main>
         </div>
-        <main className="mdl-layout__content">
-          <div className="page-content">
-            {this.props.children}
-          </div>
-        </main>
       </div>
     );
   },
@@ -113,12 +115,12 @@ var Issue = React.createClass({
     }
     return (
       <div>
-        <h1>
+        <h2>
           {this.state.title}
           <button className="mdl-button mdl-js-button mdl-js-ripple-effect" style={{marginLeft:'1em'}}>
             Edit
           </button>
-        </h1>
+        </h2>
         {author}
         <CommentList src={this.state.comments_url} />
         <NewCommentForm reply_to={this.state.id} />
@@ -158,7 +160,7 @@ var NewIssueForm = React.createClass({
 
 var NewCommentForm = React.createClass({
   getInitialState: function() {
-    return {text: '', editing: false, id:gid()};
+    return {text: '', editing: false, id:this.props.reply_to ? 'reply-to-'+this.props.reply_to : gid()};
   },
   handleFocus: function() {
     this.state.editing = true
@@ -168,6 +170,9 @@ var NewCommentForm = React.createClass({
     if (!$('#'+this.state.id).val()) {
       this.state.editing = false
       this.setState(this.state)
+      if (this.props.onHide) {
+        this.props.onHide()
+      }
     }
   },
   render: function() {
@@ -233,6 +238,15 @@ var Comment = React.createClass({
   handleClick: function() {
     this.state.replying = !this.state.replying
     this.setState(this.state)
+    return false
+  },
+  handleHide: function() {
+    this.state.replying = false
+    this.setState(this.state)
+  },
+  commit: function() {
+    alert('This issue needs to be committed.');
+    return false
   },
   render: function() {
     var author = '';
@@ -240,20 +254,27 @@ var Comment = React.createClass({
       author = (
         <div>
           -- {this.props.data.author.name}
+          <a href='' onClick={this.handleClick}>
+            <i className="material-icons" style={{marginLeft:'.5em', fontSize:'12pt', verticalAlign:'text-bottom'}}>reply</i>
+          </a>
         </div>
       );
     }
     return (
       <div>
-        <div className="mdl-card mdl-shadow--2dp demo-card-wide" style={{minHeight:"1px", width:"auto", 'margin':'1em 0em'}} 
-             onClick={this.handleClick} key={this.props.data.id}>
-          <div className="mdl-card__supporting-text">
+        <div className="mdl-card mdl-shadow--2dp demo-card-wide" 
+            style={{minHeight:"1px", width:"auto", 'margin':'1em 0em'}} 
+            key={this.props.data.id}>
+          <div className="mdl-card__supporting-text" style={{width:'auto'}}>
+            <a href='' onClick={this.commit} style={{float:'right', display:this.props.data.dirty ? 'block' : 'none'}}>
+              <i className="material-icons" style={{fontSize:'12pt'}}>warning</i>
+            </a>
             {this.props.data.text}
             {author}
           </div>
         </div>
         <div style={{display: this.state.replying ? 'block' : 'none'}}>
-          <NewCommentForm placeholder="Reply..." button='Reply' reply_to={this.props.data.id} />
+          <NewCommentForm placeholder="Reply..." button='Reply' reply_to={this.props.data.id} onHide={this.handleHide}/>
         </div>
         <CommentList comments={this.props.data.comments} />
       </div>

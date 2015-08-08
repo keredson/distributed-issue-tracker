@@ -13,6 +13,7 @@ class Index(object):
     self.email = subprocess.check_output(['git','config','user.email']).strip()
     self.account = None
     self.index_all()
+    self.update_dirty()
     if not self.account:
       self.account = User(self)
       self.account.email = self.email
@@ -26,15 +27,23 @@ class Index(object):
     for fn in ['issues','comments','users']:
       if not os.path.isdir(os.path.join(self.dir, fn)):
         os.makedirs(os.path.join(self.dir, fn))
+        
+  def update_dirty(self):
+    fns = subprocess.check_output(['git','diff','HEAD','--name-only',self.dir]).strip().split()
+    fns = [os.path.abspath(fn) for fn in fns]
+    self.dirty = set(fns)
 
   def find_dit_dir(self):
     dir = os.getcwd()
     while True:
-      if os.path.isdir(os.path.join(dir, '.dit')):
-        return os.path.join(dir, '.dit')
+      if os.path.isdir(os.path.join(dir, '.git')) or os.path.isdir(os.path.join(dir, '.hg')):
+        dit_dir = os.path.join(dir, '.dit')
+        if not os.path.isdir(dit_dir):
+          os.makedirs(dit_dir)
+        return dit_dir
       parent = os.path.dirname(dir)
       if parent==dir:
-        raise Exception('no .dit dir found')
+        raise Exception('no git repo found')
       dir = parent
 
   def index_all(self):
@@ -94,8 +103,10 @@ class Item(object):
 
   def save(self):
     cls = self.__class__
+    add = False
     if not self.fn:
       self.fn = os.path.join(self.idx.dir, cls.dir_name, "%s-%s.yaml" % (self.short_id(), slugify(getattr(self,cls.slug_name))))
+      add = True
     with open(self.fn, 'w') as f:
       data = {
         'id': self.id,
@@ -105,6 +116,8 @@ class Item(object):
       if hasattr(self,'author'):
         data['author'] = self.author.id
       yaml.dump(data, f, default_flow_style=False)
+    if add:
+      subprocess.check_call(['git', 'add', self.fn])
     self.idx.index(self)
 
 
@@ -136,6 +149,7 @@ class Issue(Item):
       'url': '/issues/%s' % short_id,
       'comments_url': '/issues/%s/comments.json' % short_id,
       'author': self.author.as_dict() if self.author else None,
+      'dirty': self.fn in self.idx.dirty,
     }
     return d
   
@@ -176,6 +190,7 @@ class Comment(Item):
       'text': self.text,
       'short_id': short_id,
       'comments': [comment.as_dict() for comment in self.idx.comments[self.id]],
+      'dirty': self.fn in self.idx.dirty,
     }
     return d
 

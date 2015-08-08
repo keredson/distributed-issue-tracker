@@ -1,11 +1,12 @@
-{ 
-  "name" : "distributed-issue-tracker",
-  "version" : "0.0.1",
-  "dependencies" : {
-    "fluxxor" : "",
-    "uuid4" : "",
-    "require" : "",
-    "react" : ""
+{
+  "name": "distributed-issue-tracker",
+  "version": "0.0.1",
+  "dependencies": {
+    "fluxxor": "",
+    "material-design-icons": "^2.0.0",
+    "react": "",
+    "require": "",
+    "uuid4": ""
   },
   "repository": {
     "type": "git",
