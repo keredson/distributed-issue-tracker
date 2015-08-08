@@ -1,0 +1,12 @@
+{ 
+  "name" : "distributed-issue-tracker",
+  "version" : "0.0.1",
+  "dependencies" : {
+    "fluxxor" : "",
+    "react" : ""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:keredson/distributed-issue-tracker.git"
+  }
+}

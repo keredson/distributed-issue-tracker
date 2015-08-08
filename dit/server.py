@@ -1,92 +1,84 @@
-import bottle, json, os, uuid
+import os
 
-MOD_PATH = os.path.dirname(__file__)
-STATIC_PATH = os.path.join(MOD_PATH,'static')
-VIEWS_PATH = os.path.join(MOD_PATH,'views')
-#bottle.TEMPLATE_PATH.append(os.path.join(MOD_PATH,'views'))
+import bottle
 
-import dit.index
+BASE = os.path.dirname(os.path.realpath(__file__))
 
-index = dit.index.Index()
+import index
+idx = index.Index()
 
-@bottle.route('/static/<filepath:path>')
-def server_static(filepath):
-  return bottle.static_file(filepath, root=STATIC_PATH)
-
-@bottle.route('/')
-def home():
-  return render('home.html')
-
-@bottle.route('/issues')
-def issues():
-  return render('issues.html')
-
-@bottle.route('/json/issues')
-def json_issues():
-  return {
-    'issues':index.issues(q=bottle.request.query.q),
-  }
-
-@bottle.route('/json/repo')
-def json_repo():
-  return index.repo()
-
-@bottle.route('/issue/<uid>')
-def issue(uid):
-  if uid=='new':
-    return render('new_issue.html')
-  else:
-    uid = uuid.UUID(uid)
-    issue = index.issue(uid)
-    return render('issue.html', issue=json.dumps(issue))
-
-@bottle.route('/commits')
-def commits():
-  commits = index.commits()
-  print commits
-  return render('commits.html', commits=json.dumps(commits))
-
-@bottle.route('/commit/<ref>')
-def commit(ref):
-  commit = index.commit_detail(ref)
-  return render('commit_detail.html', commit=json.dumps(commit))
-
-@bottle.post('/issue/<uid>/change-state/<state>')
-def issue_change_state(uid, state):
-  uid = uuid.UUID(uid)
-  issue = index.issue(uid)
-  issue['state'] = state
-  issue = index.save_issue(issue)
-  return issue
-
-@bottle.post('/issue/save')
-def issue_save():
-  issue = bottle.request.json
-  issue = index.save_issue(issue)
-  return issue
-
-@bottle.post('/comment/save')
-def comment_save():
-  comment = bottle.request.json
-  return index.save_comment(comment)
-
-@bottle.post('/repo/revert')
-def repo_revert():
-  o = bottle.request.json
-  return index.revert(o)
-
-def render(fn, **kwargs):
-  with open(os.path.join(VIEWS_PATH,'__base__.html'),'r') as bf:
-    base = ''.join(bf.readlines())
-    
-    with open(os.path.join(VIEWS_PATH,fn),'r') as f:
-      data = '\n'.join(f.readlines())
-      for k,v in kwargs.items():
-        print k, k.__class__, '##%s##'%k
-        data = data.replace('##%s##'%k,str(v))
-      return base.replace('##__content__##',data)
+@bottle.get('/')
+def index():
+  return _html(title='Welcome', react='index')
   
-def serve():
-  bottle.run(host='localhost', port=4920, debug=True)
+@bottle.get('/issues')
+def issues():
+  return _html(title='Issues', react='issues')
+  
+@bottle.get('/issues/new')
+def issues_new():
+  return _html(title='New Issue', react='issues_new')
+  
+@bottle.get('/issues/<issue_id>.json')
+def issue_json(issue_id):
+  issue = idx[issue_id]
+  print 'issue', issue
+  return issue.as_dict()
+  
+@bottle.get('/issues/<issue_id>/comments.json')
+def comments_json(issue_id):
+  issue = idx[issue_id]
+  return {
+    'comments': [comment.as_dict() for comment in issue.comments],
+  }
+  
+@bottle.get('/issues/<issue_id>')
+def issue(issue_id):
+  issue = idx[issue_id]
+  return _html(title=issue.title, react='issue')
+  
+@bottle.post('/issues/new')
+def issues_new():
+  issue = idx.new_issue()
+  issue.title = bottle.request.forms['title']
+  issue.save()
+  comment = issue.new_comment()
+  comment.text = bottle.request.forms['comment']
+  comment.save()
+  return bottle.redirect('/issues/%s' % issue.short_id())
+  
+@bottle.post('/issues/<issue_id>/new-comment')
+def comment_new(issue_id):
+  issue = idx[issue_id]
+  comment = issue.new_comment()
+  comment.text = bottle.request.forms['comment']
+  comment.save()
+  return bottle.redirect('/issues/%s' % issue.short_id())
+  
+@bottle.get('/issues.json')
+def issues_json():
+  return {
+    'issues': [issue.as_dict() for issue in idx.issues()],
+  }
+  
+@bottle.get('/jsx/<path>')
+def jsx(path):
+  with open(os.path.join(BASE, 'jsx', path)) as f:
+    return f.read()
+  
+@bottle.get('/css/<path>')
+def static(path):
+  bottle.response.content_type = 'text/css'
+  with open(os.path.join(BASE, 'static', path)) as f:
+    return f.read()
+  
+
+def _html(**kwargs):
+  with open(os.path.join(BASE, 'templates', 'index.html')) as f:
+    return bottle.template(f.read(), **kwargs)
+
+
+if __name__=='__main__':
+  bottle.run(host='localhost', port=4920)
 
 
