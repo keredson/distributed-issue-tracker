@@ -72,7 +72,12 @@ def jsx(path):
   
 @bottle.get('/static/<path>')
 def static(path):
-  bottle.response.content_type = 'text/css'
+  if path.endswith('.css'):
+    bottle.response.content_type = 'text/css'
+  if path.endswith('.js'):
+    bottle.response.content_type = 'application/javascript'
+  if path.endswith('.woff2'):
+    bottle.response.content_type = 'application/font-woff2'
   with open(os.path.join(BASE, 'static', path)) as f:
     return f.read()
   
