@@ -174,6 +174,7 @@ class Issue(Item):
     d['title'] = self.title
     d['url'] = '/issues/%s' % d['short_id']
     d['comments_url'] = '/issues/%s/comments.json' % d['short_id']
+    d['comment_count'] = len(self.idx.comments[self.id])-1
     return d
   
   def new_comment(self):

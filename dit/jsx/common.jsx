@@ -71,6 +71,7 @@ var IssueList = React.createClass({
             <tr>
               <th className="mdl-data-table__cell--non-numeric">Id</th>
               <th className="mdl-data-table__cell--non-numeric" width='100%'>Issue</th>
+              <th className="mdl-data-table__cell--non-numeric"> </th>
             </tr>
           </thead>
           <tbody>
@@ -94,6 +95,10 @@ var IssueLI = React.createClass({
         </td>
         <td className="mdl-data-table__cell--non-numeric">
           {this.props.data.title}
+        </td>
+        <td style={{color: this.props.data.comment_count ? '' : '#ddd'}}>
+          {this.props.data.comment_count}
+          <i className="material-icons" style={{marginLeft:'.2em', fontSize:'10pt', verticalAlign:'text-bottom'}}>comment</i>
         </td>
       </tr>
     );
