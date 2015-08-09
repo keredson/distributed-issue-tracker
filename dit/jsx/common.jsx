@@ -114,7 +114,7 @@ var Issue = React.createClass({
     if (this.state.author) {
       author = (
         <div style={{'margin-top':'-24px'}}>
-          -- {this.state.author.name}
+          <AuthorSig author={this.state.author} /> at {this.state.created_at}
         </div>
       );
     }
@@ -130,6 +130,16 @@ var Issue = React.createClass({
         <CommentList src={this.state.comments_url} />
         <NewCommentForm reply_to={this.state.id} />
       </div>
+    );
+  }
+});
+
+var AuthorSig = React.createClass({
+  render: function() {
+    return (
+        <span>
+          -- {this.props.author.name}
+        </span>
     );
   }
 });
@@ -258,7 +268,7 @@ var Comment = React.createClass({
     if (this.props.data.author) {
       author = (
         <div>
-          -- {this.props.data.author.name}
+          <AuthorSig author={this.props.data.author} /> at {this.props.data.created_at}
           <a href='' onClick={this.handleClick}>
             <i className="material-icons" style={{marginLeft:'.5em', fontSize:'12pt', verticalAlign:'text-bottom'}}>reply</i>
           </a>

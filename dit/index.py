@@ -91,6 +91,9 @@ class Index(object):
     issue = Issue(self)
     issue.author = self.account
     return issue
+    
+  def get_comments(self, id):
+   return sorted(self.comments[id], lambda x,y: cmp(x.created_at, y.created_at))
 
 
 class Item(object):
@@ -150,6 +153,8 @@ class Item(object):
       'id': self.id,
       'short_id': short_id,
       'dirty': self.fn in self.idx.dirty,
+      'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
+      'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
     }
     if hasattr(self,'author'):
       d['author'] = self.author.as_dict() if self.author else None
@@ -190,7 +195,7 @@ class Comment(Item):
     d = super(self.__class__, self).as_dict()
     d['reply_to'] = self.reply_to
     d['text'] = self.text
-    d['comments'] = [comment.as_dict() for comment in self.idx.comments[self.id]]
+    d['comments'] = [comment.as_dict() for comment in self.idx.get_comments(self.id)]
     return d
 
   def new_comment(self):

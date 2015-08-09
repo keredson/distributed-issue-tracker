@@ -29,7 +29,7 @@ def issue_json(issue_id):
 def comments_json(issue_id):
   issue = idx[issue_id]
   return {
-    'comments': [comment.as_dict() for comment in idx.comments[issue.id]],
+    'comments': [comment.as_dict() for comment in idx.get_comments(issue.id)],
   }
   
 @bottle.get('/issues/<issue_id>')
