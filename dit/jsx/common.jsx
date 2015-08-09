@@ -72,6 +72,9 @@ var IssueList = React.createClass({
               <th className="mdl-data-table__cell--non-numeric">Id</th>
               <th className="mdl-data-table__cell--non-numeric" width='100%'>Issue</th>
               <th className="mdl-data-table__cell--non-numeric"> </th>
+              <th className="mdl-data-table__cell--non-numeric">
+                <i className="material-icons" style={{fontSize:'12pt', verticalAlign:'text-bottom'}}>error_outline</i>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -100,6 +103,9 @@ var IssueLI = React.createClass({
           {this.props.data.comment_count}
           <i className="material-icons" style={{marginLeft:'.2em', fontSize:'10pt', verticalAlign:'text-bottom'}}>comment</i>
         </td>
+        <td className="mdl-data-table__cell--non-numeric">
+          <i className="material-icons" style={{fontSize:'12pt', color:this.props.data.resolved ? 'red' : 'green', verticalAlign:'text-bottom'}}>error_outline</i>
+        </td>
       </tr>
     );
   }
@@ -117,9 +123,11 @@ var Issue = React.createClass({
   render: function() {
     var author = '';
     if (this.state.author) {
+      style = {fontSize:'12pt', color:this.state.resolved ? 'red' : 'green', verticalAlign:'text-bottom', marginLeft:'.5em'};
       author = (
         <div style={{'margin-top':'-24px'}}>
           <AuthorSig author={this.state.author} /> at {this.state.created_at}
+          <i className="material-icons" style={style}>error_outline</i>
         </div>
       );
     }
@@ -127,13 +135,11 @@ var Issue = React.createClass({
       <div>
         <h2>
           {this.state.title}
-          <button className="mdl-button mdl-js-button mdl-js-ripple-effect" style={{marginLeft:'1em'}}>
-            Edit
-          </button>
+          <a href=''><i className="material-icons" style={{marginLeft:'.5em'}}>edit</i></a>
         </h2>
         {author}
         <CommentList src={this.state.comments_url} />
-        <NewCommentForm reply_to={this.state.id} />
+        <NewCommentForm reply_to={this.state.id} closeButton={!this.state.resolved} reopenButton={this.state.resolved} />
       </div>
     );
   }
@@ -204,8 +210,14 @@ var NewCommentForm = React.createClass({
             <label className="mdl-textfield__label" for="sample5">{this.props.placeholder || 'Add a comment...'}</label>
           </div>
         </div>
-        <div style={{display: this.state.editing ? 'block' : 'none', paddingLeft:'2em;'}}>
-          <button className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
+        <div style={{paddingLeft:'2em;'}}>
+          <button name='close' className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{display: this.props.closeButton ? 'inline' : 'none', marginRight:'1em'}}>
+            Close Issue
+          </button>
+          <button name='reopen' className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{display: this.props.reopenButton ? 'inline' : 'none', marginRight:'1em'}}>
+            Reopen Issue
+          </button>
+          <button className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{display: this.state.editing ? 'inline' : 'none'}}>
             {this.props.button || 'Add Comment'}
           </button>
         </div>
@@ -287,9 +299,14 @@ var Comment = React.createClass({
             style={{minHeight:"1px", width:"auto", 'margin':'1em 0em'}} 
             key={this.props.data.id}>
           <div className="mdl-card__supporting-text" style={{width:'auto'}}>
-            <a href='' onClick={this.commit} style={{float:'right', display:this.props.data.dirty ? 'block' : 'none'}}>
-              <i className="material-icons" style={{fontSize:'12pt'}}>warning</i>
-            </a>
+            <div style={{float:'right'}}>
+              <a href='' onClick={this.commit} style={{display:this.props.data.dirty ? 'inline' : 'none'}}>
+                <i className="material-icons" style={{fontSize:'12pt'}}>warning</i>
+              </a>
+              <a href='' onClick={this.commit}>
+                <i className="material-icons" style={{width:'16px', fontSize:'12pt'}}>change history</i>
+              </a>
+            </div>
             <span dangerouslySetInnerHTML={{__html: rawMarkup}} />
             {author}
           </div>

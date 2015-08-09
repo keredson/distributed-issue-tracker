@@ -105,15 +105,15 @@ class Item(object):
       with open(fn) as f:
         data = yaml.load(f)
         self.id = data['id']
-        for x in self.to_save:
-          setattr(self, x, data.get(x))
+        for x, default in self.to_save.items():
+          setattr(self, x, data.get(x, default))
         self.author = self.idx[data['author']] if 'author' in data else None
         self.created_at = dateutil.parser.parse(data['created_at'])
         self.updated_at = dateutil.parser.parse(data['updated_at'])
     else:
       self.id = str(uuid.uuid4())
-      for x in self.to_save:
-        setattr(self, x, None)
+      for x, default in self.to_save.items():
+        setattr(self, x, default)
       self.author = None
       self.created_at = datetime.datetime.now(dateutil.tz.tzlocal())
       self.updated_at = self.created_at
@@ -137,7 +137,7 @@ class Item(object):
         'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
         'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
       }
-      for x in self.__class__.to_save:
+      for x in self.__class__.to_save.keys():
         data[x] = getattr(self,x)
       if hasattr(self,'author') and self.author:
         data['author'] = self.author.id
@@ -163,18 +163,30 @@ class Item(object):
 
 class Issue(Item):
   dir_name = 'issues'
-  to_save = ['title']
+  to_save = {'title':'', 'resolved':False}
   slug_name = 'title'
 
   def __init__(self, idx, fn=None):
     super(self.__class__, self).__init__(idx, fn=fn)
+    
+  def comment_count(self):
+    c = 0
+    to_count = [self]
+    while len(to_count):
+      x = to_count.pop()
+      comments = [y for y in self.idx.comments[x.id] if y.text]
+      if comments:
+        c += len(comments)
+        to_count += comments
+    return c-1
   
   def as_dict(self):
     d = super(self.__class__, self).as_dict()
     d['title'] = self.title
     d['url'] = '/issues/%s' % d['short_id']
     d['comments_url'] = '/issues/%s/comments.json' % d['short_id']
-    d['comment_count'] = len(self.idx.comments[self.id])-1
+    d['comment_count'] = self.comment_count()
+    d['resolved'] = self.resolved
     return d
   
   def new_comment(self):
@@ -186,7 +198,7 @@ class Issue(Item):
 
 class Comment(Item):
   dir_name = 'comments'
-  to_save = ['reply_to','text']
+  to_save = {'reply_to':None, 'text':''}
   slug_name = 'text'
 
   def __init__(self, idx, fn=None):
@@ -215,7 +227,7 @@ class Comment(Item):
 
 class User(Item):
   dir_name = 'users'
-  to_save = ['email','name','aka']
+  to_save = {'email':None, 'name':'', 'aka':None}
   slug_name = 'name'
 
   def __init__(self, idx, fn=None):

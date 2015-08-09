@@ -55,8 +55,15 @@ def issues_new():
 def replay(item_id):
   item = idx[item_id]
   comment = item.new_comment()
-  comment.text = bottle.request.forms['comment']
-  comment.save()
+  if bottle.request.forms['comment']:
+    comment.text = bottle.request.forms['comment']
+    comment.save()
+  if 'close' in bottle.request.forms:
+    item.resolved = True
+    item.save()
+  if 'reopen' in bottle.request.forms:
+    item.resolved = False
+    item.save()
   return bottle.redirect('/issues/%s' % comment.get_issue().short_id())
   
 @bottle.get('/issues.json')
