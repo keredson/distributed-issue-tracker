@@ -272,7 +272,7 @@ var Comment = React.createClass({
     var author = '';
     if (this.props.data.author) {
       author = (
-        <div>
+        <div style={{marginTop:'-.3em'}}>
           <AuthorSig author={this.props.data.author} /> at {this.props.data.created_at}
           <a href='' onClick={this.handleClick}>
             <i className="material-icons" style={{marginLeft:'.5em', fontSize:'12pt', verticalAlign:'text-bottom'}}>reply</i>
@@ -280,6 +280,7 @@ var Comment = React.createClass({
         </div>
       );
     }
+    var rawMarkup = marked(this.props.data.text.toString(), {sanitize: true});
     return (
       <div>
         <div className="mdl-card mdl-shadow--2dp demo-card-wide" 
@@ -289,7 +290,7 @@ var Comment = React.createClass({
             <a href='' onClick={this.commit} style={{float:'right', display:this.props.data.dirty ? 'block' : 'none'}}>
               <i className="material-icons" style={{fontSize:'12pt'}}>warning</i>
             </a>
-            {this.props.data.text}
+            <span dangerouslySetInnerHTML={{__html: rawMarkup}} />
             {author}
           </div>
         </div>

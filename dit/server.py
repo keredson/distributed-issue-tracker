@@ -70,7 +70,7 @@ def jsx(path):
   with open(os.path.join(BASE, 'jsx', path)) as f:
     return f.read()
   
-@bottle.get('/css/<path>')
+@bottle.get('/static/<path>')
 def static(path):
   bottle.response.content_type = 'text/css'
   with open(os.path.join(BASE, 'static', path)) as f:

@@ -1,5 +1,5 @@
 import collections, datetime, os, re, subprocess, sys, uuid, yaml
-from dateutil.tz import tzlocal
+import dateutil.parser, dateutil.tz
 import patricia
 
 class Index(object):
@@ -108,14 +108,14 @@ class Item(object):
         for x in self.to_save:
           setattr(self, x, data.get(x))
         self.author = self.idx[data['author']] if 'author' in data else None
-        self.created_at = datetime.datetime.strptime(data['created_at'], '%Y-%m-%d %H:%M:%S %Z')
-        self.updated_at = datetime.datetime.strptime(data['updated_at'], '%Y-%m-%d %H:%M:%S %Z')
+        self.created_at = dateutil.parser.parse(data['created_at'])
+        self.updated_at = dateutil.parser.parse(data['updated_at'])
     else:
       self.id = str(uuid.uuid4())
       for x in self.to_save:
         setattr(self, x, None)
       self.author = None
-      self.created_at = datetime.datetime.now(tzlocal())
+      self.created_at = datetime.datetime.now(dateutil.tz.tzlocal())
       self.updated_at = self.created_at
 
   def short_id(self):
@@ -127,7 +127,7 @@ class Item(object):
   def save(self):
     cls = self.__class__
     add = False
-    self.updated_at = datetime.datetime.now(tzlocal())
+    self.updated_at = datetime.datetime.now(dateutil.tz.tzlocal())
     if not self.fn:
       self.fn = os.path.join(self.idx.dir, cls.dir_name, "%s-%s.yaml" % (self.short_id(), slugify(getattr(self,cls.slug_name))))
       add = True
