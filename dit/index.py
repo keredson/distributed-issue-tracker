@@ -1,5 +1,5 @@
-import collections, os, re, subprocess, sys, uuid, yaml
-
+import collections, datetime, os, re, subprocess, sys, uuid, yaml
+from dateutil.tz import tzlocal
 import patricia
 
 class Index(object):
@@ -95,6 +95,26 @@ class Index(object):
 
 class Item(object):
 
+  def __init__(self, idx, fn=None):
+    self.fn = fn
+    self.idx = idx
+    if fn and os.path.isfile(fn):
+      with open(fn) as f:
+        data = yaml.load(f)
+        self.id = data['id']
+        for x in self.to_save:
+          setattr(self, x, data.get(x))
+        self.author = self.idx[data['author']] if 'author' in data else None
+        self.created_at = datetime.datetime.strptime(data['created_at'], '%Y-%m-%d %H:%M:%S %Z')
+        self.updated_at = datetime.datetime.strptime(data['updated_at'], '%Y-%m-%d %H:%M:%S %Z')
+    else:
+      self.id = str(uuid.uuid4())
+      for x in self.to_save:
+        setattr(self, x, None)
+      self.author = None
+      self.created_at = datetime.datetime.now(tzlocal())
+      self.updated_at = self.created_at
+
   def short_id(self):
     for i in range(5,len(self.id)):
       items = list(self.idx.trie.items(self.id[:i]))
@@ -104,21 +124,36 @@ class Item(object):
   def save(self):
     cls = self.__class__
     add = False
+    self.updated_at = datetime.datetime.now(tzlocal())
     if not self.fn:
       self.fn = os.path.join(self.idx.dir, cls.dir_name, "%s-%s.yaml" % (self.short_id(), slugify(getattr(self,cls.slug_name))))
       add = True
     with open(self.fn, 'w') as f:
       data = {
         'id': self.id,
+        'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
+        'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
       }
       for x in self.__class__.to_save:
         data[x] = getattr(self,x)
-      if hasattr(self,'author'):
+      if hasattr(self,'author') and self.author:
         data['author'] = self.author.id
       yaml.dump(data, f, default_flow_style=False)
     if add:
       subprocess.check_call(['git', 'add', self.fn])
     self.idx.index(self)
+    self.idx.update_dirty()
+
+  def as_dict(self):
+    short_id = self.short_id()
+    d = {
+      'id': self.id,
+      'short_id': short_id,
+      'dirty': self.fn in self.idx.dirty,
+    }
+    if hasattr(self,'author'):
+      d['author'] = self.author.as_dict() if self.author else None
+    return d
 
 
 class Issue(Item):
@@ -127,30 +162,13 @@ class Issue(Item):
   slug_name = 'title'
 
   def __init__(self, idx, fn=None):
-    self.fn = fn
-    self.idx = idx
-    if fn and os.path.isfile(fn):
-      with open(fn) as f:
-        data = yaml.load(f)
-        self.id = data['id']
-        self.title = data['title']
-        self.author = self.idx[data['author']] if 'author' in data else None
-    else:
-      self.id = str(uuid.uuid4())
-      self.title = ''
-      self.author = None
+    super(self.__class__, self).__init__(idx, fn=fn)
   
   def as_dict(self):
-    short_id = self.short_id()
-    d = {
-      'id': self.id,
-      'title': self.title,
-      'short_id': short_id,
-      'url': '/issues/%s' % short_id,
-      'comments_url': '/issues/%s/comments.json' % short_id,
-      'author': self.author.as_dict() if self.author else None,
-      'dirty': self.fn in self.idx.dirty,
-    }
+    d = super(self.__class__, self).as_dict()
+    d['title'] = self.title
+    d['url'] = '/issues/%s' % d['short_id']
+    d['comments_url'] = '/issues/%s/comments.json' % d['short_id']
     return d
   
   def new_comment(self):
@@ -166,32 +184,13 @@ class Comment(Item):
   slug_name = 'text'
 
   def __init__(self, idx, fn=None):
-    self.fn = fn
-    self.idx = idx
-    if fn and os.path.isfile(fn):
-      with open(fn) as f:
-        data = yaml.load(f)
-        self.id = data['id']
-        self.reply_to = data['reply_to']
-        self.text = data['text']
-        self.author = self.idx[data['author']] if 'author' in data else None
-    else:
-      self.id = str(uuid.uuid4())
-      self.reply_to = ''
-      self.text = ''
-      self.author = None
+    super(self.__class__, self).__init__(idx, fn=fn)
   
   def as_dict(self):
-    short_id = self.short_id()
-    d = {
-      'id': self.id,
-      'reply_to': self.reply_to,
-      'author': self.author.as_dict() if self.author else None,
-      'text': self.text,
-      'short_id': short_id,
-      'comments': [comment.as_dict() for comment in self.idx.comments[self.id]],
-      'dirty': self.fn in self.idx.dirty,
-    }
+    d = super(self.__class__, self).as_dict()
+    d['reply_to'] = self.reply_to
+    d['text'] = self.text
+    d['comments'] = [comment.as_dict() for comment in self.idx.comments[self.id]]
     return d
 
   def new_comment(self):
@@ -214,29 +213,12 @@ class User(Item):
   slug_name = 'name'
 
   def __init__(self, idx, fn=None):
-    self.fn = fn
-    self.idx = idx
-    if fn and os.path.isfile(fn):
-      with open(fn) as f:
-        data = yaml.load(f)
-        self.id = data['id']
-        self.email = data.get('email')
-        self.name = data.get('name')
-        self.aka = data.get('aka')
-    else:
-      self.id = str(uuid.uuid4())
-      self.email = ''
-      self.name = ''
-      self.aka = None
+    super(self.__class__, self).__init__(idx, fn=fn)
   
   def as_dict(self):
-    short_id = self.short_id()
-    d = {
-      'id': self.id,
-      'email': self.email,
-      'name': self.name,
-      'short_id': short_id,
-    }
+    d = super(self.__class__, self).as_dict()
+    d['email'] = self.email
+    d['name'] = self.name
     return d
   
 

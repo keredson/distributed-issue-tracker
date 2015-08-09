@@ -65,17 +65,22 @@ var IssueList = React.createClass({
       );
     });
     return (
-      <table className="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp" width='100%'>
-        <thead>
-          <tr>
-            <th className="mdl-data-table__cell--non-numeric">Id</th>
-            <th className="mdl-data-table__cell--non-numeric" width='100%'>Issue</th>
-          </tr>
-        </thead>
-        <tbody>
-          {issueNodes}
-        </tbody>
-      </table>
+      <div>
+        <table className="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp" width='100%'>
+          <thead>
+            <tr>
+              <th className="mdl-data-table__cell--non-numeric">Id</th>
+              <th className="mdl-data-table__cell--non-numeric" width='100%'>Issue</th>
+            </tr>
+          </thead>
+          <tbody>
+            {issueNodes}
+          </tbody>
+        </table>
+        <div style={{marginTop:'1em', display:this.state.issues.length ? 'none' : 'block'}}>
+          No issues...
+        </div>
+      </div>
     );
   },
 });
