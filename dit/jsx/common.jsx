@@ -136,6 +136,11 @@ var Issue = React.createClass({
     e.preventDefault();
   },
   render: function() {
+    var dirty = this.state.dirty ? (
+      <a href='' onClick={this.commit}>
+        <i className="material-icons" style={{fontSize:'12pt', verticalAlign:'text-bottom', marginLeft:'.5em'}}>warning</i>
+      </a>
+    ) : '';
     var author = '';
     if (this.state.author) {
       style = {fontSize:'12pt', color:this.state.resolved ? 'red' : 'green', verticalAlign:'text-bottom', marginLeft:'.5em'};
@@ -143,6 +148,7 @@ var Issue = React.createClass({
         <div style={{'margin-top':'-24px'}}>
           <AuthorSig author={this.state.author} /> at {this.state.created_at}
           <i className="material-icons" style={style}>error_outline</i>
+          {dirty}
         </div>
       );
     }
@@ -341,6 +347,13 @@ var Comment = React.createClass({
     e.preventDefault();
   },
   render: function() {
+    var dirty = function(in_text) {
+      return this.props.data.dirty ? (
+        <a href='' onClick={this.commit}>
+          <i className="material-icons" style={{fontSize:'12pt', verticalAlign:in_text ? 'text-bottom' : '', marginLeft:'.5em'}}>warning</i>
+        </a>
+      ) : '';
+    }.bind(this);
     if (this.props.data.kind) {
       return (
         <div>
@@ -348,6 +361,7 @@ var Comment = React.createClass({
           <span style={{display:this.props.data.kind=='reopened' ? 'inline' : 'none', color:'green'}}>Reopened</span>
           &nbsp;
           <AuthorSig author={this.props.data.author} /> at {this.props.data.created_at}
+          {dirty(true)}
         </div>
       );
     }
@@ -370,9 +384,7 @@ var Comment = React.createClass({
             key={this.props.data.id}>
           <div className="mdl-card__supporting-text" style={{width:'auto'}}>
             <div style={{float:'right'}}>
-              <a href='' onClick={this.commit} style={{display:this.props.data.dirty ? 'inline' : 'none'}}>
-                <i className="material-icons" style={{fontSize:'12pt'}}>warning</i>
-              </a>
+              {dirty(false)}
               <a href='' onClick={this.show_history}>
                 <i className="material-icons" style={{fontSize:'12pt'}}>history</i>
               </a>
