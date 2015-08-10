@@ -1,8 +1,24 @@
+
 .page-content {
   padding: 1em;
 }
+
 .mdl-layout__content {
   background-color: rgb(253, 253, 253);
   position: relative;
+}
+
+.comment-list {
+  position:relative;
+  padding-left: 1.5em;
+}
+.comment-list-x:after {
+    content:"";
+    position: absolute;
+    z-index: -1;
+    top: 0;
+    bottom: 0;
+    left: 1.5em;
+    border-left: 1px solid silver;
 }
 

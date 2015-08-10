@@ -138,7 +138,9 @@ var Issue = React.createClass({
           <a href=''><i className="material-icons" style={{marginLeft:'.5em'}}>edit</i></a>
         </h2>
         {author}
-        <CommentList src={this.state.comments_url} />
+        <div style={{marginLeft:'-1em'}}>
+          <CommentList src={this.state.comments_url} />
+        </div>
         <NewCommentForm reply_to={this.state.id} closeButton={!this.state.resolved} reopenButton={this.state.resolved} />
       </div>
     );
@@ -256,7 +258,7 @@ var CommentList = React.createClass({
       );
     });
     return (
-      <div style={{paddingLeft:'1em'}}>
+      <div className='comment-list'>
         {nodes}
       </div>
     );

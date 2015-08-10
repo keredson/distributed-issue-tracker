@@ -163,7 +163,7 @@ class Item(object):
 
 class Issue(Item):
   dir_name = 'issues'
-  to_save = {'title':'', 'resolved':False}
+  to_save = {'title':''}
   slug_name = 'title'
 
   def __init__(self, idx, fn=None):
@@ -180,13 +180,22 @@ class Issue(Item):
         to_count += comments
     return c-1
   
+  def is_resolved(self):
+    resolved = False
+    for comment in self.idx.get_comments(self.id):
+      if comment.kind=='resolved':
+        resolved = True
+      if comment.kind=='reopened':
+        resolved = False
+    return resolved
+  
   def as_dict(self):
     d = super(self.__class__, self).as_dict()
     d['title'] = self.title
     d['url'] = '/issues/%s' % d['short_id']
     d['comments_url'] = '/issues/%s/comments.json' % d['short_id']
     d['comment_count'] = self.comment_count()
-    d['resolved'] = self.resolved
+    d['resolved'] = self.is_resolved()
     return d
   
   def new_comment(self):

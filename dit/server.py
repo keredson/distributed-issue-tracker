@@ -62,14 +62,10 @@ def replay(item_id):
     comment = item.new_comment()
     comment.kind = 'resolved'
     comment.save()
-    item.resolved = True
-    item.save()
   if 'reopen' in bottle.request.forms:
     comment = item.new_comment()
     comment.kind = 'reopened'
     comment.save()
-    item.resolved = False
-    item.save()
   return bottle.redirect('/issues/%s' % comment.get_issue().short_id())
   
 @bottle.get('/issues.json')
