@@ -277,10 +277,20 @@ var Comment = React.createClass({
     this.setState(this.state)
   },
   commit: function() {
-    alert('This issue needs to be committed.');
+    alert('This needs to be committed.');
     return false
   },
   render: function() {
+    if (this.props.data.kind) {
+      return (
+        <div>
+          <span style={{display:this.props.data.kind=='resolved' ? 'inline' : 'none', color:'red'}}>Closed</span>
+          <span style={{display:this.props.data.kind=='reopened' ? 'inline' : 'none', color:'green'}}>Reopened</span>
+          &nbsp;
+          <AuthorSig author={this.props.data.author} /> at {this.props.data.created_at}
+        </div>
+      );
+    }
     var author = '';
     if (this.props.data.author) {
       author = (

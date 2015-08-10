@@ -54,14 +54,20 @@ def issues_new():
 @bottle.post('/reply-to/<item_id>')
 def replay(item_id):
   item = idx[item_id]
-  comment = item.new_comment()
   if bottle.request.forms['comment']:
+    comment = item.new_comment()
     comment.text = bottle.request.forms['comment']
     comment.save()
   if 'close' in bottle.request.forms:
+    comment = item.new_comment()
+    comment.kind = 'resolved'
+    comment.save()
     item.resolved = True
     item.save()
   if 'reopen' in bottle.request.forms:
+    comment = item.new_comment()
+    comment.kind = 'reopened'
+    comment.save()
     item.resolved = False
     item.save()
   return bottle.redirect('/issues/%s' % comment.get_issue().short_id())

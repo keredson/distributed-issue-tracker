@@ -198,7 +198,7 @@ class Issue(Item):
 
 class Comment(Item):
   dir_name = 'comments'
-  to_save = {'reply_to':None, 'text':''}
+  to_save = {'reply_to':None, 'text':'', 'kind':None}
   slug_name = 'text'
 
   def __init__(self, idx, fn=None):
@@ -208,6 +208,7 @@ class Comment(Item):
     d = super(self.__class__, self).as_dict()
     d['reply_to'] = self.reply_to
     d['text'] = self.text
+    d['kind'] = self.kind
     d['comments'] = [comment.as_dict() for comment in self.idx.get_comments(self.id)]
     return d
 
