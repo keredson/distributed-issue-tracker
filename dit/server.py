@@ -67,6 +67,18 @@ def replay(item_id):
     comment.kind = 'reopened'
     comment.save()
   return bottle.redirect('/issues/%s' % comment.get_issue().short_id())
+
+@bottle.post('/update/<item_id>')
+def update(item_id):
+  item = idx[item_id]
+  changed = False
+  for k,v in bottle.request.forms.items():
+    if (item.allow_update(k)):
+      setattr(item,k,v)
+      changed = True
+  if changed:
+    item.save()
+  return 'ok'
   
 @bottle.get('/issues.json')
 def issues_json():

@@ -252,9 +252,13 @@ var CommentList = React.createClass({
     }
   },
   render: function() {
+    var reload = this.doLoad;
+    if (this.props && this.props.reload) {
+      reload = this.props.reload;
+    }
     var nodes = this.state.comments.map(function (comment) {
       return (
-        <Comment data={comment}/>
+        <Comment data={comment} reload={reload}/>
       );
     });
     return (
@@ -267,7 +271,7 @@ var CommentList = React.createClass({
 
 var Comment = React.createClass({
   getInitialState: function() {
-    return {replying: false};
+    return {editing: false, replying: false};
   },
   handleClick: function() {
     this.state.replying = !this.state.replying
@@ -281,6 +285,24 @@ var Comment = React.createClass({
   commit: function() {
     alert('This needs to be committed.');
     return false
+  },
+  show_history: function() {
+    alert('Show history.');
+    return false
+  },
+  edit: function() {
+    this.state.editing = !this.state.editing
+    this.setState(this.state)
+    return false
+  },
+  save: function(e) {
+    var text = $('#'+this.props.data.id+'-comment-edit-textarea').val();
+    $.post('/update/'+this.props.data.id, {text:text}, function() {
+      this.state.editing = !this.state.editing
+      this.setState(this.state)
+      this.props.reload();
+    }.bind(this));
+    e.stopPropagation();
   },
   render: function() {
     if (this.props.data.kind) {
@@ -308,25 +330,48 @@ var Comment = React.createClass({
     return (
       <div>
         <div className="mdl-card mdl-shadow--2dp demo-card-wide" 
-            style={{minHeight:"1px", width:"auto", 'margin':'1em 0em'}} 
+            style={{minHeight:"1px", width:"auto", 'margin':'1em 0em', display: !this.state.editing ? 'block' : 'none'}} 
             key={this.props.data.id}>
           <div className="mdl-card__supporting-text" style={{width:'auto'}}>
             <div style={{float:'right'}}>
               <a href='' onClick={this.commit} style={{display:this.props.data.dirty ? 'inline' : 'none'}}>
                 <i className="material-icons" style={{fontSize:'12pt'}}>warning</i>
               </a>
-              <a href='' onClick={this.commit}>
-                <i className="material-icons" style={{width:'16px', fontSize:'12pt'}}>change history</i>
+              <a href='' onClick={this.show_history}>
+                <i className="material-icons" style={{fontSize:'12pt'}}>history</i>
+              </a>
+              <a href='' onClick={this.edit}>
+                <i className="material-icons" style={{fontSize:'12pt'}}>edit</i>
               </a>
             </div>
             <span dangerouslySetInnerHTML={{__html: rawMarkup}} />
             {author}
           </div>
         </div>
+        <div className="mdl-card mdl-shadow--2dp demo-card-wide" 
+            style={{minHeight:"1px", width:"auto", 'margin':'1em 0em', display: this.state.editing ? 'block' : 'none'}} 
+            key={this.props.data.id+'editing'}>
+          <div className="mdl-card__supporting-text" style={{width:'auto'}}>
+            <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
+              <textarea className="mdl-textfield__input" type="text" rows={4} 
+                  id={this.props.data.id+'-comment-edit-textarea'} 
+                  defaultValue={this.props.data.text}></textarea>
+              <label className="mdl-textfield__label">Details...</label>
+            </div>
+            <div style={{marginTop:'1em'}}>
+              <button className="mdl-button mdl-js-button mdl-button--raised" onClick={this.save}>
+                Save
+              </button>
+              <button className="mdl-button mdl-js-button mdl-js-ripple-effect" onClick={this.edit} style={{marginLeft:'1em'}}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
         <div style={{display: this.state.replying ? 'block' : 'none'}}>
           <NewCommentForm placeholder="Reply..." button='Reply' reply_to={this.props.data.id} onHide={this.handleHide}/>
         </div>
-        <CommentList comments={this.props.data.comments} />
+        <CommentList comments={this.props.data.comments} reload={this.props.reload} />
       </div>
     );
   }

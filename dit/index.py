@@ -159,6 +159,11 @@ class Item(object):
     if hasattr(self,'author'):
       d['author'] = self.author.as_dict() if self.author else None
     return d
+  
+  def allow_update(self, k):
+    if not hasattr(self.__class__, 'updatable'):
+      return False
+    return k in self.__class__.updatable
 
 
 class Issue(Item):
@@ -208,6 +213,7 @@ class Issue(Item):
 class Comment(Item):
   dir_name = 'comments'
   to_save = {'reply_to':None, 'text':'', 'kind':None}
+  updatable = set(['text'])
   slug_name = 'text'
 
   def __init__(self, idx, fn=None):
