@@ -9,6 +9,7 @@ class Index(object):
     print 'found dit at', self.dir
     self.prep_dir()
     self.trie = patricia.trie()
+    self.search_trie = patricia.trie()
     self.comments = collections.defaultdict(list)
     self.email = subprocess.check_output(['git','config','user.email']).strip()
     self.account = None
@@ -22,6 +23,24 @@ class Index(object):
 
   def __getitem__(self, key): 
     return self.trie[list(self.trie.iter(key))[0]]
+    
+  def search(self, q):
+    qa = tokenize(q)
+    result_ids = collections.defaultdict(int)
+    for t in qa:
+      if not t: continue
+      for key in self.search_trie.iter(t):
+        for uid in self.search_trie[key]:
+          result_ids[uid] += 1
+    uids = [uid for uid,count in sorted(result_ids.items(), lambda x,y: cmp(y[1], x[1]))]
+    return [self.trie[uid].as_dict() for uid in uids]
+    
+  def index_text(self, uid, vals):
+    for val in vals:
+      for t in tokenize(val):
+        if t not in self.search_trie:
+          self.search_trie[t] = set()
+        self.search_trie[t].add(uid)
     
   def prep_dir(self):
     for fn in ['issues','comments','users']:
@@ -62,6 +81,7 @@ class Index(object):
   
   def index_issue(self, issue):
     self.trie[issue.id] = issue
+    self.index_text(issue.id, [issue.title])
   
   def index_user(self, user):
     user_id = user.id
@@ -73,11 +93,13 @@ class Index(object):
     self.trie[user_id] = user
     if self.email == email:
       self.account = user
+    self.index_text(user.id, [user.name, user.email])
   
   def index_comment(self, comment):
     self.trie[comment.id] = comment
     if comment.reply_to:
       self.comments[comment.reply_to].append(comment)
+    self.index_text(comment.id, [comment.text])
 
   def index(self, o):
     if isinstance(o, User): self.index_user(o)
@@ -119,10 +141,13 @@ class Item(object):
       self.updated_at = self.created_at
 
   def short_id(self):
-    for i in range(5,len(self.id)):
-      items = list(self.idx.trie.items(self.id[:i]))
+    return self.gen_short_id(self.id)
+  
+  def gen_short_id(self, uid):
+    for i in range(5,len(uid)):
+      items = list(self.idx.trie.items(uid[:i]))
       if len(items)<=1:
-        return self.id[:i]
+        return uid[:i]
 
   def save(self):
     cls = self.__class__
@@ -151,6 +176,7 @@ class Item(object):
     short_id = self.short_id()
     d = {
       'id': self.id,
+      '__class__': self.__class__.__name__,
       'short_id': short_id,
       'dirty': self.fn in self.idx.dirty,
       'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
@@ -223,6 +249,7 @@ class Comment(Item):
   def as_dict(self):
     d = super(self.__class__, self).as_dict()
     d['reply_to'] = self.reply_to
+    d['reply_to_short_id'] = self.gen_short_id(self.reply_to)
     d['text'] = self.text
     d['kind'] = self.kind
     d['comments'] = [comment.as_dict() for comment in self.idx.get_comments(self.id)]
@@ -260,4 +287,8 @@ class User(Item):
 def slugify(s):
   s = s.lower()
   return '-'.join(re.split(r'\W+', s))[:30].strip('-')
+
+def tokenize(s):
+  s = s.lower()
+  return re.split(r'\W+', s)
 

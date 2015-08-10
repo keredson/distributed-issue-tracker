@@ -8,8 +8,17 @@ import index
 idx = index.Index()
 
 @bottle.get('/')
-def index():
+def home():
   return _html(title='Welcome', react='index')
+  
+@bottle.get('/search')
+def search():
+  return _html(title='Search', react='search')
+  
+@bottle.get('/search.json')
+def search_json():
+  items = idx.search(bottle.request.GET['q'])
+  return {'items': items}
   
 @bottle.get('/issues')
 def issues():
@@ -35,6 +44,8 @@ def comments_json(issue_id):
 @bottle.get('/issues/<issue_id>')
 def issue(issue_id):
   issue = idx[issue_id]
+  if isinstance(issue, index.Comment):
+    return bottle.redirect('/issues/%s' % issue.get_issue().short_id())
   return _html(title=issue.title, react='issue')
   
 @bottle.get('/account.json')

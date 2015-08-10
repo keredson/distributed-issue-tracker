@@ -13,17 +13,9 @@ var Frame = React.createClass({
           <header className="mdl-layout__header">
             <div className="mdl-layout__header-row">
               <div className="mdl-layout-spacer"></div>
-              <div className="mdl-textfield mdl-js-textfield mdl-textfield--expandable
-                          mdl-textfield--floating-label mdl-textfield--align-right">
-                <label className="mdl-button mdl-js-button mdl-button--icon"
-                       for="fixed-header-drawer-exp">
-                  <i className="material-icons">search</i>
-                </label>
-                <div className="mdl-textfield__expandable-holder">
-                  <input className="mdl-textfield__input" type="text" name="sample"
-                         id="fixed-header-drawer-exp" />
-                </div>
-              </div>
+              <a href='/search' style={{color:'white'}}>
+                <i className="material-icons">search</i>
+              </a>
             </div>
           </header>
           <div className="mdl-layout__drawer">
@@ -32,6 +24,7 @@ var Frame = React.createClass({
               <a className="mdl-navigation__link" href="/">Home</a>
               <a className="mdl-navigation__link" href="/issues">Issues</a>
               <a className="mdl-navigation__link" href="/issues/new">New Issue</a>
+              <a className="mdl-navigation__link" href="/search">Search</a>
             </nav>
           </div>
           <main className="mdl-layout__content">
