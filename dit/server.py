@@ -1,5 +1,7 @@
 import os
 
+import check_deps
+
 import bottle
 
 BASE = os.path.dirname(os.path.realpath(__file__))
