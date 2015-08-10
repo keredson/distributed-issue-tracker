@@ -169,6 +169,7 @@ class Item(object):
 class Issue(Item):
   dir_name = 'issues'
   to_save = {'title':''}
+  updatable = set(['title'])
   slug_name = 'title'
 
   def __init__(self, idx, fn=None):

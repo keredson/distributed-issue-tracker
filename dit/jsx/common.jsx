@@ -113,12 +113,27 @@ var IssueLI = React.createClass({
 
 var Issue = React.createClass({
   getInitialState: function() {
-    return {'title':''};
+    return {'title':'', editing:false};
   },
   componentDidMount: function() {
     $.getJSON(this.props.src, function( data ) {
       this.setState(data);
     }.bind(this));
+  },
+  edit: function(e) {
+    this.setState({editing: !this.state.editing})
+    mdlUpgradeDom();
+    e.preventDefault();
+  },
+  save: function(e) {
+    var title = $('#issue_title').val();
+    $.post('/update/'+this.state.id, {title:title}, function() {
+      this.setState({
+        editing: !this.state.editing,
+        title: title
+      })
+    }.bind(this));
+    e.preventDefault();
   },
   render: function() {
     var author = '';
@@ -131,12 +146,33 @@ var Issue = React.createClass({
         </div>
       );
     }
-    return (
-      <div>
+    var title;
+    if (this.state.editing) {
+      title = (
+        <div style={{margin:'1em;'}}>
+          <div className="mdl-textfield mdl-js-textfield textfield-demo">
+            <input className="mdl-textfield__input" type="text" id="issue_title" defaultValue={this.state.title} />
+            <label className="mdl-textfield__label" for="issue_title">Title...</label>
+          </div>
+          <button className="mdl-button mdl-js-button mdl-button--raised" onClick={this.save} style={{marginLeft:'1em'}}>
+            Save
+          </button>
+          <button className="mdl-button mdl-js-button mdl-js-ripple-effect" onClick={this.edit} style={{marginLeft:'1em'}}>
+            Cancel
+          </button>
+        </div>
+      );
+    } else {
+      title = (
         <h2>
           {this.state.title}
-          <a href=''><i className="material-icons" style={{marginLeft:'.5em'}}>edit</i></a>
+          <a href='' onClick={this.edit}><i className="material-icons" style={{marginLeft:'.5em'}}>edit</i></a>
         </h2>
+      );
+    }
+    return (
+      <div>
+        { title }
         {author}
         <div style={{marginLeft:'-1em'}}>
           <CommentList src={this.state.comments_url} />
@@ -302,7 +338,7 @@ var Comment = React.createClass({
       this.setState(this.state)
       this.props.reload();
     }.bind(this));
-    e.stopPropagation();
+    e.preventDefault();
   },
   render: function() {
     if (this.props.data.kind) {
