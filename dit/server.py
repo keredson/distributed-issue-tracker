@@ -26,6 +26,10 @@ def search_json():
 def issues():
   return _html(title='Issues', react='issues')
   
+@bottle.get('/labels')
+def issues():
+  return _html(title='Labels', react='labels')
+  
 @bottle.get('/issues/new')
 def issues_new():
   return _html(title='New Issue', react='issues_new')
@@ -59,9 +63,10 @@ def issues_new():
   issue = idx.new_issue()
   issue.title = bottle.request.forms['title']
   issue.save()
-  comment = issue.new_comment()
-  comment.text = bottle.request.forms['comment']
-  comment.save()
+  if bottle.request.forms['comment']:
+    comment = issue.new_comment()
+    comment.text = bottle.request.forms['comment']
+    comment.save()
   return bottle.redirect('/issues/%s' % issue.short_id())
   
 @bottle.post('/reply-to/<item_id>')
@@ -85,6 +90,9 @@ def replay(item_id):
 def update(item_id):
   item = idx[item_id]
   changed = False
+  if not item :
+    item = idx.create(bottle.request.forms['__class__'])
+    changed = True
   for k,v in bottle.request.forms.items():
     if (item.allow_update(k)):
       setattr(item,k,v)
@@ -97,6 +105,17 @@ def update(item_id):
 def issues_json():
   return {
     'issues': [issue.as_dict() for issue in idx.issues()],
+  }
+  
+@bottle.get('/labels.json')
+def labels_json():
+  labels = [label.as_dict() for label in idx.labels()]
+  if bottle.request.GET.get('new'):
+    d = idx.new_label().as_dict()
+    d['editing'] = True
+    labels.append(d)
+  return {
+    'labels': labels,
   }
   
 @bottle.get('/jsx/<path>')

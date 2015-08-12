@@ -23,7 +23,7 @@ var Frame = React.createClass({
             <nav className="mdl-navigation">
               <a className="mdl-navigation__link" href="/">Home</a>
               <a className="mdl-navigation__link" href="/issues">Issues</a>
-              <a className="mdl-navigation__link" href="/issues/new">New Issue</a>
+              <a className="mdl-navigation__link" href="/labels">Labels</a>
               <a className="mdl-navigation__link" href="/search">Search</a>
             </nav>
           </div>
@@ -41,146 +41,6 @@ var Frame = React.createClass({
   },
 });
 
-var IssueList = React.createClass({
-  getInitialState: function() {
-    return {issues: []};
-  },
-  componentDidMount: function() {
-    $.getJSON(this.props.url, function( data ) {
-      this.setState(data);
-    }.bind(this));
-  },
-  render: function() {
-    console.log(this)
-    var issueNodes = this.state.issues.map(function (issue) {
-      return (
-        <IssueLI data={issue}/>
-      );
-    });
-    return (
-      <div>
-        <table className="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp" width='100%'>
-          <thead>
-            <tr>
-              <th className="mdl-data-table__cell--non-numeric">Id</th>
-              <th className="mdl-data-table__cell--non-numeric" width='100%'>Issue</th>
-              <th className="mdl-data-table__cell--non-numeric"> </th>
-              <th className="mdl-data-table__cell--non-numeric">
-                <i className="material-icons" style={{fontSize:'12pt', verticalAlign:'text-bottom'}}>error_outline</i>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {issueNodes}
-          </tbody>
-        </table>
-        <div style={{marginTop:'1em', display:this.state.issues.length ? 'none' : 'block'}}>
-          No issues...
-        </div>
-      </div>
-    );
-  },
-});
-
-var IssueLI = React.createClass({
-  render: function() {
-    return (
-      <tr>
-        <td className="mdl-data-table__cell--non-numeric">
-          <a href={this.props.data.url}>{this.props.data.short_id}</a>
-        </td>
-        <td className="mdl-data-table__cell--non-numeric">
-          {this.props.data.title}
-        </td>
-        <td style={{color: this.props.data.comment_count ? '' : '#ddd'}}>
-          {this.props.data.comment_count}
-          <i className="material-icons" style={{marginLeft:'.2em', fontSize:'10pt', verticalAlign:'text-bottom'}}>comment</i>
-        </td>
-        <td className="mdl-data-table__cell--non-numeric">
-          <i className="material-icons" style={{fontSize:'12pt', color:this.props.data.resolved ? 'red' : 'green', verticalAlign:'text-bottom'}}>error_outline</i>
-        </td>
-      </tr>
-    );
-  }
-});
-
-var Issue = React.createClass({
-  getInitialState: function() {
-    return {'title':'', editing:false};
-  },
-  componentDidMount: function() {
-    $.getJSON(this.props.src, function( data ) {
-      this.setState(data);
-    }.bind(this));
-  },
-  edit: function(e) {
-    this.setState({editing: !this.state.editing})
-    mdlUpgradeDom();
-    e.preventDefault();
-  },
-  save: function(e) {
-    var title = $('#issue_title').val();
-    $.post('/update/'+this.state.id, {title:title}, function() {
-      this.setState({
-        editing: !this.state.editing,
-        title: title
-      })
-    }.bind(this));
-    e.preventDefault();
-  },
-  render: function() {
-    var dirty = this.state.dirty ? (
-      <a href='' onClick={this.commit}>
-        <i className="material-icons" style={{fontSize:'12pt', verticalAlign:'text-bottom', marginLeft:'.5em'}}>warning</i>
-      </a>
-    ) : '';
-    var author = '';
-    if (this.state.author) {
-      style = {fontSize:'12pt', color:this.state.resolved ? 'red' : 'green', verticalAlign:'text-bottom', marginLeft:'.5em'};
-      author = (
-        <div style={{'margin-top':'-24px'}}>
-          <AuthorSig author={this.state.author} /> at {this.state.created_at}
-          <i className="material-icons" style={style}>error_outline</i>
-          {dirty}
-        </div>
-      );
-    }
-    var title;
-    if (this.state.editing) {
-      title = (
-        <div style={{margin:'1em;'}}>
-          <div className="mdl-textfield mdl-js-textfield textfield-demo">
-            <input className="mdl-textfield__input" type="text" id="issue_title" defaultValue={this.state.title} />
-            <label className="mdl-textfield__label" for="issue_title">Title...</label>
-          </div>
-          <button className="mdl-button mdl-js-button mdl-button--raised" onClick={this.save} style={{marginLeft:'1em'}}>
-            Save
-          </button>
-          <button className="mdl-button mdl-js-button mdl-js-ripple-effect" onClick={this.edit} style={{marginLeft:'1em'}}>
-            Cancel
-          </button>
-        </div>
-      );
-    } else {
-      title = (
-        <h2>
-          {this.state.title}
-          <a href='' onClick={this.edit}><i className="material-icons" style={{marginLeft:'.5em'}}>edit</i></a>
-        </h2>
-      );
-    }
-    return (
-      <div>
-        { title }
-        {author}
-        <div style={{marginLeft:'-1em'}}>
-          <CommentList src={this.state.comments_url} />
-        </div>
-        <NewCommentForm reply_to={this.state.id} closeButton={!this.state.resolved} reopenButton={this.state.resolved} />
-      </div>
-    );
-  }
-});
 
 var AuthorSig = React.createClass({
   render: function() {
@@ -192,34 +52,6 @@ var AuthorSig = React.createClass({
   }
 });
 
-var NewIssueForm = React.createClass({
-  getInitialState: function() {
-    return {title: '', id: ''};
-  },
-  render: function() {
-    return (
-      <form method='post'>
-        <div>
-          <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
-            <input className="mdl-textfield__input" type="text" id="title" name='title' defaultValue={this.state.title} />
-            <label className="mdl-textfield__label" for="title">Title</label>
-          </div>
-        </div>
-        <div>
-          <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
-            <textarea className="mdl-textfield__input" type="text" rows="10" name='comment' id="sample5" ></textarea>
-            <label className="mdl-textfield__label" for="sample5">Details...</label>
-          </div>
-        </div>
-        <div>
-          <button className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--accent">
-            {this.state.id ? "Save" : "Create"}
-          </button>
-        </div>
-      </form>
-    );
-  }
-});
 
 var NewCommentForm = React.createClass({
   getInitialState: function() {
@@ -311,7 +143,7 @@ var Comment = React.createClass({
   handleClick: function() {
     this.state.replying = !this.state.replying
     this.setState(this.state)
-    return false
+    e.preventDefault();
   },
   handleHide: function() {
     this.state.replying = false
@@ -319,16 +151,16 @@ var Comment = React.createClass({
   },
   commit: function() {
     alert('This needs to be committed.');
-    return false
+    e.preventDefault();
   },
   show_history: function() {
     alert('Show history.');
-    return false
+    e.preventDefault();
   },
   edit: function() {
     this.state.editing = !this.state.editing
     this.setState(this.state)
-    return false
+    e.preventDefault();
   },
   save: function(e) {
     var text = $('#'+this.props.data.id+'-comment-edit-textarea').val();
@@ -417,6 +249,19 @@ var Comment = React.createClass({
     );
   }
 });
+
+
+var Label = React.createClass({
+  render: function() {
+    return (
+      <span style={{padding:'.1em .5em', backgroundColor:this.props.data.bg_color, color:this.props.data.fg_color}} className='mdl-shadow--2dp'>
+        {this.props.data.name || '---'}
+      </span>
+    );
+  },
+});
+
+
 
 function mdlUpgradeDom() {
   setTimeout(function() {

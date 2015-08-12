@@ -1,4 +1,4 @@
-import collections, datetime, os, re, subprocess, sys, uuid, yaml
+import collections, datetime, os, random, re, subprocess, sys, uuid, yaml
 import dateutil.parser, dateutil.tz
 import patricia
 
@@ -21,8 +21,9 @@ class Index(object):
       self.account.name = subprocess.check_output(['git','config','user.name']).strip()
       self.account.save()
 
-  def __getitem__(self, key): 
-    return self.trie[list(self.trie.iter(key))[0]]
+  def __getitem__(self, key):
+    matches = list(self.trie.iter(key))
+    return self.trie[matches[0]] if matches else None
     
   def search(self, q):
     qa = tokenize(q)
@@ -43,14 +44,19 @@ class Index(object):
         self.search_trie[t].add(uid)
     
   def prep_dir(self):
-    for fn in ['issues','comments','users']:
+    for fn in ['issues','comments','users','labels']:
       if not os.path.isdir(os.path.join(self.dir, fn)):
         os.makedirs(os.path.join(self.dir, fn))
         
   def update_dirty(self):
-    fns = subprocess.check_output(['git','diff','HEAD','--name-only',self.dir]).strip().split()
+    try:
+      fns = subprocess.check_output(['git','diff','HEAD','--name-only',self.dir]).strip().split()
+    except:
+      # git diff will exit 128 if it's an empty repo
+      fns = []
     fns = [os.path.abspath(fn) for fn in fns]
     self.dirty = set(fns)
+      
 
   def find_dit_dir(self):
     dir = os.getcwd()
@@ -101,18 +107,34 @@ class Index(object):
       self.comments[comment.reply_to].append(comment)
     self.index_text(comment.id, [comment.text])
 
+  def index_label(self, label):
+    self.trie[label.id] = label
+    self.index_text(label.id, [label.name])
+
   def index(self, o):
     if isinstance(o, User): self.index_user(o)
     if isinstance(o, Comment): self.index_comment(o)
     if isinstance(o, Issue): self.index_issue(o)
+    if isinstance(o, Label): self.index_label(o)
   
   def issues(self):
     return [item for item in self.trie.values() if isinstance(item,Issue)]
+  
+  def labels(self):
+    return [item for item in self.trie.values() if isinstance(item,Label)]
   
   def new_issue(self):
     issue = Issue(self)
     issue.author = self.account
     return issue
+    
+  def new_label(self):
+    label = Label(self)
+    return label
+    
+  def create(self, cls):
+    if cls=='Label':
+      return Label(self)
     
   def get_comments(self, id):
    return sorted(self.comments[id], lambda x,y: cmp(x.created_at, y.created_at))
@@ -210,7 +232,7 @@ class Issue(Item):
       if comments:
         c += len(comments)
         to_count += comments
-    return c-1
+    return max(0,c-1)
   
   def is_resolved(self):
     resolved = False
@@ -284,6 +306,25 @@ class User(Item):
     return d
   
 
+class Label(Item):
+  dir_name = 'labels'
+  to_save = {'name':'', 'fg_color':None, 'bg_color':None, 'deadline':None}
+  updatable = set(['name', 'fg_color', 'bg_color', 'deadline'])
+  slug_name = 'name'
+
+  def __init__(self, idx, fn=None):
+    super(self.__class__, self).__init__(idx, fn=fn)
+    if not self.fg_color and not self.bg_color:
+      self.fg_color, self.bg_color = random_color()
+  
+  def as_dict(self):
+    d = super(self.__class__, self).as_dict()
+    d['name'] = self.name
+    d['fg_color'] = self.fg_color
+    d['bg_color'] = self.bg_color
+    return d
+  
+
 def slugify(s):
   s = s.lower()
   return '-'.join(re.split(r'\W+', s))[:30].strip('-')
@@ -292,3 +333,9 @@ def tokenize(s):
   s = s.lower()
   return re.split(r'\W+', s)
 
+def random_color():
+  components = [random.randint(0,255) for i in range(3)]
+  fg_color = '#ffffff' if sum(components)/3 < 150 else '#000000'
+  bg_color = '#' + ''.join(['%02x'%c for c in components])
+  print sum(components)/3, fg_color, bg_color
+  return fg_color, bg_color
