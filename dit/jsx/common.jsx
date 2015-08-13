@@ -76,10 +76,10 @@ var NewCommentForm = React.createClass({
         <div>
           <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
             <textarea className="mdl-textfield__input" type="text" rows={this.state.editing ? 4 : 1} name='comment' id={this.state.id} onFocus={this.handleFocus} onBlur={this.handleBlur}></textarea>
-            <label className="mdl-textfield__label" for="sample5">{this.props.placeholder || 'Add a comment...'}</label>
+            <label className="mdl-textfield__label" htmlFor="sample5">{this.props.placeholder || 'Add a comment...'}</label>
           </div>
         </div>
-        <div style={{paddingLeft:'2em;'}}>
+        <div style={{paddingLeft:'2em'}}>
           <button name='close' className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{display: this.props.closeButton ? 'inline' : 'none', marginRight:'1em'}}>
             Close Issue
           </button>
@@ -125,7 +125,7 @@ var CommentList = React.createClass({
     }
     var nodes = this.state.comments.map(function (comment) {
       return (
-        <Comment data={comment} reload={reload}/>
+        <Comment data={comment} reload={reload} key={'comment_'+comment.id}/>
       );
     });
     return (
@@ -140,7 +140,7 @@ var Comment = React.createClass({
   getInitialState: function() {
     return {editing: false, replying: false};
   },
-  handleClick: function() {
+  handleClick: function(e) {
     this.state.replying = !this.state.replying
     this.setState(this.state)
     e.preventDefault();
@@ -153,11 +153,11 @@ var Comment = React.createClass({
     alert('This needs to be committed.');
     e.preventDefault();
   },
-  show_history: function() {
+  show_history: function(e) {
     alert('Show history.');
     e.preventDefault();
   },
-  edit: function() {
+  edit: function(e) {
     this.state.editing = !this.state.editing
     this.setState(this.state)
     e.preventDefault();

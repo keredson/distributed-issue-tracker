@@ -261,7 +261,7 @@ class Issue(Item):
 
 class Comment(Item):
   dir_name = 'comments'
-  to_save = {'reply_to':None, 'text':'', 'kind':None}
+  to_save = {'reply_to':None, 'text':'', 'kind':None, 'label':None}
   updatable = set(['text'])
   slug_name = 'text'
 
@@ -274,6 +274,7 @@ class Comment(Item):
     d['reply_to_short_id'] = self.gen_short_id(self.reply_to)
     d['text'] = self.text
     d['kind'] = self.kind
+    d['label'] = self.idx[self.label]
     d['comments'] = [comment.as_dict() for comment in self.idx.get_comments(self.id)]
     return d
 
