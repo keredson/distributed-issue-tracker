@@ -28,6 +28,7 @@ var LabelController = React.createClass({
   addLabel: function(label_id) {
     $.post('/reply-to/'+this.props.issue.id, {'add_label':label_id}, function() {
       console.log(this.props)
+      this.setState({editing: false})
       this.props.reload();
     }.bind(this))
   },

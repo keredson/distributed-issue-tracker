@@ -31,12 +31,27 @@ var Search = React.createClass({
         )
       }
       if (item.__class__=='Comment') {
+        if (item.label) {
+          desc = (
+            <div>
+              <Author author={item.author}/> {item.kind=='added_label' ? "added" : "removed"} label <Label data={item.label}/> to issue <a href={'/issues/'+item.reply_to_short_id}>{item.reply_to_short_id}</a> on {item.created_at}.
+            </div>
+          )
+        } else {
+          desc = (
+            <div>
+              <div>
+                In reply to <a href={'/issues/'+item.reply_to_short_id}>{item.reply_to_short_id}</a>:
+              </div>
+              {item.text}
+            </div>
+          )
+        }
+      }
+      if (item.__class__=='Label') {
         desc = (
           <div>
-            <div>
-              In reply to <a href={'/issues/'+item.reply_to_short_id}>{item.reply_to_short_id}</a>:
-            </div>
-            {item.text}
+            <Author author={item.author}/> created <Label data={item}/> on {item.created_at}.
           </div>
         )
       }

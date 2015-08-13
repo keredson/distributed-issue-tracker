@@ -81,14 +81,14 @@ class Index(object):
       fn = os.path.join(self.dir, 'issues', fn)
       issue = Issue(self, fn=fn)
       self.index_issue(issue)
-    for fn in os.listdir(os.path.join(self.dir, 'comments')):
-      fn = os.path.join(self.dir, 'comments', fn)
-      comment = Comment(self, fn=fn)
-      self.index_comment(comment)
     for fn in os.listdir(os.path.join(self.dir, 'labels')):
       fn = os.path.join(self.dir, 'labels', fn)
       label = Label(self, fn=fn)
       self.index_label(label)
+    for fn in os.listdir(os.path.join(self.dir, 'comments')):
+      fn = os.path.join(self.dir, 'comments', fn)
+      comment = Comment(self, fn=fn)
+      self.index_comment(comment)
   
   def index_issue(self, issue):
     self.trie[issue.id] = issue
@@ -111,6 +111,10 @@ class Index(object):
     if comment.reply_to:
       self.comments[comment.reply_to].append(comment)
     self.index_text(comment.id, [comment.text])
+    if comment.label:
+      label = self[comment.label]
+      if label:
+        self.index_text(comment.id, [label.name])
 
   def index_label(self, label):
     self.trie[label.id] = label
@@ -135,6 +139,7 @@ class Index(object):
     
   def new_label(self):
     label = Label(self)
+    label.author = self.account
     return label
     
   def create(self, cls):
@@ -181,7 +186,7 @@ class Item(object):
     add = False
     self.updated_at = datetime.datetime.now(dateutil.tz.tzlocal())
     if not self.fn:
-      self.fn = os.path.join(self.idx.dir, cls.dir_name, "%s-%s.yaml" % (self.short_id(), slugify(getattr(self,cls.slug_name))))
+      self.fn = os.path.join(self.idx.dir, cls.dir_name, "%s-%s.yaml" % (self.short_id(), slugify(self.slug_seed())))
       add = True
     with open(self.fn, 'w') as f:
       data = {
@@ -223,7 +228,6 @@ class Issue(Item):
   dir_name = 'issues'
   to_save = {'title':''}
   updatable = set(['title'])
-  slug_name = 'title'
 
   def __init__(self, idx, fn=None):
     super(self.__class__, self).__init__(idx, fn=fn)
@@ -262,13 +266,15 @@ class Issue(Item):
     comment.author = self.idx.account
     comment.reply_to = self.id
     return comment
+
+  def slug_seed(self):
+    return self.title
     
 
 class Comment(Item):
   dir_name = 'comments'
   to_save = {'reply_to':None, 'text':'', 'kind':None, 'label':None}
   updatable = set(['text'])
-  slug_name = 'text'
 
   def __init__(self, idx, fn=None):
     super(self.__class__, self).__init__(idx, fn=fn)
@@ -279,7 +285,8 @@ class Comment(Item):
     d['reply_to_short_id'] = self.gen_short_id(self.reply_to)
     d['text'] = self.text
     d['kind'] = self.kind
-    d['label'] = self.idx[self.label].as_dict() if self.label else None
+    label = self.idx[self.label] if self.label else None
+    d['label'] = label.as_dict() if label else None
     d['comments'] = [comment.as_dict() for comment in self.idx.get_comments(self.id)]
     return d
 
@@ -288,6 +295,12 @@ class Comment(Item):
     comment.author = self.idx.account
     comment.reply_to = self.id
     return comment
+
+  def slug_seed(self):
+    label = self.idx[self.label] if self.label else None
+    if label:
+      return 'label %s' % label.name
+    return self.text
     
   def get_issue(self):
     x = self
@@ -300,7 +313,6 @@ class Comment(Item):
 class User(Item):
   dir_name = 'users'
   to_save = {'email':None, 'name':'', 'aka':None}
-  slug_name = 'name'
 
   def __init__(self, idx, fn=None):
     super(self.__class__, self).__init__(idx, fn=fn)
@@ -310,13 +322,15 @@ class User(Item):
     d['email'] = self.email
     d['name'] = self.name
     return d
+
+  def slug_seed(self):
+    return self.name
   
 
 class Label(Item):
   dir_name = 'labels'
   to_save = {'name':'', 'fg_color':None, 'bg_color':None, 'deadline':None}
   updatable = set(['name', 'fg_color', 'bg_color', 'deadline'])
-  slug_name = 'name'
 
   def __init__(self, idx, fn=None):
     super(self.__class__, self).__init__(idx, fn=fn)
@@ -329,6 +343,9 @@ class Label(Item):
     d['fg_color'] = self.fg_color
     d['bg_color'] = self.bg_color
     return d
+    
+  def slug_seed(self):
+    return self.name
   
 
 def slugify(s):
@@ -343,5 +360,4 @@ def random_color():
   components = [random.randint(0,255) for i in range(3)]
   fg_color = '#ffffff' if sum(components)/3 < 150 else '#000000'
   bg_color = '#' + ''.join(['%02x'%c for c in components])
-  print sum(components)/3, fg_color, bg_color
   return fg_color, bg_color

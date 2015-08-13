@@ -42,11 +42,22 @@ var Frame = React.createClass({
 });
 
 
+var Author = React.createClass({
+  render: function() {
+    return (
+        <span>
+          {this.props.author.name}
+        </span>
+    );
+  }
+});
+
+
 var AuthorSig = React.createClass({
   render: function() {
     return (
         <span>
-          -- {this.props.author.name}
+          -- <Author author={this.props.author}/>
         </span>
     );
   }
@@ -218,6 +229,11 @@ var Comment = React.createClass({
       );
     }
     var rawMarkup = marked(this.props.data.text.toString(), {sanitize: true});
+    var replybox = this.state.replying ? (
+        <div style={{marginBottom:'1em'}}>
+          <NewCommentForm placeholder="Reply..." button='Reply' reply_to={this.props.data.id} onHide={this.handleHide}/>
+        </div>
+    ) : '';
     return (
       <div>
         <div className="mdl-card mdl-shadow--2dp demo-card-wide" 
@@ -257,9 +273,7 @@ var Comment = React.createClass({
             </div>
           </div>
         </div>
-        <div style={{display: this.state.replying ? 'block' : 'none'}}>
-          <NewCommentForm placeholder="Reply..." button='Reply' reply_to={this.props.data.id} onHide={this.handleHide}/>
-        </div>
+        {replybox}
         <CommentList comments={this.props.data.comments} reload={this.props.reload} />
       </div>
     );
@@ -269,9 +283,13 @@ var Comment = React.createClass({
 
 var Label = React.createClass({
   render: function() {
+    var data = this.props.data ? this.props.data : {}
+    bg_color = data.bg_color || '#eeeeee'
+    fg_color = data.fg_color || '#000000'
+    var name = this.props.data ? this.props.data.name : 'Unknown Label'
     return (
-      <span style={{padding:'.1em .5em', marginLeft:'.1em', backgroundColor:this.props.data.bg_color, color:this.props.data.fg_color}} className='mdl-shadow--2dp'>
-        {this.props.data.name || '---'}
+      <span style={{padding:'.1em .5em', marginLeft:'.1em', backgroundColor:bg_color, color:fg_color}} className='mdl-shadow--2dp'>
+        {name || '---'}
       </span>
     );
   },
