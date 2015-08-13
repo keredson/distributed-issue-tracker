@@ -206,6 +206,9 @@ var Comment = React.createClass({
   getInitialState: function() {
     return {editing: false, replying: false, items:{}};
   },
+  componentDidUpdate: function(prevProps, prevState) {
+    mdlUpgradeDom();
+  },
   componentDidMount: function() {
     var ids = []
     this.props.data.text.replace(/\B@[\w-]+/g, function(w,m) {
@@ -213,6 +216,7 @@ var Comment = React.createClass({
     })
     $.getJSON('/items-by-id.json', {ids:ids.join(',')}, function(data) {
       this.setState({items:data})
+      mdlUpgradeDom();
     }.bind(this))
   },
   handleClick: function(e) {
