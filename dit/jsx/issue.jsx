@@ -25,8 +25,10 @@ var LabelController = React.createClass({
     this.setState({editing: !this.state.editing})
     e.preventDefault();
   },
-  addLabel: function(label_id) {
-    $.post('/reply-to/'+this.props.issue.id, {'add_label':label_id}, function() {
+  doLabel: function(action, label_id) {
+    var d = {}
+    d[action] = label_id;
+    $.post('/reply-to/'+this.props.issue.id, d, function() {
       console.log(this.props)
       this.setState({editing: false})
       this.props.reload();
@@ -35,19 +37,24 @@ var LabelController = React.createClass({
   render: function() {
     var label_part;
     if (this.state.editing) {
+      var hasLabelIds = {}
+      var labels = this.props.issue.labels.map(function (label) {
+        hasLabelIds[label.id] = true
+      }.bind(this));
       var all_labels = this.state.labels.map(function (label) {
         if (label.name.toLowerCase().indexOf(this.state.q) == -1) {
           return <span />
         }
         var click = function(e) {
-          this.addLabel(label.id);
+          var action = label.id in hasLabelIds ? 'remove_label' : 'add_label'
+          this.doLabel(action, label.id);
           e.preventDefault();
         }.bind(this);
         return (
           <a href='' style={{textDecoration:'none'}} onClick={click}>
             <div style={{padding:'.1em .5em', margin:'.5em', backgroundColor:label.bg_color, color:label.fg_color}} className='mdl-shadow--2dp'>
               {label.name || '---'}
-              <i className="material-icons" style={{fontSize:'11pt', verticalAlign:'middle', float:'right', clear:'right'}}>add</i>
+              <i className="material-icons" style={{fontSize:'11pt', verticalAlign:'middle', float:'right', clear:'right'}}>{label.id in hasLabelIds ? 'clear' : 'add'}</i>
             </div>
           </a>
         );
@@ -62,14 +69,11 @@ var LabelController = React.createClass({
         </div>
       )
     } else {
-      var seenLabelIds = {}
-      var labels = this.props.comments.map(function (comment) {
-        if (!comment.label) return <span/>
-        if (comment.label.id in seenLabelIds) return <span/>
-        seenLabelIds[comment.label.id] = true
+      console.log(this.props.issue)
+      var labels = this.props.issue.labels.map(function (label) {
         return (
-          <div style={{padding:'.1em .5em', margin:'.5em', backgroundColor:comment.label.bg_color, color:comment.label.fg_color}} className='mdl-shadow--2dp'>
-            {comment.label.name || '---'}
+          <div style={{padding:'.1em .5em', margin:'.5em', backgroundColor:label.bg_color, color:label.fg_color}} className='mdl-shadow--2dp'>
+            {label.name || '---'}
           </div>
         )
       }.bind(this));
@@ -89,7 +93,7 @@ var LabelController = React.createClass({
         </div>
         <div className="mdl-card__menu">
           <button className="mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" onClick={this.edit}>
-            <i className="material-icons">{this.state.editing ? 'clear' : 'add'}</i>
+            <i className="material-icons" style={{fontSize:'12pt'}}>{this.state.editing ? 'clear' : 'edit'}</i>
           </button>
         </div>
       </div>        
@@ -99,7 +103,7 @@ var LabelController = React.createClass({
 
 var Issue = React.createClass({
   getInitialState: function() {
-    return {issue:{'title':''}, comments:[], editing:false};
+    return {issue:{title:'', labels:[]}, comments:[], editing:false};
   },
   componentDidMount: function() {
     this.load()

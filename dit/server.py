@@ -37,7 +37,6 @@ def issues_new():
 @bottle.get('/issues/<issue_id>.json')
 def issue_json(issue_id):
   issue = idx[issue_id]
-  print 'issue', issue
   return issue.as_dict()
   
 @bottle.get('/issues/<issue_id>/comments.json')

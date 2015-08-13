@@ -199,6 +199,7 @@ class Item(object):
       if hasattr(self,'author') and self.author:
         data['author'] = self.author.id
       yaml.dump(data, f, default_flow_style=False)
+      print 'wrote', self.fn
     if add:
       subprocess.check_call(['git', 'add', self.fn])
     self.idx.index(self)
@@ -258,7 +259,12 @@ class Issue(Item):
     d['url'] = '/issues/%s' % d['short_id']
     d['comments_url'] = '/issues/%s/comments.json' % d['short_id']
     d['comment_count'] = self.comment_count()
-    label_ids = set([comment.label for comment in self.idx.comments[self.id]])
+    label_ids = set()
+    for comment in self.idx.get_comments(self.id):
+      if comment.kind=='added_label':
+        label_ids.add(comment.label)
+      elif comment.kind=='removed_label':
+        label_ids.discard(comment.label)
     labels = [self.idx[label_id] for label_id in label_ids if label_id]
     d['labels'] = [label.as_dict() for label in labels if label]
     d['resolved'] = self.is_resolved()
