@@ -94,7 +94,6 @@ def replay(item_id):
     comment.label = bottle.request.forms['remove_label']
     comment.save()
   return 'ok'
-  return bottle.redirect('/issues/%s' % comment.get_issue().short_id())
 
 @bottle.post('/update/<item_id>')
 def update(item_id):
