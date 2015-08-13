@@ -88,20 +88,19 @@ var NewCommentForm = React.createClass({
   componentDidMount: function() {
     mdlUpgradeDom();
     $(this.refs.textarea.getDOMNode()).textcomplete([
-        { // tech companies
-            words: ['apple', 'google', 'google2', 'facebook', 'github'],
-            match: /\B@(\w{1,})$/,
-            search: function (term, callback) {
-              $.getJSON('/search.json', {kind:'User,Issue', q:term}, function(data) {
-                callback($.map(data['items'], function (item) {
-                    return '@'+item['slug'];
-                }));
-              });
-            },
-            index: 1,
-            replace: function (word) {
-                return word + ' ';
-            }
+        {
+          match: /\B@(\w{1,})$/,
+          search: function (term, callback) {
+            $.getJSON('/search.json', {kind:'User,Issue', q:term}, function(data) {
+              callback($.map(data['items'], function (item) {
+                  return '@'+item['slug'];
+              }));
+            });
+          },
+          index: 1,
+          replace: function (word) {
+            return word + ' ';
+          }
         }
     ]);
   },
@@ -205,7 +204,16 @@ var CommentList = React.createClass({
 
 var Comment = React.createClass({
   getInitialState: function() {
-    return {editing: false, replying: false};
+    return {editing: false, replying: false, items:{}};
+  },
+  componentDidMount: function() {
+    var ids = []
+    this.props.data.text.replace(/\B@[\w-]+/g, function(w,m) {
+      ids.push(w.substring(1))
+    })
+    $.getJSON('/items-by-id.json', {ids:ids.join(',')}, function(data) {
+      this.setState({items:data})
+    }.bind(this))
   },
   handleClick: function(e) {
     this.state.replying = !this.state.replying
@@ -260,7 +268,6 @@ var Comment = React.createClass({
       if (this.props.data.kind=='removed_label') {
         desc = <span>Removed <Label data={this.props.data.label}/></span>
       }
-      
       return (
         <div>
           {desc}
@@ -282,7 +289,14 @@ var Comment = React.createClass({
       );
     }
     var rawMarkup = marked(this.props.data.text.toString(), {sanitize: true});
-    console.log('this.props.reload', this.props.reload)
+    rawMarkup = rawMarkup.replace(/\B@[\w-]+/g, function(w,m) {
+      var id = w.substring(1);
+      if (this.state.items[id]) {
+        return React.renderToStaticMarkup(<Item data={this.state.items[id]}/>);
+      } else {
+        return w;
+      }
+    }.bind(this))
     var replybox = this.state.replying ? (
         <div style={{marginBottom:'1em'}}>
           <NewCommentForm placeholder="Reply..." reload={this.props.reload} button='Reply' reply_to={this.props.data.id} onHide={this.handleHide}/>
@@ -332,6 +346,45 @@ var Comment = React.createClass({
       </div>
     );
   }
+});
+
+
+var Item = React.createClass({
+  render: function() {
+    if (this.props.data.__class__=='User') {
+      return <User data={this.props.data}/>
+    }
+    if (this.props.data.__class__=='Issue') {
+      return <Issue data={this.props.data}/>
+    }
+    return (
+      <span>
+        Unknown:{this.props.data.__class__}
+      </span>
+    )
+  },
+});
+
+
+var User = React.createClass({
+  render: function() {
+    return (
+      <a href={'/users/'+this.props.data.slug}>
+        {this.props.data.name}
+      </a>
+    )
+  },
+});
+
+
+var Issue = React.createClass({
+  render: function() {
+    return (
+      <a href={'/issues/'+this.props.data.slug}>
+        {this.props.data.title}
+      </a>
+    )
+  },
 });
 
 

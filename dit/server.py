@@ -25,6 +25,11 @@ def search_json():
   items = idx.search(bottle.request.GET['q'], kinds=kinds)
   return {'items': items}
   
+@bottle.get('/items-by-id.json')
+def items_json():
+  items_by_id = {id:idx[id.split('-')[0]] for id in bottle.request.GET['ids'].split(',')}
+  return {id:item.as_dict() if item else None for id,item in items_by_id.items()}
+  
 @bottle.get('/issues')
 def issues():
   return _html(title='Issues', react='issues')
@@ -42,6 +47,11 @@ def issue_json(issue_id):
   issue = idx[issue_id]
   return issue.as_dict()
   
+@bottle.get('/users/<user_id>.json')
+def user_json(user_id):
+  user = idx[user_id]
+  return user.as_dict()
+  
 @bottle.get('/issues/<issue_id>/comments.json')
 def comments_json(issue_id):
   issue = idx[issue_id]
@@ -57,6 +67,13 @@ def issue(issue_id):
   if isinstance(issue, index.Comment):
     return bottle.redirect('/issues/%s' % issue.get_issue().short_id())
   return _html(title=issue.title, react='issue')
+  
+@bottle.get('/users/<user_id>')
+def user(user_id):
+  user = idx[user_id]
+  if not user:
+    bottle.abort(404)
+  return _html(title=user.name, react='user')
   
 @bottle.get('/account.json')
 def account_json():

@@ -23,6 +23,7 @@ class Index(object):
 
   def __getitem__(self, key):
     if not key: return None
+    key = key.split('-')[0]
     matches = list(self.trie.iter(key))
     return self.trie[matches[0]] if matches else None
     

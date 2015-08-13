@@ -96,7 +96,7 @@ var LabelController = React.createClass({
   },
 });
 
-var Issue = React.createClass({
+var IssuePage = React.createClass({
   getInitialState: function() {
     return {issue:{title:'', labels:[]}, comments:[], editing:false};
   },
@@ -188,7 +188,7 @@ var Issue = React.createClass({
 
 React.render(
   <Frame>
-    <Issue src={document.location+'.json'} />
+    <IssuePage src={document.location+'.json'} />
   </Frame>,
   document.getElementById('content')
 );
