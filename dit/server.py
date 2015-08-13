@@ -19,7 +19,10 @@ def search():
   
 @bottle.get('/search.json')
 def search_json():
-  items = idx.search(bottle.request.GET['q'])
+  kinds = None
+  if 'kind' in bottle.request.GET:
+    kinds = set(bottle.request.GET['kind'].split(','))
+  items = idx.search(bottle.request.GET['q'], kinds=kinds)
   return {'items': items}
   
 @bottle.get('/issues')
@@ -49,6 +52,8 @@ def comments_json(issue_id):
 @bottle.get('/issues/<issue_id>')
 def issue(issue_id):
   issue = idx[issue_id]
+  if not issue:
+    bottle.abort(404)
   if isinstance(issue, index.Comment):
     return bottle.redirect('/issues/%s' % issue.get_issue().short_id())
   return _html(title=issue.title, react='issue')

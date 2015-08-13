@@ -73,8 +73,11 @@ var NewCommentForm = React.createClass({
     this.state.editing = true
     this.setState(this.state)
   },
+  onChange: function() {
+    this.setState({text:$(this.refs.textarea.getDOMNode()).val()})
+  },
   handleBlur: function() {
-    if (!$(this.refs.textarea.getDOMNode()).val()) {
+    if (!this.state.text) {
       this.state.editing = false
       this.setState(this.state)
       if (this.props.onHide) {
@@ -84,6 +87,23 @@ var NewCommentForm = React.createClass({
   },
   componentDidMount: function() {
     mdlUpgradeDom();
+    $(this.refs.textarea.getDOMNode()).textcomplete([
+        { // tech companies
+            words: ['apple', 'google', 'google2', 'facebook', 'github'],
+            match: /\B@(\w{1,})$/,
+            search: function (term, callback) {
+              $.getJSON('/search.json', {kind:'User,Issue', q:term}, function(data) {
+                callback($.map(data['items'], function (item) {
+                    return '@'+item['slug'];
+                }));
+              });
+            },
+            index: 1,
+            replace: function (word) {
+                return word + ' ';
+            }
+        }
+    ]);
   },
   componentDidUpdate: function(prevProps, prevState) {
     mdlUpgradeDom();
@@ -118,11 +138,13 @@ var NewCommentForm = React.createClass({
         {this.props.button || 'Add Comment'}
       </button>
     ) : <span/>
+    var line_numbers = this.state.text.split(/\r*\n/).length;
+    var editor_size = Math.min(Math.max(line_numbers+1, 4), 20)
     return (
       <div>
         <div>
           <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
-            <textarea className="mdl-textfield__input" type="text" rows={this.state.editing ? 4 : 1} name='comment' ref="textarea" onFocus={this.handleFocus} onBlur={this.handleBlur}></textarea>
+            <textarea className="mdl-textfield__input" type="text" rows={this.state.editing ? editor_size : 1} name='comment' ref="textarea" onFocus={this.handleFocus} onBlur={this.handleBlur} onChange={this.onChange}></textarea>
             <label className="mdl-textfield__label">{this.props.placeholder || 'Add a comment...'}</label>
           </div>
         </div>

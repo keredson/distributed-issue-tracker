@@ -1,4 +1,4 @@
-import collections, datetime, os, random, re, shlex, subprocess, sys, uuid, yaml
+import collections, datetime, itertools, os, random, re, shlex, subprocess, sys, uuid, yaml
 import dateutil.parser, dateutil.tz
 import patricia
 
@@ -26,7 +26,7 @@ class Index(object):
     matches = list(self.trie.iter(key))
     return self.trie[matches[0]] if matches else None
     
-  def search(self, q):
+  def search(self, q, kinds=None):
     try:
       qa = shlex.split(q)
     except:
@@ -38,6 +38,8 @@ class Index(object):
       if t.startswith('label:'):
         t = t[6:]
         cls = 'label'
+      for uid in self.trie.iter(t):
+        result_ids[uid] += 1
       for key in self.search_trie.iter(t):
         for uid in self.search_trie[key]:
           if cls=='label':
@@ -45,6 +47,10 @@ class Index(object):
             if not (isinstance(o,Label) or (isinstance(o,Comment) and o.label)):
               continue
           result_ids[uid] += 1
+    if kinds:
+      for uid in result_ids.keys():
+        if self[uid].__class__.__name__ not in kinds:
+          del result_ids[uid]
     uids = [uid for uid,count in sorted(result_ids.items(), lambda x,y: cmp(y[1], x[1]))]
     return [self.trie[uid].as_dict() for uid in uids]
     
@@ -180,7 +186,7 @@ class Item(object):
         self.created_at = dateutil.parser.parse(data['created_at'])
         self.updated_at = dateutil.parser.parse(data['updated_at'])
     else:
-      self.id = str(uuid.uuid4())
+      self.id = str(uuid.uuid4()).replace('-','')
       for x, default in self.to_save.items():
         setattr(self, x, default)
       self.author = None
@@ -226,6 +232,7 @@ class Item(object):
       'id': self.id,
       '__class__': self.__class__.__name__,
       'short_id': short_id,
+      'slug': slugify(short_id +' '+ self.slug_seed()),
       'dirty': self.fn in self.idx.dirty,
       'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
       'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S %Z'),

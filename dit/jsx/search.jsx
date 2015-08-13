@@ -16,6 +16,7 @@ var Search = React.createClass({
   },
   update: function(e) {
     var q = $(this.refs.q.getDOMNode()).val();
+    this.setState({q:q})
     $.getJSON('/search.json', {q:q}, function(data){
       this.setState(data);
     }.bind(this));
@@ -71,6 +72,21 @@ var Search = React.createClass({
         </div>
       );
     });
+    if (results.length==0) {
+      if (this.state.q) {
+        results = (
+          <div style={{marginLeft:'1em'}}>
+            No results found.
+          </div>
+        )
+      } else {
+        results = (
+          <div style={{marginLeft:'1em'}}>
+            Please search for something...
+          </div>
+        )
+      }
+    }
     return (
       <div>
         <form action="#" style={{margin:'2em'}}>
@@ -79,7 +95,7 @@ var Search = React.createClass({
             <label className="mdl-textfield__label" htmlFor="sample1">Search...</label>
           </div>
         </form>
-      {results}
+        {results}
       </div>
     );
   },
