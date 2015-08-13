@@ -42,23 +42,11 @@ var Frame = React.createClass({
 });
 
 
-var Author = React.createClass({
-  render: function() {
-    var name = this.props.author ? this.props.author.name : null;
-    return (
-        <span>
-          {name || 'Someone'}
-        </span>
-    );
-  }
-});
-
-
 var AuthorSig = React.createClass({
   render: function() {
     return (
         <span>
-          -- <Author author={this.props.author}/>
+          -- <User data={this.props.author}/>
         </span>
     );
   }
@@ -374,7 +362,7 @@ var User = React.createClass({
   render: function() {
     return (
       <a href={'/users/'+this.props.data.slug}>
-        {this.props.data.name}
+        {this.props.data.name || 'Someone'}
       </a>
     )
   },
@@ -402,10 +390,15 @@ var Label = React.createClass({
     if (quotedName.indexOf(' ')>-1) {
       quotedName = '"' + (name.replace('"','\"')) + '"'
     }
+    var weight = this.props.weight && this.props.weight<1 ? (
+      <span>
+        ({Math.round(this.props.weight*100)}%)
+      </span>
+    ) : <span/>
     var url = '/search?q=' + encodeURIComponent("label:" + quotedName)
     return (
       <a href={url} style={{padding:'.1em .5em', margin:'.4em .2em', backgroundColor:bg_color, color:fg_color, textDecoration:'none', display:this.props.block ? 'block' : 'inline'}} className='mdl-shadow--2dp'>
-        {name || '---'}
+        {name || '---'} {weight}
       </a>
     );
   },

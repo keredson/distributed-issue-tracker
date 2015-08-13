@@ -13,9 +13,14 @@ var UserPage = React.createClass({
   },
   render: function() {
     return (
-      <h1>
-        {this.state.user.name}
-      </h1>
+      <div>
+          <h1>
+          {this.state.user.name}
+        </h1>
+        <div>
+          <a href={'mailto:'+this.state.user.email}>{this.state.user.email}</a>
+        </div>
+      </div>
     );
   }
 });

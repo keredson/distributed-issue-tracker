@@ -45,18 +45,42 @@ var LabelController = React.createClass({
         if (label.name.toLowerCase().indexOf(this.state.q) == -1) {
           return <span />
         }
-        var click = function(e) {
-          var action = label.id in hasLabelIds ? 'remove_label' : 'add_label'
-          this.doLabel(action, label.id);
-          e.preventDefault();
-        }.bind(this);
+        var add_label = <i className="material-icons" style={{color:'#808080', fontSize:'11pt', verticalAlign:'middle'}}>add</i>;
+        var my_weight = this.props.issue.my_label_weights[label.id] || 0;
+        var label_weight = this.props.issue.label_weights[label.id] || 0;
+        console.log(label.name, my_weight, label_weight)
+        if (my_weight<=0) {
+          var click = function(e) {
+            this.doLabel('add_label', label.id);
+            e.preventDefault();
+          }.bind(this);
+          add_label = (
+            <a href='' onClick={click} style={{color:label.fg_color}}>
+              <i className="material-icons" style={{fontSize:'11pt', verticalAlign:'middle'}}>add</i>
+            </a>
+          );
+        }
+        var remove_label = <i className="material-icons" style={{color:'#808080', fontSize:'11pt', verticalAlign:'middle'}}>clear</i>;
+        if (my_weight>0 || (label_weight>0 && my_weight==0)) {
+          var click = function(e) {
+            this.doLabel('remove_label', label.id);
+            e.preventDefault();
+          }.bind(this);
+          remove_label = (
+            <a href='' onClick={click} style={{color:label.fg_color}}>
+              <i className="material-icons" style={{fontSize:'11pt', verticalAlign:'middle'}}>clear</i>
+            </a>
+          );
+        }
         return (
-          <a href='' style={{textDecoration:'none'}} onClick={click}>
+          <span>
             <div style={{padding:'.1em .5em', margin:'.5em', backgroundColor:label.bg_color, color:label.fg_color}} className='mdl-shadow--2dp'>
               {label.name || '---'}
-              <i className="material-icons" style={{fontSize:'11pt', verticalAlign:'middle', float:'right', clear:'right'}}>{label.id in hasLabelIds ? 'clear' : 'add'}</i>
+              <span style={{fontSize:'11pt', float:'right', clear:'right'}}>
+                {add_label}  {remove_label}
+              </span>
             </div>
-          </a>
+          </span>
         );
       }.bind(this));
       label_part = (
@@ -70,7 +94,25 @@ var LabelController = React.createClass({
       )
     } else {
       var labels = this.props.issue.labels.map(function (label) {
-        return <Label data={label} block={true}/>
+        var label_node = <Label data={label} block={true} weight={this.props.issue.label_weights[label.id]}/>;
+        if (this.props.issue.label_weights[label.id]==1) {
+          return label_node
+        } else {
+          var user_nodes = [];
+          for (var user_id in this.props.issue.label_user_weights[label.id]) {
+            var weight = this.props.issue.label_user_weights[label.id][user_id]
+            if (weight==0) return <span/>;
+            var user = this.props.issue.participants[user_id]
+            var sentiment = weight>0 ? (<span style={{color:'green'}}>agrees</span>) : (<span style={{color:'red'}}>disagrees</span>)
+            user_nodes.push(<div style={{marginLeft:'1em'}}>- <User data={user}/> {sentiment}</div>)
+          }
+          return (
+            <div>
+              {label_node}
+              {user_nodes}
+            </div>
+          );
+        }
       }.bind(this));
       label_part = (
         <div>
@@ -83,7 +125,7 @@ var LabelController = React.createClass({
         <div className="mdl-card__title">
           <h2 className="mdl-card__title-text">Labels</h2>
         </div>
-        <div className="mdl-card__supporting-text" style={{width:'auto'}}>
+        <div className="mdl-card__supporting-text" style={{width:'auto', paddingTop:this.state.editing ? '' : '0px'}}>
           {label_part}
         </div>
         <div className="mdl-card__menu">
@@ -95,6 +137,26 @@ var LabelController = React.createClass({
     )
   },
 });
+
+
+var Participants = React.createClass({
+  render: function() {
+    var people = this.props.data.map(function (person) {
+      return <div><User data={person} /></div>
+    }.bind(this));
+    return (
+      <div className="mdl-card mdl-shadow--2dp" style={{width:'100%', marginTop:'1em', minHeight:'1px'}}>
+        <div className="mdl-card__title">
+          <h2 className="mdl-card__title-text">Participants</h2>
+        </div>
+        <div className="mdl-card__supporting-text" style={{width:'auto', paddingTop:'0px'}}>
+          {people}
+        </div>
+      </div>        
+    )
+  }
+});
+
 
 var IssuePage = React.createClass({
   getInitialState: function() {
@@ -166,8 +228,11 @@ var IssuePage = React.createClass({
         </h2>
       );
     }
+    var people = []
+    for (var id in this.state.issue.participants) {
+      people.push(this.state.issue.participants[id])
+    }
     return (
-
       <div className="mdl-grid">
         <div className="mdl-cell mdl-cell--9-col">
           { title }
@@ -179,6 +244,7 @@ var IssuePage = React.createClass({
         </div>
         <div className="mdl-cell mdl-cell--3-col">
           <LabelController issue={this.state.issue} comments={this.state.comments} reload={this.load} />
+          <Participants data={people} />
         </div>
       </div>
     );

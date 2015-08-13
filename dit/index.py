@@ -1,3 +1,5 @@
+from __future__ import division
+
 import collections, datetime, itertools, os, random, re, shlex, subprocess, sys, uuid, yaml
 import dateutil.parser, dateutil.tz
 import patricia
@@ -156,12 +158,12 @@ class Index(object):
   
   def new_issue(self):
     issue = Issue(self)
-    issue.author = self.account
+    issue.author = self.account.id
     return issue
     
   def new_label(self):
     label = Label(self)
-    label.author = self.account
+    label.author = self.account.id
     return label
     
   def create(self, cls):
@@ -183,7 +185,7 @@ class Item(object):
         self.id = data['id']
         for x, default in self.to_save.items():
           setattr(self, x, data.get(x, default))
-        self.author = self.idx[data['author']] if 'author' in data else None
+        self.author = data.get('author')
         self.created_at = dateutil.parser.parse(data['created_at'])
         self.updated_at = dateutil.parser.parse(data['updated_at'])
     else:
@@ -219,7 +221,7 @@ class Item(object):
       for x in self.__class__.to_save.keys():
         data[x] = getattr(self,x)
       if hasattr(self,'author') and self.author:
-        data['author'] = self.author.id
+        data['author'] = self.author
       yaml.dump(data, f, default_flow_style=False)
       print 'wrote', self.fn
     if add:
@@ -239,7 +241,8 @@ class Item(object):
       'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
     }
     if hasattr(self,'author'):
-      d['author'] = self.author.as_dict() if self.author else None
+      author = self.idx[self.author]
+      d['author'] = author.as_dict() if author else None
     return d
   
   def allow_update(self, k):
@@ -266,6 +269,23 @@ class Issue(Item):
         c += len(comments)
         to_count += comments
     return max(0,c-1)
+
+  def participants(self):
+    user_ids = set()
+    user_ids.add(self.author)
+    for comment in self.iter_comments():
+      user_ids.add(comment.author)
+    users = {id:self.idx[id] for id in user_ids}
+    return users
+  
+  def iter_comments(self):
+    to_count = [self]
+    while len(to_count):
+      x = to_count.pop()
+      comments = [y for y in self.idx.comments[x.id]]
+      for comment in comments:
+        yield comment
+      to_count += comments
   
   def is_resolved(self):
     resolved = False
@@ -275,6 +295,25 @@ class Issue(Item):
       if comment.kind=='reopened':
         resolved = False
     return resolved
+    
+  def get_annotated_labels(self):
+    label_user_weights = collections.defaultdict(lambda: collections.defaultdict(int))
+    for comment in self.idx.get_comments(self.id):
+      if comment.kind=='added_label':
+        label_user_weights[comment.label][comment.author] += 1
+      elif comment.kind=='removed_label':
+        label_user_weights[comment.label][comment.author] -= 1
+    for label_id, user_weights in label_user_weights.items():
+      for user_id, weight in user_weights.items():
+        if weight == 0:
+          del user_weights[user_id]
+    label_weights = {}
+    for label_id, user_weights in label_user_weights.items():
+      if not len(user_weights): continue
+      label_weights[label_id] = sum([max(0,min(w,1)) for w in user_weights.values()]) / len(user_weights)
+    labels = [self.idx[label_id] for label_id in label_weights.keys() if label_id]
+    labels = [label for label in labels if label]
+    return labels, label_user_weights, label_weights
   
   def as_dict(self):
     d = super(self.__class__, self).as_dict()
@@ -282,20 +321,18 @@ class Issue(Item):
     d['url'] = '/issues/%s' % d['short_id']
     d['comments_url'] = '/issues/%s/comments.json' % d['short_id']
     d['comment_count'] = self.comment_count()
-    label_ids = set()
-    for comment in self.idx.get_comments(self.id):
-      if comment.kind=='added_label':
-        label_ids.add(comment.label)
-      elif comment.kind=='removed_label':
-        label_ids.discard(comment.label)
-    labels = [self.idx[label_id] for label_id in label_ids if label_id]
-    d['labels'] = [label.as_dict() for label in labels if label]
+    labels, label_user_weights, label_weights = self.get_annotated_labels()
+    d['labels'] = [label.as_dict() for label in labels if label_weights[label.id]>=0.5]
+    d['label_weights'] = {label.id:label_weights[label.id] for label in labels}
+    d['my_label_weights'] = {label.id:label_user_weights[label.id][self.idx.account.id] for label in labels}
+    d['label_user_weights'] = label_user_weights
     d['resolved'] = self.is_resolved()
+    d['participants'] = {uid:p.as_dict() for uid,p in self.participants().items()}
     return d
   
   def new_comment(self):
     comment = Comment(self.idx)
-    comment.author = self.idx.account
+    comment.author = self.idx.account.id
     comment.reply_to = self.id
     return comment
 
@@ -329,7 +366,7 @@ class Comment(Item):
 
   def new_comment(self):
     comment = Comment(self.idx)
-    comment.author = self.idx.account
+    comment.author = self.idx.account.id
     comment.reply_to = self.id
     return comment
 
