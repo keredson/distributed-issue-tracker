@@ -22,6 +22,7 @@ class Index(object):
       self.account.save()
 
   def __getitem__(self, key):
+    if not key: return None
     matches = list(self.trie.iter(key))
     return self.trie[matches[0]] if matches else None
     
@@ -84,6 +85,10 @@ class Index(object):
       fn = os.path.join(self.dir, 'comments', fn)
       comment = Comment(self, fn=fn)
       self.index_comment(comment)
+    for fn in os.listdir(os.path.join(self.dir, 'labels')):
+      fn = os.path.join(self.dir, 'labels', fn)
+      label = Label(self, fn=fn)
+      self.index_label(label)
   
   def index_issue(self, issue):
     self.trie[issue.id] = issue
@@ -274,7 +279,7 @@ class Comment(Item):
     d['reply_to_short_id'] = self.gen_short_id(self.reply_to)
     d['text'] = self.text
     d['kind'] = self.kind
-    d['label'] = self.idx[self.label]
+    d['label'] = self.idx[self.label].as_dict() if self.label else None
     d['comments'] = [comment.as_dict() for comment in self.idx.get_comments(self.id)]
     return d
 

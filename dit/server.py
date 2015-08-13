@@ -72,7 +72,7 @@ def issues_new():
 @bottle.post('/reply-to/<item_id>')
 def replay(item_id):
   item = idx[item_id]
-  if bottle.request.forms['comment']:
+  if 'comment' in bottle.request.forms:
     comment = item.new_comment()
     comment.text = bottle.request.forms['comment']
     comment.save()
@@ -84,6 +84,17 @@ def replay(item_id):
     comment = item.new_comment()
     comment.kind = 'reopened'
     comment.save()
+  if 'add_label' in bottle.request.forms:
+    comment = item.new_comment()
+    comment.kind = 'added_label'
+    comment.label = bottle.request.forms['add_label']
+    comment.save()
+  if 'remove_label' in bottle.request.forms:
+    comment = item.new_comment()
+    comment.kind = 'removed_label'
+    comment.label = bottle.request.forms['remove_label']
+    comment.save()
+  return 'ok'
   return bottle.redirect('/issues/%s' % comment.get_issue().short_id())
 
 @bottle.post('/update/<item_id>')

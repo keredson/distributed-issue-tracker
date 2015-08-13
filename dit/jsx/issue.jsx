@@ -14,7 +14,8 @@ var LabelController = React.createClass({
       if (this.state.editing) {
         this.refs.search.getDOMNode().focus(); 
       }
-    }.bind(this), 50);
+    }.bind(this), 200);
+    mdlUpgradeDom();
   },
   updateSearch: function() {
     var q = $(this.refs.search.getDOMNode()).val().toLowerCase();
@@ -24,33 +25,63 @@ var LabelController = React.createClass({
     this.setState({editing: !this.state.editing})
     e.preventDefault();
   },
+  addLabel: function(label_id) {
+    $.post('/reply-to/'+this.props.issue.id, {'add_label':label_id}, function() {
+      console.log(this.props)
+      this.props.reload();
+    }.bind(this))
+  },
   render: function() {
-    var all_labels = this.state.labels.map(function (label) {
-      if (label.name.toLowerCase().indexOf(this.state.q) == -1) {
-        return <span />
-      }
-      return (
-        <a href='' style={{textDecoration:'none'}}>
-          <div style={{padding:'.1em .5em', margin:'.5em', backgroundColor:label.bg_color, color:label.fg_color}} className='mdl-shadow--2dp'>
-            {label.name || '---'}
-            <i className="material-icons" style={{fontSize:'11pt', verticalAlign:'middle', float:'right', clear:'right'}}>add</i>
+    var label_part;
+    if (this.state.editing) {
+      var all_labels = this.state.labels.map(function (label) {
+        if (label.name.toLowerCase().indexOf(this.state.q) == -1) {
+          return <span />
+        }
+        var click = function(e) {
+          this.addLabel(label.id);
+          e.preventDefault();
+        }.bind(this);
+        return (
+          <a href='' style={{textDecoration:'none'}} onClick={click}>
+            <div style={{padding:'.1em .5em', margin:'.5em', backgroundColor:label.bg_color, color:label.fg_color}} className='mdl-shadow--2dp'>
+              {label.name || '---'}
+              <i className="material-icons" style={{fontSize:'11pt', verticalAlign:'middle', float:'right', clear:'right'}}>add</i>
+            </div>
+          </a>
+        );
+      }.bind(this));
+      label_part = (
+        <div style={{marginTop:'-20px'}}>
+          <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{marginTop:'-20px'}}>
+            <input className="mdl-textfield__input" type="text" id="sample1" onChange={this.updateSearch} ref='search'/>
+            <label className="mdl-textfield__label" htmlFor="sample1">Search...</label>
           </div>
-        </a>
-      );
-    }.bind(this));
+          {all_labels}
+        </div>
+      )
+    } else {
+      var labels = this.props.comments.map(function (comment) {
+        if (!comment.label) return <span/>
+        return (
+          <div style={{padding:'.1em .5em', margin:'.5em', backgroundColor:comment.label.bg_color, color:comment.label.fg_color}} className='mdl-shadow--2dp'>
+            {comment.label.name || '---'}
+          </div>
+        )
+      }.bind(this));
+      label_part = (
+        <div>
+          {labels}
+        </div>
+      )
+    }
     return (
       <div className="mdl-card mdl-shadow--2dp" style={{width:'100%', marginTop:'3em'}}>
         <div className="mdl-card__title">
           <h2 className="mdl-card__title-text">Labels</h2>
         </div>
         <div className="mdl-card__supporting-text" style={{width:'auto'}}>
-          <div style={{marginTop:'-20px', display:this.state.editing ? 'block' : 'none'}}>
-            <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{marginTop:'-20px'}}>
-              <input className="mdl-textfield__input" type="text" id="sample1" onChange={this.updateSearch} ref='search'/>
-              <label className="mdl-textfield__label" htmlFor="sample1">Search...</label>
-            </div>
-            {all_labels}
-          </div>
+          {label_part}
         </div>
         <div className="mdl-card__menu">
           <button className="mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" onClick={this.edit}>
@@ -64,11 +95,16 @@ var LabelController = React.createClass({
 
 var Issue = React.createClass({
   getInitialState: function() {
-    return {issue:{'title':''}, editing:false};
+    return {issue:{'title':''}, comments:[], editing:false};
   },
   componentDidMount: function() {
+    this.load()
+  },
+  load: function() {
     $.getJSON(this.props.src, function( data ) {
-      this.setState({issue:data});
+      $.getJSON(data['comments_url'], function( data2 ) {
+        this.setState({issue:data, comments:data2['comments']});
+      }.bind(this));
     }.bind(this));
   },
   edit: function(e) {
@@ -134,12 +170,12 @@ var Issue = React.createClass({
           { title }
           {author}
           <div style={{marginLeft:'-1em'}}>
-            <CommentList src={this.state.issue.comments_url} />
+            <CommentList comments={this.state.comments} />
           </div>
           <NewCommentForm reply_to={this.state.issue.id} closeButton={!this.state.issue.resolved} reopenButton={this.state.issue.resolved} />
         </div>
         <div className="mdl-cell mdl-cell--3-col">
-          <LabelController issue={this.state.issue} />
+          <LabelController issue={this.state.issue} comments={this.state.comments} reload={this.load} />
         </div>
       </div>
     );

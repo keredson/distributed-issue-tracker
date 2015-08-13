@@ -117,6 +117,9 @@ var CommentList = React.createClass({
       this.doLoad();
       mdlUpgradeDom();
     }
+    if (prevProps.comments != this.props.comments) {
+      this.setState({comments:this.props.comments});
+    }
   },
   render: function() {
     var reload = this.doLoad;
@@ -180,10 +183,23 @@ var Comment = React.createClass({
       ) : '';
     }.bind(this);
     if (this.props.data.kind) {
+      var desc = <span>Unknown comment action.</span>
+      if (this.props.data.kind=='resolved') {
+        desc = <span style={{color:'red'}}>Closed</span>
+      } else
+      if (this.props.data.kind=='reopened') {
+        desc = <span style={{color:'green'}}>Reopened</span>
+      } else
+      if (this.props.data.kind=='added_label') {
+        desc = <span>Added <Label data={this.props.data.label}/></span>
+      } else
+      if (this.props.data.kind=='removed_label') {
+        desc = <span>Removed <Label data={this.props.data.label}/></span>
+      }
+      
       return (
         <div>
-          <span style={{display:this.props.data.kind=='resolved' ? 'inline' : 'none', color:'red'}}>Closed</span>
-          <span style={{display:this.props.data.kind=='reopened' ? 'inline' : 'none', color:'green'}}>Reopened</span>
+          {desc}
           &nbsp;
           <AuthorSig author={this.props.data.author} /> at {this.props.data.created_at}
           {dirty(true)}
@@ -254,7 +270,7 @@ var Comment = React.createClass({
 var Label = React.createClass({
   render: function() {
     return (
-      <span style={{padding:'.1em .5em', backgroundColor:this.props.data.bg_color, color:this.props.data.fg_color}} className='mdl-shadow--2dp'>
+      <span style={{padding:'.1em .5em', marginLeft:'.1em', backgroundColor:this.props.data.bg_color, color:this.props.data.fg_color}} className='mdl-shadow--2dp'>
         {this.props.data.name || '---'}
       </span>
     );
