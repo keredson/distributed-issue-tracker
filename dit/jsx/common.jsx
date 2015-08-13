@@ -44,9 +44,10 @@ var Frame = React.createClass({
 
 var Author = React.createClass({
   render: function() {
+    var name = this.props.author ? this.props.author.name : null;
     return (
         <span>
-          {this.props.author.name}
+          {name || 'Someone'}
         </span>
     );
   }

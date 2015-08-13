@@ -41,7 +41,7 @@ var Search = React.createClass({
           desc = (
             <div>
               <div>
-                In reply to <a href={'/issues/'+item.reply_to_short_id}>{item.reply_to_short_id}</a>:
+                <Author author={item.author}/> replied to <a href={'/issues/'+item.reply_to_short_id}>{item.reply_to_short_id}</a> on {item.created_at}:
               </div>
               {item.text}
             </div>
