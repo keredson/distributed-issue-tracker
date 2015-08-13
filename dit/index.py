@@ -258,6 +258,9 @@ class Issue(Item):
     d['url'] = '/issues/%s' % d['short_id']
     d['comments_url'] = '/issues/%s/comments.json' % d['short_id']
     d['comment_count'] = self.comment_count()
+    label_ids = set([comment.label for comment in self.idx.comments[self.id]])
+    labels = [self.idx[label_id] for label_id in label_ids if label_id]
+    d['labels'] = [label.as_dict() for label in labels if label]
     d['resolved'] = self.is_resolved()
     return d
   

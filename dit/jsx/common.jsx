@@ -288,7 +288,7 @@ var Label = React.createClass({
     fg_color = data.fg_color || '#000000'
     var name = this.props.data ? this.props.data.name : 'Unknown Label'
     return (
-      <span style={{padding:'.1em .5em', marginLeft:'.1em', backgroundColor:bg_color, color:fg_color}} className='mdl-shadow--2dp'>
+      <span style={{padding:'.1em .5em', margin:'0em .2em', backgroundColor:bg_color, color:fg_color}} className='mdl-shadow--2dp'>
         {name || '---'}
       </span>
     );

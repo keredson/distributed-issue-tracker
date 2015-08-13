@@ -44,13 +44,18 @@ var IssueList = React.createClass({
 
 var IssueLI = React.createClass({
   render: function() {
+    var labels = this.props.data.labels.map(function (label) {
+      return (
+        <Label data={label}/>
+      );
+    });
     return (
       <tr>
         <td className="mdl-data-table__cell--non-numeric">
           <a href={this.props.data.url}>{this.props.data.short_id}</a>
         </td>
         <td className="mdl-data-table__cell--non-numeric">
-          {this.props.data.title}
+          {this.props.data.title} {labels}
         </td>
         <td style={{color: this.props.data.comment_count ? '' : '#ddd'}}>
           {this.props.data.comment_count}

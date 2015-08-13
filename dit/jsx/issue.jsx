@@ -62,8 +62,11 @@ var LabelController = React.createClass({
         </div>
       )
     } else {
+      var seenLabelIds = {}
       var labels = this.props.comments.map(function (comment) {
         if (!comment.label) return <span/>
+        if (comment.label.id in seenLabelIds) return <span/>
+        seenLabelIds[comment.label.id] = true
         return (
           <div style={{padding:'.1em .5em', margin:'.5em', backgroundColor:comment.label.bg_color, color:comment.label.fg_color}} className='mdl-shadow--2dp'>
             {comment.label.name || '---'}
