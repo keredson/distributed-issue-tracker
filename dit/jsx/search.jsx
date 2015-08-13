@@ -1,11 +1,18 @@
+function qs(key) {
+    key = key.replace(/[*+?^$.\[\]{}()|\\\/]/g, "\\$&"); // escape RegEx meta chars
+    var match = location.search.match(new RegExp("[?&]"+key+"=([^&]+)(&|$)"));
+    return match && decodeURIComponent(match[1].replace(/\+/g, " "));
+}
+
 var Search = React.createClass({
   getInitialState: function() {
-    return {q:'', items:[]};
+    return {q:qs('q'), items:[]};
   },
   componentDidMount: function() {
     setTimeout(function() {
       this.refs.q.getDOMNode().focus(); 
-    }.bind(this), 50);
+      if (this.state.q) this.update()
+    }.bind(this), 100);
   },
   update: function(e) {
     var q = $(this.refs.q.getDOMNode()).val();
@@ -34,7 +41,7 @@ var Search = React.createClass({
         if (item.label) {
           desc = (
             <div>
-              <Author author={item.author}/> {item.kind=='added_label' ? "added" : "removed"} label <Label data={item.label}/> to issue <a href={'/issues/'+item.reply_to_short_id}>{item.reply_to_short_id}</a> on {item.created_at}.
+              <Author author={item.author}/> {item.kind=='added_label' ? "added" : "removed"} label <Label data={item.label}/> to <a href={'/issues/'+item.reply_to_short_id}>{item.reply_to_desc}</a> on {item.created_at}.
             </div>
           )
         } else {
@@ -68,7 +75,7 @@ var Search = React.createClass({
       <div>
         <form action="#" style={{margin:'2em'}}>
           <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:'100%'}}>
-            <input className="mdl-textfield__input" type="text" id="sample1" ref='q' onChange={this.update} />
+            <input className="mdl-textfield__input" type="text" id="sample1" ref='q' onChange={this.update} defaultValue={this.state.q} />
             <label className="mdl-textfield__label" htmlFor="sample1">Search...</label>
           </div>
         </form>

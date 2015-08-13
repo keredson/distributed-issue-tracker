@@ -113,11 +113,11 @@ var NewCommentForm = React.createClass({
         Reopen Issue
       </button>
     ) : <span/>
-    var commentButton = (
+    var commentButton = this.state.editing ? (
       <button onClick={function() {this.save('add_comment')}.bind(this)} className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{marginRight:'1em'}}>
         {this.props.button || 'Add Comment'}
       </button>
-    )
+    ) : <span/>
     return (
       <div>
         <div>
@@ -319,10 +319,15 @@ var Label = React.createClass({
     bg_color = data.bg_color || '#eeeeee'
     fg_color = data.fg_color || '#000000'
     var name = this.props.data ? this.props.data.name : 'Unknown Label'
+    var quotedName = name
+    if (quotedName.indexOf(' ')>-1) {
+      quotedName = '"' + (name.replace('"','\"')) + '"'
+    }
+    var url = '/search?q=' + encodeURIComponent("label:" + quotedName)
     return (
-      <span style={{padding:'.1em .5em', margin:'0em .2em', backgroundColor:bg_color, color:fg_color}} className='mdl-shadow--2dp'>
+      <a href={url} style={{padding:'.1em .5em', margin:'.4em .2em', backgroundColor:bg_color, color:fg_color, textDecoration:'none', display:this.props.block ? 'block' : 'inline'}} className='mdl-shadow--2dp'>
         {name || '---'}
-      </span>
+      </a>
     );
   },
 });
@@ -332,7 +337,7 @@ var Label = React.createClass({
 function mdlUpgradeDom() {
   setTimeout(function() {
     componentHandler.upgradeDom();
-  }, 50);
+  }, 100);
 }
 mdlUpgradeDom();
 

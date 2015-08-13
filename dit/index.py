@@ -1,4 +1,4 @@
-import collections, datetime, os, random, re, subprocess, sys, uuid, yaml
+import collections, datetime, os, random, re, shlex, subprocess, sys, uuid, yaml
 import dateutil.parser, dateutil.tz
 import patricia
 
@@ -27,18 +27,33 @@ class Index(object):
     return self.trie[matches[0]] if matches else None
     
   def search(self, q):
-    qa = tokenize(q)
+    try:
+      qa = shlex.split(q)
+    except:
+      qa = tokenize(q)
     result_ids = collections.defaultdict(int)
     for t in qa:
       if not t: continue
+      cls = None
+      if t.startswith('label:'):
+        t = t[6:]
+        cls = 'label'
       for key in self.search_trie.iter(t):
         for uid in self.search_trie[key]:
+          if cls=='label':
+            o = self[uid]
+            if not (isinstance(o,Label) or (isinstance(o,Comment) and o.label)):
+              continue
           result_ids[uid] += 1
     uids = [uid for uid,count in sorted(result_ids.items(), lambda x,y: cmp(y[1], x[1]))]
     return [self.trie[uid].as_dict() for uid in uids]
     
   def index_text(self, uid, vals):
     for val in vals:
+      short_val = val[:256]
+      if short_val not in self.search_trie:
+        self.search_trie[short_val] = set()
+      self.search_trie[short_val].add(uid)
       for t in tokenize(val):
         if t not in self.search_trie:
           self.search_trie[t] = set()
@@ -292,6 +307,11 @@ class Comment(Item):
     d = super(self.__class__, self).as_dict()
     d['reply_to'] = self.reply_to
     d['reply_to_short_id'] = self.gen_short_id(self.reply_to)
+    reply_to_desc = d['reply_to_short_id']
+    reply_to = self.idx[self.reply_to]
+    if isinstance(reply_to, Issue):
+      reply_to_desc = reply_to.title
+    d['reply_to_desc'] = reply_to_desc
     d['text'] = self.text
     d['kind'] = self.kind
     label = self.idx[self.label] if self.label else None

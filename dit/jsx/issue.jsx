@@ -70,11 +70,7 @@ var LabelController = React.createClass({
       )
     } else {
       var labels = this.props.issue.labels.map(function (label) {
-        return (
-          <div style={{padding:'.1em .5em', margin:'.5em', backgroundColor:label.bg_color, color:label.fg_color}} className='mdl-shadow--2dp'>
-            {label.name || '---'}
-          </div>
-        )
+        return <Label data={label} block={true}/>
       }.bind(this));
       label_part = (
         <div>
