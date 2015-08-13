@@ -71,7 +71,7 @@ def issues_new():
 @bottle.post('/reply-to/<item_id>')
 def replay(item_id):
   item = idx[item_id]
-  if 'comment' in bottle.request.forms:
+  if 'comment' in bottle.request.forms and bottle.request.forms['comment']:
     comment = item.new_comment()
     comment.text = bottle.request.forms['comment']
     comment.save()

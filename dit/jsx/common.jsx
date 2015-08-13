@@ -73,7 +73,7 @@ var NewCommentForm = React.createClass({
     this.setState(this.state)
   },
   handleBlur: function() {
-    if (!$('#'+this.state.id).val()) {
+    if (!$(this.refs.textarea.getDOMNode()).val()) {
       this.state.editing = false
       this.setState(this.state)
       if (this.props.onHide) {
@@ -81,27 +81,56 @@ var NewCommentForm = React.createClass({
       }
     }
   },
+  componentDidMount: function() {
+    mdlUpgradeDom();
+  },
+  componentDidUpdate: function(prevProps, prevState) {
+    mdlUpgradeDom();
+  },
+  save: function(action) {
+    data = {
+      comment: $(this.refs.textarea.getDOMNode()).val()
+    }
+    data[action] = action
+    $.post('/reply-to/'+this.props.reply_to, data, function() {
+      this.props.reload()
+      this.setState({editing: false, text:''})
+      $(this.refs.textarea.getDOMNode()).val('')
+      if (this.props.onHide) {
+        this.props.onHide()
+      }
+    }.bind(this))
+  },
   render: function() {
+    var closeButton = this.props.closeButton ? (
+      <button onClick={function() {this.save('close')}.bind(this)} className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{marginRight:'1em'}}>
+        Close Issue
+      </button>
+    ) : <span/>
+    var reopenButton = this.props.reopenButton ? (
+      <button onClick={function() {this.save('reopen')}.bind(this)} className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{marginRight:'1em'}}>
+        Reopen Issue
+      </button>
+    ) : <span/>
+    var commentButton = (
+      <button onClick={function() {this.save('add_comment')}.bind(this)} className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{marginRight:'1em'}}>
+        {this.props.button || 'Add Comment'}
+      </button>
+    )
     return (
-      <form method='post' action={'/reply-to/'+this.props.reply_to}>
+      <div>
         <div>
           <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
-            <textarea className="mdl-textfield__input" type="text" rows={this.state.editing ? 4 : 1} name='comment' id={this.state.id} onFocus={this.handleFocus} onBlur={this.handleBlur}></textarea>
-            <label className="mdl-textfield__label" htmlFor="sample5">{this.props.placeholder || 'Add a comment...'}</label>
+            <textarea className="mdl-textfield__input" type="text" rows={this.state.editing ? 4 : 1} name='comment' ref="textarea" onFocus={this.handleFocus} onBlur={this.handleBlur}></textarea>
+            <label className="mdl-textfield__label">{this.props.placeholder || 'Add a comment...'}</label>
           </div>
         </div>
         <div style={{paddingLeft:'2em'}}>
-          <button name='close' className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{display: this.props.closeButton ? 'inline' : 'none', marginRight:'1em'}}>
-            Close Issue
-          </button>
-          <button name='reopen' className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{display: this.props.reopenButton ? 'inline' : 'none', marginRight:'1em'}}>
-            Reopen Issue
-          </button>
-          <button className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{display: this.state.editing ? 'inline' : 'none'}}>
-            {this.props.button || 'Add Comment'}
-          </button>
+          {closeButton}
+          {reopenButton}
+          {commentButton}
         </div>
-      </form>
+      </div>
     );
   }
 });
@@ -130,6 +159,7 @@ var CommentList = React.createClass({
     }
     if (prevProps.comments != this.props.comments) {
       this.setState({comments:this.props.comments});
+      mdlUpgradeDom();
     }
   },
   render: function() {
@@ -229,9 +259,10 @@ var Comment = React.createClass({
       );
     }
     var rawMarkup = marked(this.props.data.text.toString(), {sanitize: true});
+    console.log('this.props.reload', this.props.reload)
     var replybox = this.state.replying ? (
         <div style={{marginBottom:'1em'}}>
-          <NewCommentForm placeholder="Reply..." button='Reply' reply_to={this.props.data.id} onHide={this.handleHide}/>
+          <NewCommentForm placeholder="Reply..." reload={this.props.reload} button='Reply' reply_to={this.props.data.id} onHide={this.handleHide}/>
         </div>
     ) : '';
     return (

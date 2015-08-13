@@ -69,7 +69,6 @@ var LabelController = React.createClass({
         </div>
       )
     } else {
-      console.log(this.props.issue)
       var labels = this.props.issue.labels.map(function (label) {
         return (
           <div style={{padding:'.1em .5em', margin:'.5em', backgroundColor:label.bg_color, color:label.fg_color}} className='mdl-shadow--2dp'>
@@ -178,9 +177,9 @@ var Issue = React.createClass({
           { title }
           {author}
           <div style={{marginLeft:'-1em'}}>
-            <CommentList comments={this.state.comments} />
+            <CommentList comments={this.state.comments} reload={this.load}/>
           </div>
-          <NewCommentForm reply_to={this.state.issue.id} closeButton={!this.state.issue.resolved} reopenButton={this.state.issue.resolved} />
+          <NewCommentForm reply_to={this.state.issue.id} closeButton={!this.state.issue.resolved} reopenButton={this.state.issue.resolved} reload={this.load} />
         </div>
         <div className="mdl-cell mdl-cell--3-col">
           <LabelController issue={this.state.issue} comments={this.state.comments} reload={this.load} />
