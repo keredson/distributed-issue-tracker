@@ -95,6 +95,31 @@ var NewCommentForm = React.createClass({
   componentDidUpdate: function(prevProps, prevState) {
     mdlUpgradeDom();
   },
+  onPaste: function(e) {
+    e.preventDefault();
+    var items = (event.clipboardData || event.originalEvent.clipboardData).items;
+    var blob = items[0].getAsFile();
+    var reader = new FileReader();
+    reader.onload = function(event){
+      var mimeType = event.target.result.split(",")[0].split(":")[1].split(";")[0];
+      $.ajax({
+        url: '/upload',
+        type: 'POST',
+        contentType: mimeType,
+        data: blob,
+        processData: false,
+        success: function(data) {
+          var node = this.refs.textarea.getDOMNode()
+          var position = node.selectionEnd
+          var pre = node.value.substring(0,position) + '![image](' + data.url + ')'
+          var post = node.value.substring(position)
+          $(node).val(pre + post)
+          node.selectionStart = node.selectionEnd = pre.length
+        }.bind(this)
+      });
+    }.bind(this)
+    reader.readAsDataURL(blob);
+  },
   save: function(action) {
     data = {
       comment: $(this.refs.textarea.getDOMNode()).val()
@@ -131,7 +156,7 @@ var NewCommentForm = React.createClass({
       <div>
         <div>
           <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
-            <textarea className="mdl-textfield__input" type="text" rows={this.state.editing ? editor_size : 1} name='comment' ref="textarea" onFocus={this.handleFocus} onBlur={this.handleBlur} onChange={this.onChange}></textarea>
+            <textarea className="mdl-textfield__input" type="text" rows={this.state.editing ? editor_size : 1} name='comment' ref="textarea" onFocus={this.handleFocus} onBlur={this.handleBlur} onChange={this.onChange} onPaste={this.onPaste}></textarea>
             <label className="mdl-textfield__label">{this.props.placeholder || 'Add a comment...'}</label>
           </div>
         </div>

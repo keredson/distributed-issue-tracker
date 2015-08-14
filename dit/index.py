@@ -1,6 +1,6 @@
 from __future__ import division
 
-import collections, datetime, itertools, os, random, re, shlex, subprocess, sys, uuid, yaml
+import collections, datetime, hashlib, itertools, mimetypes, os, random, re, shlex, subprocess, sys, uuid, yaml
 import dateutil.parser, dateutil.tz
 import patricia
 
@@ -72,7 +72,7 @@ class Index(object):
         self.search_trie[t].add(uid)
     
   def prep_dir(self):
-    for fn in ['issues','comments','users','labels']:
+    for fn in ['issues','comments','users','labels','assets']:
       if not os.path.isdir(os.path.join(self.dir, fn)):
         os.makedirs(os.path.join(self.dir, fn))
         
@@ -100,22 +100,16 @@ class Index(object):
       dir = parent
 
   def index_all(self):
-    for fn in os.listdir(os.path.join(self.dir, 'users')):
-      fn = os.path.join(self.dir, 'users', fn)
-      user = User(self, fn=fn)
-      self.index_user(user)
-    for fn in os.listdir(os.path.join(self.dir, 'issues')):
-      fn = os.path.join(self.dir, 'issues', fn)
-      issue = Issue(self, fn=fn)
-      self.index_issue(issue)
-    for fn in os.listdir(os.path.join(self.dir, 'labels')):
-      fn = os.path.join(self.dir, 'labels', fn)
-      label = Label(self, fn=fn)
-      self.index_label(label)
-    for fn in os.listdir(os.path.join(self.dir, 'comments')):
-      fn = os.path.join(self.dir, 'comments', fn)
-      comment = Comment(self, fn=fn)
-      self.index_comment(comment)
+    for dir in ['users','issues','labels','comments','assets']:
+      for fn in os.listdir(os.path.join(self.dir, dir)):
+        if not fn.endswith('.yaml'): continue
+        fn = os.path.join(self.dir, dir, fn)
+        if dir=='users': o = User(self, fn=fn)
+        if dir=='issues': o = Issue(self, fn=fn)
+        if dir=='labels': o = Label(self, fn=fn)
+        if dir=='comments': o = Comment(self, fn=fn)
+        if dir=='assets': o = Asset(self, fn=fn)
+        self.index(o)
   
   def index_issue(self, issue):
     self.trie[issue.id] = issue
@@ -147,11 +141,15 @@ class Index(object):
     self.trie[label.id] = label
     self.index_text(label.id, [label.name])
 
+  def index_asset(self, asset):
+    self.trie[asset.id] = asset
+
   def index(self, o):
     if isinstance(o, User): self.index_user(o)
     if isinstance(o, Comment): self.index_comment(o)
     if isinstance(o, Issue): self.index_issue(o)
     if isinstance(o, Label): self.index_label(o)
+    if isinstance(o, Asset): self.index_asset(o)
   
   def issues(self):
     return [item for item in self.trie.values() if isinstance(item,Issue)]
@@ -168,6 +166,23 @@ class Index(object):
     label = Label(self)
     label.author = self.account.id
     return label
+  
+  def save_asset(self, data, mime_type):
+    m = hashlib.sha256()
+    m.update(data)
+    uid = m.hexdigest()
+    asset = self[uid]
+    if asset:
+      return asset
+    asset = Asset(self)
+    asset.id = uid
+    asset.mime_type = mime_type
+    asset.ext = mimetypes.guess_extension(asset.mime_type).strip('.')
+    fn = os.path.join(self.dir, asset.dir_name, '%s.%s' % (asset.id, asset.ext))
+    with open(fn,'wb') as f:
+      f.write(data)
+    asset.save()
+    return asset
     
   def create(self, cls):
     if cls=='Label':
@@ -200,10 +215,11 @@ class Item(object):
       self.updated_at = self.created_at
 
   def short_id(self):
-    return self.gen_short_id(self.id)
+    min_length = self.short_seed_size if hasattr(self,'short_seed_size') else 5
+    return self.gen_short_id(self.id, min_length=min_length)
   
-  def gen_short_id(self, uid):
-    for i in range(5,len(uid)):
+  def gen_short_id(self, uid, min_length=5):
+    for i in range(min_length, len(uid)):
       items = list(self.idx.trie.items(uid[:i]))
       if len(items)<=1:
         return uid[:i]
@@ -354,6 +370,7 @@ class Comment(Item):
   dir_name = 'comments'
   to_save = {'reply_to':None, 'text':'', 'kind':None, 'label':None}
   updatable = set(['text'])
+  short_seed_size = 8
 
   def __init__(self, idx, fn=None):
     super(self.__class__, self).__init__(idx, fn=fn)
@@ -430,6 +447,30 @@ class Label(Item):
     
   def slug_seed(self):
     return self.name
+  
+
+class Asset(Item):
+  dir_name = 'assets'
+  to_save = {'mime_type':None, 'ext':'dat'}
+  short_seed_size = 12
+  updatable = set()
+
+  def __init__(self, idx, fn=None):
+    super(self.__class__, self).__init__(idx, fn=fn)
+  
+  def as_dict(self):
+    d = super(self.__class__, self).as_dict()
+    d['url'] = '/assets/%s.%s' % (self.short_id(),self.ext)
+    d['mime_type'] = self.mime_type
+    return d
+    
+  def slug_seed(self):
+    return self.mime_type
+  
+  def read(self):
+    fn = os.path.join(self.idx.dir, self.dir_name, '%s.%s' % (self.id, self.ext))
+    with open(fn,'rb') as f:
+      return f.read()
   
 
 def slugify(s):

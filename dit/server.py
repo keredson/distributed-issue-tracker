@@ -78,6 +78,20 @@ def user(user_id):
 @bottle.get('/account.json')
 def account_json():
   return idx.account.as_dict()
+
+@bottle.post('/upload')
+def upload():
+  data = bottle.request.body.read()
+  asset = idx.save_asset(data, bottle.request.headers['Content-Type'])
+  return asset.as_dict()
+  
+@bottle.get('/assets/<asset_id>')
+def asset(asset_id):
+  asset_id = asset_id.split('.')[0]
+  asset = idx[asset_id]
+  bottle.response.headers['Content-Type'] = asset.mime_type
+  return asset.read()
+  
   
 @bottle.post('/issues/new')
 def issues_new():
