@@ -24,6 +24,7 @@ var Frame = React.createClass({
               <a className="mdl-navigation__link" href="/">Home</a>
               <a className="mdl-navigation__link" href="/issues">Issues</a>
               <a className="mdl-navigation__link" href="/labels">Labels</a>
+              <a className="mdl-navigation__link" href="/users">Users</a>
               <a className="mdl-navigation__link" href="/search">Search</a>
             </nav>
           </div>

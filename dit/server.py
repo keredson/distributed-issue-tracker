@@ -55,6 +55,17 @@ def labels_json():
     'labels': labels,
   }
   
+@bottle.get('/users')
+def users():
+  return _html(title='Users', react='users')
+  
+@bottle.get('/users.json')
+def users_json():
+  users = [user.as_dict() for user in idx.users()]
+  return {
+    'users': users,
+  }
+  
 @bottle.get('/issues/new')
 def issues_new():
   return _html(title='New Issue', react='issues_new')

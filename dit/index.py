@@ -157,6 +157,9 @@ class Index(object):
   def labels(self):
     return [item for item in self.trie.values() if isinstance(item,Label)]
   
+  def users(self):
+    return [item for item in self.trie.values() if isinstance(item,User)]
+  
   def new_issue(self):
     issue = Issue(self)
     issue.author = self.account.id
