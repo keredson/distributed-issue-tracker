@@ -34,30 +34,46 @@ def items_json():
 def issues():
   return _html(title='Issues', react='issues')
   
+@bottle.get('/issues.json')
+def issues_json():
+  return {
+    'issues': [issue.as_dict() for issue in idx.issues()],
+  }
+  
 @bottle.get('/labels')
 def issues():
   return _html(title='Labels', react='labels')
+  
+@bottle.get('/labels.json')
+def labels_json():
+  labels = [label.as_dict() for label in idx.labels()]
+  if bottle.request.GET.get('new'):
+    d = idx.new_label().as_dict()
+    d['editing'] = True
+    labels.append(d)
+  return {
+    'labels': labels,
+  }
   
 @bottle.get('/issues/new')
 def issues_new():
   return _html(title='New Issue', react='issues_new')
   
+@bottle.post('/issues/new')
+def issues_new():
+  issue = idx.new_issue()
+  issue.title = bottle.request.forms['title']
+  issue.save()
+  if bottle.request.forms['comment']:
+    comment = issue.new_comment()
+    comment.text = bottle.request.forms['comment']
+    comment.save()
+  return bottle.redirect('/issues/%s' % issue.short_id())
+  
 @bottle.get('/issues/<issue_id>.json')
 def issue_json(issue_id):
   issue = idx[issue_id]
   return issue.as_dict()
-  
-@bottle.get('/users/<user_id>.json')
-def user_json(user_id):
-  user = idx[user_id]
-  return user.as_dict()
-  
-@bottle.get('/issues/<issue_id>/comments.json')
-def comments_json(issue_id):
-  issue = idx[issue_id]
-  return {
-    'comments': [comment.as_dict() for comment in idx.get_comments(issue.id)],
-  }
   
 @bottle.get('/issues/<issue_id>')
 def issue(issue_id):
@@ -68,12 +84,24 @@ def issue(issue_id):
     return bottle.redirect('/issues/%s' % issue.get_issue().short_id())
   return _html(title=issue.title, react='issue')
   
+@bottle.get('/users/<user_id>.json')
+def user_json(user_id):
+  user = idx[user_id]
+  return user.as_dict()
+  
 @bottle.get('/users/<user_id>')
 def user(user_id):
   user = idx[user_id]
   if not user:
     bottle.abort(404)
   return _html(title=user.name, react='user')
+  
+@bottle.get('/issues/<issue_id>/comments.json')
+def comments_json(issue_id):
+  issue = idx[issue_id]
+  return {
+    'comments': [comment.as_dict() for comment in idx.get_comments(issue.id)],
+  }
   
 @bottle.get('/account.json')
 def account_json():
@@ -92,17 +120,6 @@ def asset(asset_id):
   bottle.response.headers['Content-Type'] = asset.mime_type
   return asset.read()
   
-  
-@bottle.post('/issues/new')
-def issues_new():
-  issue = idx.new_issue()
-  issue.title = bottle.request.forms['title']
-  issue.save()
-  if bottle.request.forms['comment']:
-    comment = issue.new_comment()
-    comment.text = bottle.request.forms['comment']
-    comment.save()
-  return bottle.redirect('/issues/%s' % issue.short_id())
   
 @bottle.post('/reply-to/<item_id>')
 def replay(item_id):
@@ -145,23 +162,6 @@ def update(item_id):
   if changed:
     item.save()
   return 'ok'
-  
-@bottle.get('/issues.json')
-def issues_json():
-  return {
-    'issues': [issue.as_dict() for issue in idx.issues()],
-  }
-  
-@bottle.get('/labels.json')
-def labels_json():
-  labels = [label.as_dict() for label in idx.labels()]
-  if bottle.request.GET.get('new'):
-    d = idx.new_label().as_dict()
-    d['editing'] = True
-    labels.append(d)
-  return {
-    'labels': labels,
-  }
   
 @bottle.get('/jsx/<path>')
 def jsx(path):
