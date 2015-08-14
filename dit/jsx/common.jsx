@@ -98,7 +98,11 @@ var NewCommentForm = React.createClass({
   onPaste: function(e) {
     e.preventDefault();
     var items = (event.clipboardData || event.originalEvent.clipboardData).items;
-    var blob = items[0].getAsFile();
+    var blob;
+    for (var i=0; i<items.length; ++i) {
+      blob = items[i].getAsFile()
+      if (blob!=null) break;
+    }
     var reader = new FileReader();
     reader.onload = function(event){
       var mimeType = event.target.result.split(",")[0].split(":")[1].split(";")[0];
@@ -115,6 +119,7 @@ var NewCommentForm = React.createClass({
           var post = node.value.substring(position)
           $(node).val(pre + post)
           node.selectionStart = node.selectionEnd = pre.length
+          this.setState({text:pre + post})
         }.bind(this)
       });
     }.bind(this)
