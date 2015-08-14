@@ -17,6 +17,9 @@ class Index(object):
     self.account = None
     self.index_all()
     self.update_dirty()
+    self.check_critical()
+  
+  def check_critical(self):
     if not self.account:
       self.account = User(self)
       self.account.email = self.email
@@ -287,14 +290,18 @@ class Issue(Item):
         yield comment
       to_count += comments
   
-  def is_resolved(self):
-    resolved = False
+  def resolved(self):
+    resolved = collections.defaultdict(int)
     for comment in self.idx.get_comments(self.id):
       if comment.kind=='resolved':
-        resolved = True
+        resolved[comment.author] += 1
       if comment.kind=='reopened':
-        resolved = False
-    return resolved
+        resolved[comment.author] -= 1
+    for user_id, weight in resolved.items():
+      if weight == 0:
+        del resolved[user_id]
+    if len(resolved)==0: return resolved, 0
+    return resolved, sum([max(0,min(w,1)) for w in resolved.values()]) / len(resolved)
     
   def get_annotated_labels(self):
     label_user_weights = collections.defaultdict(lambda: collections.defaultdict(int))
@@ -322,11 +329,14 @@ class Issue(Item):
     d['comments_url'] = '/issues/%s/comments.json' % d['short_id']
     d['comment_count'] = self.comment_count()
     labels, label_user_weights, label_weights = self.get_annotated_labels()
-    d['labels'] = [label.as_dict() for label in labels if label_weights[label.id]>=0.5]
+    d['labels'] = [label.as_dict() for label in labels if label_weights[label.id]>0]
     d['label_weights'] = {label.id:label_weights[label.id] for label in labels}
     d['my_label_weights'] = {label.id:label_user_weights[label.id][self.idx.account.id] for label in labels}
     d['label_user_weights'] = label_user_weights
-    d['resolved'] = self.is_resolved()
+    resolved_by_user, resolved = self.resolved()
+    d['resolved'] = resolved
+    d['resolved_by_user'] = resolved_by_user
+    d['i_resolved'] = resolved_by_user[self.idx.account.id]
     d['participants'] = {uid:p.as_dict() for uid,p in self.participants().items()}
     return d
   

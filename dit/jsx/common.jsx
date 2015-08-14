@@ -360,6 +360,9 @@ var Item = React.createClass({
 
 var User = React.createClass({
   render: function() {
+    if (!this.props.data) {
+      return <span>Someone</span>
+    }
     return (
       <a href={'/users/'+this.props.data.slug}>
         {this.props.data.name || 'Someone'}
@@ -380,11 +383,29 @@ var Issue = React.createClass({
 });
 
 
+var IssueResolvedState = React.createClass({
+  render: function() {
+    var resolved_state = <i className="material-icons" style={{fontSize:'12pt', color:this.props.resolved>.5 ? 'red' : 'green', verticalAlign:'text-bottom', marginLeft:'.5em'}}>error_outline</i>;
+    var resolved_state_detail = this.props.resolved && this.props.resolved<1 ? (
+      <span>
+        {Math.round(this.props.resolved*100)}%
+      </span>
+    ) : <span/>
+    return (
+      <span>
+        {resolved_state} {resolved_state_detail}
+      </span>
+    )
+  },
+});
+
+
 var Label = React.createClass({
   render: function() {
     var data = this.props.data ? this.props.data : {}
-    bg_color = data.bg_color || '#eeeeee'
-    fg_color = data.fg_color || '#000000'
+    var consensus = this.props.weight==null || this.props.weight>.5;
+    var bg_color = consensus && data.bg_color || '#eeeeee'
+    var fg_color = consensus && data.fg_color || '#000000'
     var name = this.props.data ? this.props.data.name : 'Unknown Label'
     var quotedName = name
     if (quotedName.indexOf(' ')>-1) {

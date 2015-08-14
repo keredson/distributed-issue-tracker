@@ -18,6 +18,7 @@ var Search = React.createClass({
     var q = $(this.refs.q.getDOMNode()).val();
     this.setState({q:q})
     $.getJSON('/search.json', {q:q}, function(data){
+      console.log(data)
       this.setState(data);
     }.bind(this));
   },
@@ -42,14 +43,14 @@ var Search = React.createClass({
         if (item.label) {
           desc = (
             <div>
-              <Author author={item.author}/> {item.kind=='added_label' ? "added" : "removed"} label <Label data={item.label}/> to <a href={'/issues/'+item.reply_to_short_id}>{item.reply_to_desc}</a> on {item.created_at}.
+              <User data={item.author}/> {item.kind=='added_label' ? "added" : "removed"} label <Label data={item.label}/> to <a href={'/issues/'+item.reply_to_short_id}>{item.reply_to_desc}</a> on {item.created_at}.
             </div>
           )
         } else {
           desc = (
             <div>
               <div>
-                <Author author={item.author}/> replied to <a href={'/issues/'+item.reply_to_short_id}>{item.reply_to_short_id}</a> on {item.created_at}:
+                <User data={item.author}/> replied to <a href={'/issues/'+item.reply_to_short_id}>{item.reply_to_short_id}</a> on {item.created_at}:
               </div>
               {item.text}
             </div>
@@ -59,7 +60,7 @@ var Search = React.createClass({
       if (item.__class__=='Label') {
         desc = (
           <div>
-            <Author author={item.author}/> created <Label data={item}/> on {item.created_at}.
+            <User data={item.author}/> created <Label data={item}/> on {item.created_at}.
           </div>
         )
       }

@@ -101,7 +101,7 @@ var LabelController = React.createClass({
           var user_nodes = [];
           for (var user_id in this.props.issue.label_user_weights[label.id]) {
             var weight = this.props.issue.label_user_weights[label.id][user_id]
-            if (weight==0) return <span/>;
+            if (weight==0) continue;
             var user = this.props.issue.participants[user_id]
             var sentiment = weight>0 ? (<span style={{color:'green'}}>agrees</span>) : (<span style={{color:'red'}}>disagrees</span>)
             user_nodes.push(<div style={{marginLeft:'1em'}}>- <User data={user}/> {sentiment}</div>)
@@ -193,17 +193,6 @@ var IssuePage = React.createClass({
         <i className="material-icons" style={{fontSize:'12pt', verticalAlign:'text-bottom', marginLeft:'.5em'}}>warning</i>
       </a>
     ) : '';
-    var author = '';
-    if (this.state.issue.author) {
-      style = {fontSize:'12pt', color:this.state.issue.resolved ? 'red' : 'green', verticalAlign:'text-bottom', marginLeft:'.5em'};
-      author = (
-        <div style={{marginTop:'-24px'}}>
-          <AuthorSig author={this.state.issue.author} /> at {this.state.issue.created_at}
-          <i className="material-icons" style={style}>error_outline</i>
-          {dirty}
-        </div>
-      );
-    }
     var title;
     if (this.state.editing) {
       title = (
@@ -228,6 +217,7 @@ var IssuePage = React.createClass({
         </h2>
       );
     }
+    
     var people = []
     for (var id in this.state.issue.participants) {
       people.push(this.state.issue.participants[id])
@@ -236,11 +226,13 @@ var IssuePage = React.createClass({
       <div className="mdl-grid">
         <div className="mdl-cell mdl-cell--9-col">
           { title }
-          {author}
+          <div style={{marginTop:'-24px'}}>
+            -- <User data={this.state.issue.author} /> at {this.state.issue.created_at} <IssueResolvedState resolved={this.state.issue.resolved} />
+          </div>
           <div style={{marginLeft:'-1em'}}>
             <CommentList comments={this.state.comments} reload={this.load}/>
           </div>
-          <NewCommentForm reply_to={this.state.issue.id} closeButton={!this.state.issue.resolved} reopenButton={this.state.issue.resolved} reload={this.load} />
+          <NewCommentForm reply_to={this.state.issue.id} closeButton={this.state.issue.i_resolved!=1 && this.state.issue.resolved>1} reopenButton={this.state.issue.i_resolved==1 || this.state.issue.resolved>.5} reload={this.load} />
         </div>
         <div className="mdl-cell mdl-cell--3-col">
           <LabelController issue={this.state.issue} comments={this.state.comments} reload={this.load} />

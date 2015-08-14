@@ -46,9 +46,9 @@ var IssueLI = React.createClass({
   render: function() {
     var labels = this.props.data.labels.map(function (label) {
       return (
-        <Label data={label}/>
+        <Label data={label} weight={this.props.data.label_weights[label.id]}/>
       );
-    });
+    }.bind(this));
     return (
       <tr>
         <td className="mdl-data-table__cell--non-numeric">
@@ -62,7 +62,7 @@ var IssueLI = React.createClass({
           <i className="material-icons" style={{marginLeft:'.2em', fontSize:'10pt', verticalAlign:'text-bottom'}}>comment</i>
         </td>
         <td className="mdl-data-table__cell--non-numeric">
-          <i className="material-icons" style={{fontSize:'12pt', color:this.props.data.resolved ? 'red' : 'green', verticalAlign:'text-bottom'}}>error_outline</i>
+          <IssueResolvedState resolved={this.props.data.resolved} />
         </td>
       </tr>
     );
