@@ -3,6 +3,7 @@ import os
 import check_deps
 
 import bottle
+import git
 
 BASE = os.path.dirname(os.path.realpath(__file__))
 
@@ -156,6 +157,16 @@ def replay(item_id):
     comment = item.new_comment()
     comment.kind = 'removed_label'
     comment.label = bottle.request.forms['remove_label']
+    comment.save()
+  if 'assign' in bottle.request.forms:
+    comment = item.new_comment()
+    comment.kind = 'assigned'
+    comment.assignee = bottle.request.forms.get('assignee') or idx.account.id
+    comment.save()
+  if 'unassign' in bottle.request.forms:
+    comment = item.new_comment()
+    comment.kind = 'unassigned'
+    comment.assignee = bottle.request.forms.get('assignee') or idx.account.id
     comment.save()
   return 'ok'
 

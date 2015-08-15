@@ -210,9 +210,9 @@ var CommentList = React.createClass({
     }
     var nodes = this.state.comments.map(function (comment) {
       return (
-        <Comment data={comment} reload={reload} key={'comment_'+comment.id}/>
+        <Comment issue={this.props.issue} data={comment} reload={reload} key={'comment_'+comment.id}/>
       );
-    });
+    }.bind(this));
     return (
       <div className='comment-list'>
         {nodes}
@@ -278,7 +278,7 @@ var Comment = React.createClass({
       ) : '';
     }.bind(this);
     if (this.props.data.kind) {
-      var desc = <span>Unknown comment action.</span>
+      var desc = <span>What happened here?</span>
       if (this.props.data.kind=='resolved') {
         desc = <span style={{color:'red'}}>Closed</span>
       } else
@@ -290,6 +290,15 @@ var Comment = React.createClass({
       } else
       if (this.props.data.kind=='removed_label') {
         desc = <span>Removed <Label data={this.props.data.label}/></span>
+      } else
+      if (this.props.data.kind=='assigned' || this.props.data.kind=='unassigned') {
+        var participant = this.props.data.assignee.id==this.props.data.author.id ? "him/herself" : <User data={this.props.issue.participants[this.props.data.assignee]} />
+        return (
+          <div>
+            <User data={this.props.data.author} /> {this.props.data.kind} {participant} at {this.props.data.created_at}
+            {dirty(true)}
+          </div>
+        );
       }
       return (
         <div>

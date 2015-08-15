@@ -292,6 +292,15 @@ class Issue(Item):
         to_count += comments
     return max(0,c-1)
 
+  def get_owners(self):
+    owners = set()
+    for comment in self.idx.get_comments(self.id):
+      if comment.kind=='assigned':
+        owners.add(comment.assignee)
+      if comment.kind=='unassigned':
+        owners.discard(comment.assignee)
+    return [self.idx[uid] for uid in owners]
+
   def participants(self):
     user_ids = set()
     user_ids.add(self.author)
@@ -304,7 +313,7 @@ class Issue(Item):
     to_count = [self]
     while len(to_count):
       x = to_count.pop()
-      comments = [y for y in self.idx.comments[x.id]]
+      comments = [y for y in self.idx.get_comments(x.id)]
       for comment in comments:
         yield comment
       to_count += comments
@@ -357,6 +366,7 @@ class Issue(Item):
     d['resolved_by_user'] = resolved_by_user
     d['i_resolved'] = resolved_by_user[self.idx.account.id]
     d['participants'] = {uid:p.as_dict() for uid,p in self.participants().items()}
+    d['owners'] = [o.as_dict() for o in self.get_owners()]
     return d
   
   def new_comment(self):
@@ -371,7 +381,7 @@ class Issue(Item):
 
 class Comment(Item):
   dir_name = 'comments'
-  to_save = {'reply_to':None, 'text':'', 'kind':None, 'label':None}
+  to_save = {'reply_to':None, 'text':'', 'kind':None, 'label':None, 'assignee':None}
   updatable = set(['text'])
   short_seed_size = 8
 
@@ -391,6 +401,9 @@ class Comment(Item):
     d['kind'] = self.kind
     label = self.idx[self.label] if self.label else None
     d['label'] = label.as_dict() if label else None
+    if self.assignee:
+      assignee = self.idx[self.assignee]
+      d['assignee'] = assignee.as_dict() if assignee else None
     d['comments'] = [comment.as_dict() for comment in self.idx.get_comments(self.id)]
     return d
 
@@ -401,9 +414,13 @@ class Comment(Item):
     return comment
 
   def slug_seed(self):
-    label = self.idx[self.label] if self.label else None
-    if label:
-      return 'label %s' % label.name
+    target = None
+    if self.label:
+      target = self.idx[self.label]
+    if self.assignee:
+      target = self.idx[self.assignee]
+    if target:
+      return '%s %s' % (self.kind, target.name)
     return self.text
     
   def get_issue(self):

@@ -32,4 +32,12 @@ except Exception as e:
   os.system('sudo pip install patricia-trie')
   import patricia
   
+try:
+  import git
+except Exception as e:
+  print e.message
+  print 'installing...'
+  os.system('sudo pip install gitpython')
+  import git
+  
 
