@@ -233,7 +233,7 @@ var Participants = React.createClass({
     return (
       <div className="mdl-card mdl-shadow--2dp" style={{width:'100%', marginTop:'1em', minHeight:'1px'}}>
         <div className="mdl-card__title">
-          <h2 className="mdl-card__title-text">Participants</h2>
+          <h2 className="mdl-card__title-text">{this.state.editing ? "Owner" : "Participants"}</h2>
         </div>
         <div className="mdl-card__supporting-text" style={{width:'auto', paddingTop:'0px'}}>
           {part}

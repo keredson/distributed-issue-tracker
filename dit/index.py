@@ -157,6 +157,9 @@ class Index(object):
   def labels(self):
     return [item for item in self.trie.values() if isinstance(item,Label)]
   
+  def all_comments(self):
+    return [item for item in self.trie.values() if isinstance(item,Comment)]
+  
   def users(self):
     return [item for item in self.trie.values() if isinstance(item,User)]
   

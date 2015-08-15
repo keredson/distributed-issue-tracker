@@ -1,6 +1,6 @@
 var LabelList = React.createClass({
   getInitialState: function() {
-    return {labels: []};
+    return {labels: [], issue_counts: {}};
   },
   componentDidMount: function() {
     $.getJSON(this.props.url, function( data ) {
@@ -30,7 +30,7 @@ var LabelList = React.createClass({
   render: function() {
     var nodes = this.state.labels.map(function (label) {
       return (
-        <LabelLI data={label} update={this.update} reload={this.reload}/>
+        <LabelLI data={label} issue_counts={this.state.issue_counts} update={this.update} reload={this.reload}/>
       );
     }.bind(this));
     var none = (
@@ -48,6 +48,7 @@ var LabelList = React.createClass({
               <th className="mdl-data-table__cell--non-numeric">Label</th>
               <th className="mdl-data-table__cell--non-numeric">Color</th>
               <th className="mdl-data-table__cell--non-numeric">Deadline</th>
+              <th className="mdl-data-table__cell--non-numeric">Issues</th>
               <th className="mdl-data-table__cell--non-numeric"></th>
             </tr>
           </thead>
@@ -123,10 +124,13 @@ var LabelLI = React.createClass({
         <td className="mdl-data-table__cell--non-numeric">
           <Label data={this.props.data} />
         </td>
-        <td>
+        <td className="mdl-data-table__cell--non-numeric">
           {this.props.data.deadline || ''}
         </td>
         <td>
+          {this.props.issue_counts[this.props.data.id]}
+        </td>
+        <td className="mdl-data-table__cell--non-numeric">
           {editButtons}
         </td>
       </tr>

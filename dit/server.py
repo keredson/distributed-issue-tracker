@@ -1,4 +1,4 @@
-import os
+import collections, os
 
 import check_deps
 
@@ -48,12 +48,17 @@ def issues():
 @bottle.get('/labels.json')
 def labels_json():
   labels = [label.as_dict() for label in idx.labels()]
+  issue_counts = collections.defaultdict(int)
+  for comment in idx.all_comments():
+    if not comment.label: continue
+    issue_counts[comment.label] += 1
   if bottle.request.GET.get('new'):
     d = idx.new_label().as_dict()
     d['editing'] = True
     labels.append(d)
   return {
     'labels': labels,
+    'issue_counts': issue_counts,
   }
   
 @bottle.get('/users')
