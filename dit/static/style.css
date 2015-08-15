@@ -28,3 +28,7 @@
   padding: .5em;
   background-color: #fafafa;
 }
+
+.mdl-card__supporting-text img {
+  max-width:100%;
+}

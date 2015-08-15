@@ -232,7 +232,7 @@ var IssuePage = React.createClass({
           <div style={{marginLeft:'-1em'}}>
             <CommentList comments={this.state.comments} reload={this.load}/>
           </div>
-          <NewCommentForm reply_to={this.state.issue.id} closeButton={this.state.issue.i_resolved!=1 && this.state.issue.resolved>1} reopenButton={this.state.issue.i_resolved==1 || this.state.issue.resolved>.5} reload={this.load} />
+          <NewCommentForm reply_to={this.state.issue.id} closeButton={this.state.issue.i_resolved!=1 && this.state.issue.resolved<1} reopenButton={this.state.issue.i_resolved==1 || this.state.issue.resolved>.5} reload={this.load} />
         </div>
         <div className="mdl-cell mdl-cell--3-col">
           <LabelController issue={this.state.issue} comments={this.state.comments} reload={this.load} />
