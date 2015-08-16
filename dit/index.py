@@ -35,7 +35,7 @@ class Index(object):
   def status(self):
     stats = {
       'dirty': self.repo.is_dirty(),
-      'dirty_fns': list(self.dirty),
+      'dirty_fns': list(self.dirty) + list(self.added),
     }
     return stats
     
@@ -85,12 +85,19 @@ class Index(object):
         
   def update_dirty(self):
     dirty = set()
-    for diff in self.repo.index.diff(self.repo.head.commit) + self.repo.index.diff(None): # self.repo.head.commit ?
+    for diff in self.repo.index.diff(None):
       if diff.a_blob:
         dirty.add(diff.a_blob.path)
       if diff.b_blob:
         dirty.add(diff.b_blob.path)
     self.dirty = set([fn for fn in dirty if fn.startswith('.dit')])
+    added = set()
+    for diff in self.repo.index.diff(self.repo.head.commit):
+      if diff.a_blob:
+        added.add(diff.a_blob.path)
+      if diff.b_blob:
+        added.add(diff.b_blob.path)
+    self.added = set([fn for fn in added if fn.startswith('.dit')])
 
   def find_dit_dir(self):
     dir = os.getcwd()
@@ -234,11 +241,18 @@ class Index(object):
    return sorted(self.comments[id], lambda x,y: cmp(x.created_at, y.created_at))
    
   def revert_all(self):
-    to_revert = ['--'] + [fn for fn in self.dirty if fn.startswith('.dit/')]
-    self.repo.git.checkout(*to_revert)
+    added = list(self.added)
+    self.repo.git.reset(added)
+    for fn in added:
+      os.remove(os.path.join(self.base_dir, fn))
+    to_revert = [fn for fn in self.dirty if fn.startswith('.dit/')]
+    self.repo.git.checkout(*(['--'] + to_revert))
     self.update_dirty()
-    for fn in to_revert:
+    for fn in to_revert + added:
       self.index_purge_fn(fn)
+      if os.path.exists(os.path.join(self.base_dir,fn)):
+        o = self.load_fn(os.path.join(self.base_dir,fn))
+        self.index(o)
 
   def commit(self, id):
     o = self[id]
@@ -254,19 +268,26 @@ class Index(object):
     o = self[id]
     fn = o.fn[len(self.base_dir)+1:]
     self.index_purge(o)
-    self.repo.git.checkout('--', fn)
+    print 'reverting', fn
+    if fn in self.added:
+      self.repo.git.reset(fn)
+      os.remove(o.fn)
+    else:
+      self.repo.git.checkout('--', fn)
     if os.path.exists(o.fn):
       o = self.load_fn(o.fn)
       self.index(o)
     self.update_dirty()
 
   def commit_all(self):
-    to_commit = [fn for fn in self.dirty if fn.startswith('.dit/')]
+    to_commit = [fn for fn in (self.dirty|self.added) if fn.startswith('.dit/')]
     self.repo.git.commit(*to_commit, m='dit commit all')
     self.update_dirty()
     for fn in to_commit:
       self.index_purge_fn(fn)
-
+      if os.path.exists(os.path.join(self.base_dir,fn)):
+        o = self.load_fn(os.path.join(self.base_dir,fn))
+        self.index(o)
       
 
 
@@ -334,10 +355,14 @@ class Item(object):
       '__class__': self.__class__.__name__,
       'short_id': short_id,
       'slug': slugify(short_id +' '+ self.slug_seed()),
-      'dirty': self.fn[len(self.idx.base_dir)+1:] in self.idx.dirty,
+      'dirty': False,
       'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
       'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
     }
+    if self.fn:
+      rel_fn = self.fn[len(self.idx.base_dir)+1:]
+      print rel_fn, self.idx.added, rel_fn in self.idx.added
+      d['dirty'] = rel_fn in self.idx.added or rel_fn in self.idx.dirty
     if hasattr(self,'author'):
       author = self.idx[self.author]
       d['author'] = author.as_dict() if author else None

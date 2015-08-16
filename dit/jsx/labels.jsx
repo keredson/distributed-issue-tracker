@@ -35,7 +35,7 @@ var LabelList = React.createClass({
     }.bind(this));
     var none = (
       <tr>
-        <td className="mdl-data-table__cell--non-numeric" colSpan='4'>
+        <td className="mdl-data-table__cell--non-numeric" colSpan='5'>
           No labels...
         </td>
       </tr>
