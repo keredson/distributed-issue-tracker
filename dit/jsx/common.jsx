@@ -97,21 +97,14 @@ var AuthorSig = React.createClass({
 });
 
 
-var NewCommentForm = React.createClass({
+var CommentEditor = React.createClass({
   getInitialState: function() {
-    return {text: '', editing: false, id:this.props.reply_to ? 'reply-to-'+this.props.reply_to : gid()};
+    return {text:this.props.text, editing: this.props.editing};
   },
-  handleFocus: function() {
-    this.state.editing = true
-    this.setState(this.state)
-  },
-  onChange: function() {
-    this.setState({text:$(this.refs.textarea.getDOMNode()).val()})
-  },
-  handleBlur: function() {
+  componentDidUpdate: function(prevProps, prevState) {
+    console.log(this.state, prevState)
     if (!this.state.text) {
-      this.state.editing = false
-      this.setState(this.state)
+      $(this.refs.textarea.getDOMNode()).val('')
       if (this.props.onHide) {
         this.props.onHide()
       }
@@ -150,8 +143,27 @@ var NewCommentForm = React.createClass({
         }
     ]);
   },
-  componentDidUpdate: function(prevProps, prevState) {
-    mdlUpgradeDom();
+  handleFocus: function() {
+    this.state.editing = true
+    this.setState(this.state)
+    if (this.props.updateEditing) {
+      this.props.updateEditing(this.state.editing)
+    }
+  },
+  onChange: function() {
+    this.setState({editing:this.state.editing, text:$(this.refs.textarea.getDOMNode()).val()})
+  },
+  handleBlur: function() {
+    if (!this.state.text) {
+      this.state.editing = false
+      this.setState(this.state)
+      if (this.props.onHide) {
+        this.props.onHide()
+      }
+      if (this.props.updateEditing) {
+        this.props.updateEditing(this.state.editing)
+      }
+    }
   },
   onPaste: function(e) {
     e.preventDefault();
@@ -183,15 +195,42 @@ var NewCommentForm = React.createClass({
     }.bind(this)
     reader.readAsDataURL(blob);
   },
+  render: function() {
+    var line_numbers = this.state.text.split(/\r*\n/).length;
+    var editor_size = Math.min(Math.max(line_numbers+1, 4), 20)
+    return (
+      <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
+        <textarea className="mdl-textfield__input" type="text" rows={this.state.editing ? editor_size : 1} name='comment' ref="textarea" onFocus={this.handleFocus} onBlur={this.handleBlur} onChange={this.onChange} onPaste={this.onPaste} defaultValue={this.state.text}></textarea>
+        <label className="mdl-textfield__label">{this.props.placeholder || 'Add a comment...'}</label>
+      </div>
+    );
+  }
+});
+
+
+var NewCommentForm = React.createClass({
+  getInitialState: function() {
+    return {editing: false};
+  },
+  componentDidMount: function() {
+    mdlUpgradeDom();
+  },
+  componentDidUpdate: function(prevProps, prevState) {
+    mdlUpgradeDom();
+  },
+  updateEditing: function(editing) {
+    this.setState({editing:editing});
+  },
   save: function(action) {
     data = {
-      comment: $(this.refs.textarea.getDOMNode()).val()
+      comment: this.refs.commentEditor.state.text
     }
     data[action] = action
     $.post('/reply-to/'+this.props.reply_to, data, function() {
       this.props.reload()
-      this.setState({editing: false, text:''})
-      $(this.refs.textarea.getDOMNode()).val('')
+      this.refs.commentEditor.state.text = ''
+      this.refs.commentEditor.state.editing = false
+      this.setState({editing:false});
       if (this.props.onHide) {
         this.props.onHide()
       }
@@ -213,15 +252,10 @@ var NewCommentForm = React.createClass({
         {this.props.button || 'Add Comment'}
       </button>
     ) : <span/>
-    var line_numbers = this.state.text.split(/\r*\n/).length;
-    var editor_size = Math.min(Math.max(line_numbers+1, 4), 20)
     return (
       <div>
         <div>
-          <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
-            <textarea className="mdl-textfield__input" type="text" rows={this.state.editing ? editor_size : 1} name='comment' ref="textarea" onFocus={this.handleFocus} onBlur={this.handleBlur} onChange={this.onChange} onPaste={this.onPaste}></textarea>
-            <label className="mdl-textfield__label">{this.props.placeholder || 'Add a comment...'}</label>
-          </div>
+          <CommentEditor text='' editing={this.state.editing} updateEditing={this.updateEditing} placeholder={this.props.placeholder} ref='commentEditor' onHide={this.props.onHide} />
         </div>
         <div style={{paddingLeft:'2em'}}>
           {closeButton}
@@ -351,7 +385,7 @@ var Comment = React.createClass({
     e.preventDefault();
   },
   save: function(e) {
-    var text = $('#'+this.props.data.id+'-comment-edit-textarea').val();
+    var text = this.refs.commentEditor.state.text;
     $.post('/update/'+this.props.data.id, {text:text}, function() {
       this.state.editing = !this.state.editing
       this.setState(this.state)
@@ -392,80 +426,87 @@ var Comment = React.createClass({
         </div>
       );
     }
-    var author = '';
-    if (this.props.data.author) {
-      author = (
-        <div style={{marginTop:'-.3em'}}>
-          <AuthorSig author={this.props.data.author} /> at {this.props.data.created_at}
-          <a href='' onClick={this.handleClick}>
-            <i className="material-icons" style={{marginLeft:'.5em', fontSize:'12pt', verticalAlign:'text-bottom'}}>reply</i>
-          </a>
+    
+    
+    if (!this.state.editing) {
+      var author = '';
+      if (this.props.data.author) {
+        author = (
+          <div style={{marginTop:'-.3em'}}>
+            <AuthorSig author={this.props.data.author} /> at {this.props.data.created_at}
+            <a href='' onClick={this.handleClick}>
+              <i className="material-icons" style={{marginLeft:'.5em', fontSize:'12pt', verticalAlign:'text-bottom'}}>reply</i>
+            </a>
+          </div>
+        );
+      }
+      var text = this.props.data.text.toString().replace(/\B[@#][\w-]+/g, function(w,m) {
+        var id = w.substring(1);
+        var item = this.state.items[id];
+        if (item) {
+          if (item['__class__']=='User') {
+            return '['+ item.name +'](/users/'+ item.slug +')'
+          }
+          if (item['__class__']=='Issue') {
+            return '['+ item.title +'](/issues/'+ item.slug +')'
+          }
+        } else {
+          return w;
+        }
+      }.bind(this));
+      var rawMarkup = marked(text, {sanitize: true});
+      var replybox = this.state.replying ? (
+          <div style={{marginBottom:'1em'}}>
+            <NewCommentForm placeholder="Reply..." reload={this.props.reload} button='Reply' reply_to={this.props.data.id} onHide={this.handleHide}/>
+          </div>
+      ) : '';
+      return (
+        <div>
+          <div className="mdl-card mdl-shadow--2dp demo-card-wide" 
+              style={{minHeight:"1px", width:"auto", 'margin':'1em 0em'}} 
+              key={this.props.data.id}>
+            <div className="mdl-card__supporting-text" style={{width:'auto'}}>
+              <div style={{float:'right'}}>
+                <RevControl id={this.props.data.id} reload={this.props.reload} dirty={this.props.data.dirty} intext={false}/>
+                <a href='' onClick={this.show_history}>
+                  <i className="material-icons" style={{fontSize:'12pt'}}>history</i>
+                </a>
+                <a href='' onClick={this.edit}>
+                  <i className="material-icons" style={{fontSize:'12pt'}}>edit</i>
+                </a>
+              </div>
+              <span dangerouslySetInnerHTML={{__html: rawMarkup}} />
+              {author}
+            </div>
+          </div>
+          {replybox}
+          <CommentList comments={this.props.data.comments} reload={this.props.reload} />
+        </div>
+      );
+    } else {
+      console.log('woot')
+      return (
+        <div>
+          <div className="mdl-card mdl-shadow--2dp demo-card-wide" 
+              style={{minHeight:"1px", width:"auto", 'margin':'1em 0em'}} 
+              key={this.props.data.id+'editing'}>
+            <div className="mdl-card__supporting-text" style={{width:'auto'}}>
+              <CommentEditor editing={this.state.editing} updateEditing={this.updateEditing} placeholder='Details...' ref='commentEditor' onHide={this.props.onHide} text={this.props.data.text} />
+              <div style={{marginTop:'1em'}}>
+                <button className="mdl-button mdl-js-button mdl-button--raised" onClick={this.save}>
+                  Save
+                </button>
+                <button className="mdl-button mdl-js-button mdl-js-ripple-effect" onClick={this.edit} style={{marginLeft:'1em'}}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+          {replybox}
+          <CommentList comments={this.props.data.comments} reload={this.props.reload} />
         </div>
       );
     }
-    var text = this.props.data.text.toString().replace(/\B[@#][\w-]+/g, function(w,m) {
-      var id = w.substring(1);
-      var item = this.state.items[id];
-      if (item) {
-        if (item['__class__']=='User') {
-          return '['+ item.name +'](/users/'+ item.slug +')'
-        }
-        if (item['__class__']=='Issue') {
-          return '['+ item.title +'](/issues/'+ item.slug +')'
-        }
-      } else {
-        return w;
-      }
-    }.bind(this));
-    var rawMarkup = marked(text, {sanitize: true});
-    var replybox = this.state.replying ? (
-        <div style={{marginBottom:'1em'}}>
-          <NewCommentForm placeholder="Reply..." reload={this.props.reload} button='Reply' reply_to={this.props.data.id} onHide={this.handleHide}/>
-        </div>
-    ) : '';
-    return (
-      <div>
-        <div className="mdl-card mdl-shadow--2dp demo-card-wide" 
-            style={{minHeight:"1px", width:"auto", 'margin':'1em 0em', display: !this.state.editing ? 'block' : 'none'}} 
-            key={this.props.data.id}>
-          <div className="mdl-card__supporting-text" style={{width:'auto'}}>
-            <div style={{float:'right'}}>
-              <RevControl id={this.props.data.id} reload={this.props.reload} dirty={this.props.data.dirty} intext={false}/>
-              <a href='' onClick={this.show_history}>
-                <i className="material-icons" style={{fontSize:'12pt'}}>history</i>
-              </a>
-              <a href='' onClick={this.edit}>
-                <i className="material-icons" style={{fontSize:'12pt'}}>edit</i>
-              </a>
-            </div>
-            <span dangerouslySetInnerHTML={{__html: rawMarkup}} />
-            {author}
-          </div>
-        </div>
-        <div className="mdl-card mdl-shadow--2dp demo-card-wide" 
-            style={{minHeight:"1px", width:"auto", 'margin':'1em 0em', display: this.state.editing ? 'block' : 'none'}} 
-            key={this.props.data.id+'editing'}>
-          <div className="mdl-card__supporting-text" style={{width:'auto'}}>
-            <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
-              <textarea className="mdl-textfield__input" type="text" rows={4} 
-                  id={this.props.data.id+'-comment-edit-textarea'} 
-                  defaultValue={this.props.data.text}></textarea>
-              <label className="mdl-textfield__label">Details...</label>
-            </div>
-            <div style={{marginTop:'1em'}}>
-              <button className="mdl-button mdl-js-button mdl-button--raised" onClick={this.save}>
-                Save
-              </button>
-              <button className="mdl-button mdl-js-button mdl-js-ripple-effect" onClick={this.edit} style={{marginLeft:'1em'}}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-        {replybox}
-        <CommentList comments={this.props.data.comments} reload={this.props.reload} />
-      </div>
-    );
   }
 });
 
