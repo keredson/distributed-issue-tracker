@@ -123,9 +123,23 @@ var NewCommentForm = React.createClass({
         {
           match: /\B@(\w{1,})$/,
           search: function (term, callback) {
-            $.getJSON('/search.json', {kind:'User,Issue', q:term}, function(data) {
+            $.getJSON('/search.json', {kind:'User', q:term}, function(data) {
               callback($.map(data['items'], function (item) {
                   return '@'+item['slug'];
+              }));
+            });
+          },
+          index: 1,
+          replace: function (word) {
+            return word + ' ';
+          }
+        },
+        {
+          match: /\B#(\w{1,})$/,
+          search: function (term, callback) {
+            $.getJSON('/search.json', {kind:'Issue', q:term}, function(data) {
+              callback($.map(data['items'], function (item) {
+                  return '#'+item['slug'];
               }));
             });
           },
@@ -307,7 +321,7 @@ var Comment = React.createClass({
   },
   componentDidMount: function() {
     var ids = []
-    this.props.data.text.replace(/\B@[\w-]+/g, function(w,m) {
+    this.props.data.text.replace(/\B[#@][\w-]+/g, function(w,m) {
       ids.push(w.substring(1))
     })
     if (ids.length) {
@@ -390,7 +404,7 @@ var Comment = React.createClass({
       );
     }
     var rawMarkup = marked(this.props.data.text.toString(), {sanitize: true});
-    rawMarkup = rawMarkup.replace(/\B@[\w-]+/g, function(w,m) {
+    rawMarkup = rawMarkup.replace(/\B[@#][\w-]+/g, function(w,m) {
       var id = w.substring(1);
       if (this.state.items[id]) {
         return React.renderToStaticMarkup(<Item data={this.state.items[id]}/>);
