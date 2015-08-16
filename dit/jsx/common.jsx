@@ -281,6 +281,7 @@ var Comment = React.createClass({
         mdlUpgradeDom();
       }.bind(this))
     }
+    mdlUpgradeDom();
   },
   handleClick: function(e) {
     this.state.replying = !this.state.replying
@@ -291,8 +292,20 @@ var Comment = React.createClass({
     this.state.replying = false
     this.setState(this.state)
   },
-  commit: function() {
-    alert('This needs to be committed.');
+  commit: function(e) {
+    if (confirm("Are you sure you want to commit this change?")) {
+      $.post('/repo/commit/'+this.props.data.id, function(data) {
+        this.props.reload();
+      }.bind(this));
+    }
+    e.preventDefault();
+  },
+  revert: function(e) {
+    if (confirm("Are you sure you want to revert this change?")) {
+      $.post('/repo/revert/'+this.props.data.id, function(data) {
+        this.props.reload();
+      }.bind(this));
+    }
     e.preventDefault();
   },
   show_history: function(e) {
@@ -315,10 +328,16 @@ var Comment = React.createClass({
   },
   render: function() {
     var dirty = function(in_text) {
+      var icon_style = {fontSize:'12pt', verticalAlign:in_text ? 'text-bottom' : ''};
       return this.props.data.dirty ? (
-        <a href='' onClick={this.commit}>
-          <i className="material-icons" style={{fontSize:'12pt', verticalAlign:in_text ? 'text-bottom' : '', marginLeft:'.5em'}}>warning</i>
-        </a>
+        <span style={{marginLeft:'.5em'}}>
+          <a href='' onClick={this.revert}>
+            <i className="material-icons" title='Revert' style={icon_style}>undo</i>
+          </a>
+          <a href='' onClick={this.commit}>
+            <i className="material-icons" title='Commit' style={icon_style}>redo</i>
+          </a>
+        </span>
       ) : '';
     }.bind(this);
     if (this.props.data.kind) {

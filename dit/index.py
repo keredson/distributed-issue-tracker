@@ -85,7 +85,7 @@ class Index(object):
         
   def update_dirty(self):
     dirty = set()
-    for diff in self.repo.index.diff(self.repo.head.commit): # self.repo.head.commit ?
+    for diff in self.repo.index.diff(self.repo.head.commit) + self.repo.index.diff(None): # self.repo.head.commit ?
       if diff.a_blob:
         dirty.add(diff.a_blob.path)
       if diff.b_blob:
@@ -115,11 +115,16 @@ class Index(object):
     if not fn in self.fns: return
     o = self.fns[fn]
     del self.fns[fn]
+    self.index_purge(o)
+    
+  def index_purge(self, o):
     for k,v in self.trie.items():
       if v==o:
         del self.trie[k]
     if o.id in self.comments:
       del self.comments[o.id]
+    for l in self.comments.values():
+      if o in l: l.remove(o)
 
   def load_all(self):
     self.clear_index()
@@ -127,16 +132,21 @@ class Index(object):
       for fn in os.listdir(os.path.join(self.dir, dir)):
         if not fn.endswith('.yaml'): continue
         fn = os.path.join(self.dir, dir, fn)
-        try:
-          if dir=='users': o = User(self, fn=fn)
-          if dir=='issues': o = Issue(self, fn=fn)
-          if dir=='labels': o = Label(self, fn=fn)
-          if dir=='comments': o = Comment(self, fn=fn)
-          if dir=='assets': o = Asset(self, fn=fn)
-        except Exception as e:
-          print 'could not load', fn
-          raise e
+        o = self.load_fn(fn)
         self.index(o)
+
+  def load_fn(self, fn):
+    dir = os.path.basename(os.path.dirname(fn))
+    try:
+      if dir=='users': o = User(self, fn=fn)
+      if dir=='issues': o = Issue(self, fn=fn)
+      if dir=='labels': o = Label(self, fn=fn)
+      if dir=='comments': o = Comment(self, fn=fn)
+      if dir=='assets': o = Asset(self, fn=fn)
+      return o
+    except Exception as e:
+      print 'could not load', fn
+      raise e
 
   def index_issue(self, issue):
     self.index_text(issue.id, [issue.title])
@@ -227,20 +237,35 @@ class Index(object):
     to_revert = ['--'] + [fn for fn in self.dirty if fn.startswith('.dit/')]
     self.repo.git.checkout(*to_revert)
     self.update_dirty()
+    for fn in to_revert:
+      self.index_purge_fn(fn)
 
-  def revert(self, fn):
-    if not fn.startswith('.dit/'):
-      raise Exception("won't revert non-dit file %s" % fn)
-    self.repo.git.checkout('--', fn)
+  def commit(self, id):
+    o = self[id]
+    fn = o.fn[len(self.base_dir)+1:]
+    self.index_purge(o)
+    self.repo.git.commit(fn, m='dit commit')
+    if os.path.exists(o.fn):
+      o = self.load_fn(o.fn)
+      self.index(o)
     self.update_dirty()
-    if fn in self.dirty:
-      raise Exception('failed to revert %s' % fn)
-    self.index_purge_fn(fn)
-      
+
+  def revert(self, id):
+    o = self[id]
+    fn = o.fn[len(self.base_dir)+1:]
+    self.index_purge(o)
+    self.repo.git.checkout('--', fn)
+    if os.path.exists(o.fn):
+      o = self.load_fn(o.fn)
+      self.index(o)
+    self.update_dirty()
+
   def commit_all(self):
     to_commit = [fn for fn in self.dirty if fn.startswith('.dit/')]
     self.repo.git.commit(*to_commit, m='dit commit all')
     self.update_dirty()
+    for fn in to_commit:
+      self.index_purge_fn(fn)
 
       
 

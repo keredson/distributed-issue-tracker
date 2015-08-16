@@ -183,7 +183,7 @@ def replay(item_id):
 def update(item_id):
   item = idx[item_id]
   changed = False
-  if not item :
+  if not item:
     item = idx.create(bottle.request.forms['__class__'])
     changed = True
   for k,v in bottle.request.forms.items():
@@ -194,20 +194,20 @@ def update(item_id):
     item.save()
   return 'ok'
 
-@bottle.post('/repo/revert/<fn>')
-def repo_revert_fn(fn):
-  if fn=='*':
+@bottle.post('/repo/revert/<id>')
+def repo_revert(id):
+  if id=='*':
     idx.revert_all()
   else:
-    idx.revert(fn)
+    idx.revert(id)
   return 'ok'
   
-@bottle.post('/repo/commit/<fn>')
-def repo_commit_fn(fn):
-  if fn=='*':
+@bottle.post('/repo/commit/<id>')
+def repo_commit_fn(id):
+  if id=='*':
     idx.commit_all()
   else:
-    idx.commit(fn)
+    idx.commit(id)
   return 'ok'
   
 @bottle.get('/jsx/<path>')
