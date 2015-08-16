@@ -279,6 +279,7 @@ var IssuePage = React.createClass({
         editing: false,
         issue:issue
       })
+      this.load()
     }.bind(this));
     e.preventDefault();
   },
