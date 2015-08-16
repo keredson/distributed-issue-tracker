@@ -26,6 +26,10 @@ def search_json():
   items = idx.search(bottle.request.GET['q'], kinds=kinds)
   return {'items': items}
   
+@bottle.get('/status.json')
+def status_json():
+  return idx.status()
+  
 @bottle.get('/items-by-id.json')
 def items_json():
   items_by_id = {id:idx[id.split('-')[0]] for id in bottle.request.GET['ids'].split(',')}
@@ -188,6 +192,22 @@ def update(item_id):
       changed = True
   if changed:
     item.save()
+  return 'ok'
+
+@bottle.post('/repo/revert/<fn>')
+def repo_revert_fn(fn):
+  if fn=='*':
+    idx.revert_all()
+  else:
+    idx.revert(fn)
+  return 'ok'
+  
+@bottle.post('/repo/commit/<fn>')
+def repo_commit_fn(fn):
+  if fn=='*':
+    idx.commit_all()
+  else:
+    idx.commit(fn)
   return 'ok'
   
 @bottle.get('/jsx/<path>')

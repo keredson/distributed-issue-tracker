@@ -32,3 +32,12 @@
 .mdl-card__supporting-text img {
   max-width:100%;
 }
+
+h1 {
+  font-size: 45px;
+}
+
+.mdl-badge[data-badge]:after {
+  right:-12px;
+}
+

@@ -5,7 +5,41 @@ function gid() {
 
 
 var Frame = React.createClass({
+  getInitialState: function() {
+    return {dirty_fns:[]};
+  },
+  componentDidMount: function() {
+    this.load()
+  },
+  load: function() {
+    $.get('/status.json', function(data) {
+      this.setState(data)
+      mdlUpgradeDom();
+    }.bind(this));
+  },
+  revert: function() {
+    $.post('/repo/revert/*', function(data) {
+      location.reload();
+    }.bind(this));
+  },
+  commit: function() {
+    if (confirm("Are you sure you want to commit these "+ this.state.dirty_fns.length +" files?")) {
+      $.post('/repo/commit/*', function(data) {
+        location.reload();
+      }.bind(this));
+    }
+  },
   render: function() {
+    var repo_icon;
+    if (this.state.dirty_fns.length) {
+      repo_icon = (
+        <i className="material-icons mdl-badge" style={{cursor:'pointer'}} data-badge={this.state.dirty_fns.length} id="dirty-menu">announcement</i>
+      );
+    } else {
+      repo_icon = (
+        <i className="material-icons mdl-badge" style={{cursor:'pointer'}} id="dirty-menu">announcement</i>
+      );
+    }
     return (
       <div>
         <div className="mdl-layout mdl-js-layout mdl-layout--fixed-drawer
@@ -13,6 +47,14 @@ var Frame = React.createClass({
           <header className="mdl-layout__header">
             <div className="mdl-layout__header-row">
               <div className="mdl-layout-spacer"></div>
+              {repo_icon}
+              <ul className="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect"
+                  htmlFor="dirty-menu">
+                <li onClick={this.commit} className="mdl-menu__item" disabled={this.state.dirty_fns.length==0}>
+                  Commit {this.state.dirty_fns.length} Updates
+                </li>
+                <li onClick={this.revert} disabled={this.state.dirty_fns.length==0} className="mdl-menu__item">Revert All Changes</li>
+              </ul>              
               <a href='/search' style={{color:'white'}}>
                 <i className="material-icons">search</i>
               </a>
@@ -233,10 +275,12 @@ var Comment = React.createClass({
     this.props.data.text.replace(/\B@[\w-]+/g, function(w,m) {
       ids.push(w.substring(1))
     })
-    $.getJSON('/items-by-id.json', {ids:ids.join(',')}, function(data) {
-      this.setState({items:data})
-      mdlUpgradeDom();
-    }.bind(this))
+    if (ids.length) {
+      $.getJSON('/items-by-id.json', {ids:ids.join(',')}, function(data) {
+        this.setState({items:data})
+        mdlUpgradeDom();
+      }.bind(this))
+    }
   },
   handleClick: function(e) {
     this.state.replying = !this.state.replying

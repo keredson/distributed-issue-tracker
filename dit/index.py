@@ -2,6 +2,7 @@ from __future__ import division
 
 import collections, datetime, hashlib, itertools, mimetypes, os, random, re, shlex, subprocess, sys, uuid, yaml
 import dateutil.parser, dateutil.tz
+import git
 import patricia
 
 class Index(object):
@@ -9,13 +10,12 @@ class Index(object):
   def __init__(self):
     self.dir = self.find_dit_dir()
     print 'found dit at', self.dir
+    self.base_dir = os.path.dirname(self.dir)
+    self.repo = git.Repo(self.base_dir)
     self.prep_dir()
-    self.trie = patricia.trie()
-    self.search_trie = patricia.trie()
-    self.comments = collections.defaultdict(list)
     self.email = subprocess.check_output(['git','config','user.email']).strip()
     self.account = None
-    self.index_all()
+    self.load_all()
     self.update_dirty()
     self.check_critical()
   
@@ -31,6 +31,13 @@ class Index(object):
     key = key.split('-')[0]
     matches = list(self.trie.iter(key))
     return self.trie[matches[0]] if matches else None
+    
+  def status(self):
+    stats = {
+      'dirty': self.repo.is_dirty(),
+      'dirty_fns': list(self.dirty),
+    }
+    return stats
     
   def search(self, q, kinds=None):
     try:
@@ -77,14 +84,13 @@ class Index(object):
         os.makedirs(os.path.join(self.dir, fn))
         
   def update_dirty(self):
-    try:
-      fns = subprocess.check_output(['git','diff','HEAD','--name-only',self.dir]).strip().split()
-    except:
-      # git diff will exit 128 if it's an empty repo
-      fns = []
-    fns = [os.path.abspath(fn) for fn in fns]
-    self.dirty = set(fns)
-      
+    dirty = set()
+    for diff in self.repo.index.diff(self.repo.head.commit): # self.repo.head.commit ?
+      if diff.a_blob:
+        dirty.add(diff.a_blob.path)
+      if diff.b_blob:
+        dirty.add(diff.b_blob.path)
+    self.dirty = set([fn for fn in dirty if fn.startswith('.dit')])
 
   def find_dit_dir(self):
     dir = os.getcwd()
@@ -99,20 +105,40 @@ class Index(object):
         raise Exception('no git repo found')
       dir = parent
 
-  def index_all(self):
+  def clear_index(self):
+    self.trie = patricia.trie()
+    self.search_trie = patricia.trie()
+    self.comments = collections.defaultdict(list)
+    self.fns = {}
+    
+  def index_purge_fn(self, fn):
+    if not fn in self.fns: return
+    o = self.fns[fn]
+    del self.fns[fn]
+    for k,v in self.trie.items():
+      if v==o:
+        del self.trie[k]
+    if o.id in self.comments:
+      del self.comments[o.id]
+
+  def load_all(self):
+    self.clear_index()
     for dir in ['users','issues','labels','comments','assets']:
       for fn in os.listdir(os.path.join(self.dir, dir)):
         if not fn.endswith('.yaml'): continue
         fn = os.path.join(self.dir, dir, fn)
-        if dir=='users': o = User(self, fn=fn)
-        if dir=='issues': o = Issue(self, fn=fn)
-        if dir=='labels': o = Label(self, fn=fn)
-        if dir=='comments': o = Comment(self, fn=fn)
-        if dir=='assets': o = Asset(self, fn=fn)
+        try:
+          if dir=='users': o = User(self, fn=fn)
+          if dir=='issues': o = Issue(self, fn=fn)
+          if dir=='labels': o = Label(self, fn=fn)
+          if dir=='comments': o = Comment(self, fn=fn)
+          if dir=='assets': o = Asset(self, fn=fn)
+        except Exception as e:
+          print 'could not load', fn
+          raise e
         self.index(o)
-  
+
   def index_issue(self, issue):
-    self.trie[issue.id] = issue
     self.index_text(issue.id, [issue.title])
   
   def index_user(self, user):
@@ -122,13 +148,11 @@ class Index(object):
     while user.aka and user.id not in seen:
       seen.add(user.id)
       user = self.trie[user.aka]
-    self.trie[user_id] = user
     if self.email == email:
       self.account = user
     self.index_text(user.id, [user.name, user.email])
   
   def index_comment(self, comment):
-    self.trie[comment.id] = comment
     if comment.reply_to:
       self.comments[comment.reply_to].append(comment)
     self.index_text(comment.id, [comment.text])
@@ -138,13 +162,15 @@ class Index(object):
         self.index_text(comment.id, [label.name])
 
   def index_label(self, label):
-    self.trie[label.id] = label
     self.index_text(label.id, [label.name])
 
   def index_asset(self, asset):
-    self.trie[asset.id] = asset
+    pass
 
   def index(self, o):
+    self.trie[o.id] = o
+    if o.fn:
+      self.fns[o.fn[len(self.base_dir)+1:]] = o
     if isinstance(o, User): self.index_user(o)
     if isinstance(o, Comment): self.index_comment(o)
     if isinstance(o, Issue): self.index_issue(o)
@@ -196,6 +222,27 @@ class Index(object):
     
   def get_comments(self, id):
    return sorted(self.comments[id], lambda x,y: cmp(x.created_at, y.created_at))
+   
+  def revert_all(self):
+    to_revert = ['--'] + [fn for fn in self.dirty if fn.startswith('.dit/')]
+    self.repo.git.checkout(*to_revert)
+    self.update_dirty()
+
+  def revert(self, fn):
+    if not fn.startswith('.dit/'):
+      raise Exception("won't revert non-dit file %s" % fn)
+    self.repo.git.checkout('--', fn)
+    self.update_dirty()
+    if fn in self.dirty:
+      raise Exception('failed to revert %s' % fn)
+    self.index_purge_fn(fn)
+      
+  def commit_all(self):
+    to_commit = [fn for fn in self.dirty if fn.startswith('.dit/')]
+    self.repo.git.commit(*to_commit, m='dit commit all')
+    self.update_dirty()
+
+      
 
 
 class Item(object):
@@ -249,6 +296,7 @@ class Item(object):
         data['author'] = self.author
       yaml.dump(data, f, default_flow_style=False)
       print 'wrote', self.fn
+      self.idx.fns[self.fn[len(self.idx.base_dir)+1:]] = self
     if add:
       subprocess.check_call(['git', 'add', self.fn])
     self.idx.index(self)
@@ -261,7 +309,7 @@ class Item(object):
       '__class__': self.__class__.__name__,
       'short_id': short_id,
       'slug': slugify(short_id +' '+ self.slug_seed()),
-      'dirty': self.fn in self.idx.dirty,
+      'dirty': self.fn[len(self.idx.base_dir)+1:] in self.idx.dirty,
       'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
       'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
     }

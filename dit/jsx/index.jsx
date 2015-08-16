@@ -1,6 +1,6 @@
 React.render(
   <Frame>
-    Welcome to Distributed Issue Tracker
+    <h1>Distributed Issue Tracker</h1>
   </Frame>,
   document.getElementById('content')
 );
