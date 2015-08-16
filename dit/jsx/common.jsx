@@ -403,15 +403,21 @@ var Comment = React.createClass({
         </div>
       );
     }
-    var rawMarkup = marked(this.props.data.text.toString(), {sanitize: true});
-    rawMarkup = rawMarkup.replace(/\B[@#][\w-]+/g, function(w,m) {
+    var text = this.props.data.text.toString().replace(/\B[@#][\w-]+/g, function(w,m) {
       var id = w.substring(1);
-      if (this.state.items[id]) {
-        return React.renderToStaticMarkup(<Item data={this.state.items[id]}/>);
+      var item = this.state.items[id];
+      if (item) {
+        if (item['__class__']=='User') {
+          return '['+ item.name +'](/users/'+ item.slug +')'
+        }
+        if (item['__class__']=='Issue') {
+          return '['+ item.title +'](/issues/'+ item.slug +')'
+        }
       } else {
         return w;
       }
-    }.bind(this))
+    }.bind(this));
+    var rawMarkup = marked(text, {sanitize: true});
     var replybox = this.state.replying ? (
         <div style={{marginBottom:'1em'}}>
           <NewCommentForm placeholder="Reply..." reload={this.props.reload} button='Reply' reply_to={this.props.data.id} onHide={this.handleHide}/>
