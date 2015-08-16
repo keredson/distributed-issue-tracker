@@ -128,8 +128,6 @@ class Index(object):
     for k,v in self.trie.items():
       if v==o:
         del self.trie[k]
-    if o.id in self.comments:
-      del self.comments[o.id]
     for k,v in self.comments.items():
       self.comments[k] = set([x for x in v if x.id!=o.id])
 

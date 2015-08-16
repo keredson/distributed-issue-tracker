@@ -38,7 +38,7 @@ var Frame = React.createClass({
       );
     } else {
       repo_icon = (
-        <i className="material-icons mdl-badge" style={{cursor:'pointer'}} id="dirty-menu">announcement</i>
+        <i className="material-icons mdl-badge" style={{cursor:'pointer', marginRight:'24px'}} id="dirty-menu">announcement</i>
       );
     }
     return (
@@ -264,6 +264,40 @@ var CommentList = React.createClass({
   },
 });
 
+
+var RevControl = React.createClass({
+  commit: function(e) {
+    if (confirm("Are you sure you want to commit this change?")) {
+      $.post('/repo/commit/'+this.props.id, function(data) {
+        this.props.reload();
+      }.bind(this));
+    }
+    e.preventDefault();
+  },
+  revert: function(e) {
+    if (confirm("Are you sure you want to revert this change?")) {
+      $.post('/repo/revert/'+this.props.id, function(data) {
+        this.props.reload();
+      }.bind(this));
+    }
+    e.preventDefault();
+  },
+  render: function() {
+    var icon_style = {fontSize:'12pt', verticalAlign:this.props.intext ? 'text-bottom' : ''};
+    return this.props.dirty ? (
+      <span style={{marginLeft:'.5em'}}>
+        <a href='' onClick={this.revert}>
+          <i className="material-icons" title='Revert' style={icon_style}>undo</i>
+        </a>
+        <a href='' onClick={this.commit}>
+          <i className="material-icons" title='Commit' style={icon_style}>redo</i>
+        </a>
+      </span>
+    ) : <span/>;
+  },
+});
+
+
 var Comment = React.createClass({
   getInitialState: function() {
     return {editing: false, replying: false, items:{}};
@@ -293,22 +327,6 @@ var Comment = React.createClass({
     this.state.replying = false
     this.setState(this.state)
   },
-  commit: function(e) {
-    if (confirm("Are you sure you want to commit this change?")) {
-      $.post('/repo/commit/'+this.props.data.id, function(data) {
-        this.props.reload();
-      }.bind(this));
-    }
-    e.preventDefault();
-  },
-  revert: function(e) {
-    if (confirm("Are you sure you want to revert this change?")) {
-      $.post('/repo/revert/'+this.props.data.id, function(data) {
-        this.props.reload();
-      }.bind(this));
-    }
-    e.preventDefault();
-  },
   show_history: function(e) {
     alert('Show history.');
     e.preventDefault();
@@ -328,19 +346,6 @@ var Comment = React.createClass({
     e.preventDefault();
   },
   render: function() {
-    var dirty = function(in_text) {
-      var icon_style = {fontSize:'12pt', verticalAlign:in_text ? 'text-bottom' : ''};
-      return this.props.data.dirty ? (
-        <span style={{marginLeft:'.5em'}}>
-          <a href='' onClick={this.revert}>
-            <i className="material-icons" title='Revert' style={icon_style}>undo</i>
-          </a>
-          <a href='' onClick={this.commit}>
-            <i className="material-icons" title='Commit' style={icon_style}>redo</i>
-          </a>
-        </span>
-      ) : '';
-    }.bind(this);
     if (this.props.data.kind) {
       var desc = <span>What happened here?</span>
       if (this.props.data.kind=='resolved') {
@@ -360,7 +365,7 @@ var Comment = React.createClass({
         return (
           <div>
             <User data={this.props.data.author} /> {this.props.data.kind} {participant} at {this.props.data.created_at}
-            {dirty(true)}
+            <RevControl id={this.props.data.id} reload={this.props.reload} dirty={this.props.data.dirty} intext={true}/>
           </div>
         );
       }
@@ -369,7 +374,7 @@ var Comment = React.createClass({
           {desc}
           &nbsp;
           <AuthorSig author={this.props.data.author} /> at {this.props.data.created_at}
-          {dirty(true)}
+          <RevControl id={this.props.data.id} reload={this.props.reload} dirty={this.props.data.dirty} intext={true}/>
         </div>
       );
     }
@@ -405,7 +410,7 @@ var Comment = React.createClass({
             key={this.props.data.id}>
           <div className="mdl-card__supporting-text" style={{width:'auto'}}>
             <div style={{float:'right'}}>
-              {dirty(false)}
+              <RevControl id={this.props.data.id} reload={this.props.reload} dirty={this.props.data.dirty} intext={false}/>
               <a href='' onClick={this.show_history}>
                 <i className="material-icons" style={{fontSize:'12pt'}}>history</i>
               </a>

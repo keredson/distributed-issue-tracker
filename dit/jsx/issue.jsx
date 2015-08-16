@@ -273,9 +273,11 @@ var IssuePage = React.createClass({
   save: function(e) {
     var title = $('#issue_title').val();
     $.post('/update/'+this.state.issue.id, {title:title}, function() {
+      var issue = this.state.issue
+      issue['title'] = title
       this.setState({
         editing: false,
-        issue:{title: title}
+        issue:issue
       })
     }.bind(this));
     e.preventDefault();
@@ -307,6 +309,7 @@ var IssuePage = React.createClass({
         <h2>
           {this.state.issue.title}
           <a href='#' onClick={this.edit}><i className="material-icons" style={{marginLeft:'.5em'}}>edit</i></a>
+          <RevControl id={this.state.issue.id} reload={this.load} dirty={this.state.issue.dirty} intext={false}/>
         </h2>
       );
     }
