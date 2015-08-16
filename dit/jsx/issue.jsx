@@ -258,6 +258,7 @@ var IssuePage = React.createClass({
     this.load()
   },
   load: function() {
+    DitFrame.load();
     $.getJSON(this.props.src, function( data ) {
       $.getJSON(data['comments_url'], function( data2 ) {
         this.setState({issue:data, comments:data2['comments']});

@@ -6,6 +6,7 @@ function gid() {
 
 var Frame = React.createClass({
   getInitialState: function() {
+    DitFrame = this;
     return {dirty_fns:[]};
   },
   componentDidMount: function() {
