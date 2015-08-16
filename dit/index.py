@@ -115,7 +115,7 @@ class Index(object):
   def clear_index(self):
     self.trie = patricia.trie()
     self.search_trie = patricia.trie()
-    self.comments = collections.defaultdict(list)
+    self.comments = collections.defaultdict(set)
     self.fns = {}
     
   def index_purge_fn(self, fn):
@@ -130,8 +130,8 @@ class Index(object):
         del self.trie[k]
     if o.id in self.comments:
       del self.comments[o.id]
-    for l in self.comments.values():
-      if o in l: l.remove(o)
+    for k,v in self.comments.items():
+      self.comments[k] = set([x for x in v if x.id!=o.id])
 
   def load_all(self):
     self.clear_index()
@@ -171,7 +171,7 @@ class Index(object):
   
   def index_comment(self, comment):
     if comment.reply_to:
-      self.comments[comment.reply_to].append(comment)
+      self.comments[comment.reply_to].add(comment)
     self.index_text(comment.id, [comment.text])
     if comment.label:
       label = self[comment.label]
@@ -238,7 +238,7 @@ class Index(object):
       return Label(self)
     
   def get_comments(self, id):
-   return sorted(self.comments[id], lambda x,y: cmp(x.created_at, y.created_at))
+   return sorted(list(self.comments[id]), lambda x,y: cmp(x.created_at, y.created_at))
    
   def revert_all(self):
     added = list(self.added)
