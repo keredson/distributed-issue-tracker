@@ -76,29 +76,22 @@ def users_json():
     'users': users,
   }
   
-@bottle.get('/issues/new')
-def issues_new():
-  return _html(title='New Issue', react='issues_new')
-  
-@bottle.post('/issues/new')
-def issues_new():
-  issue = idx.new_issue()
-  issue.title = bottle.request.forms['title']
-  issue.save()
-  if bottle.request.forms['comment']:
-    comment = issue.new_comment()
-    comment.text = bottle.request.forms['comment']
-    comment.save()
-  return bottle.redirect('/issues/%s' % issue.short_id())
-  
 @bottle.get('/issues/<issue_id>.json')
 def issue_json(issue_id):
   issue = idx[issue_id]
+  if not issue and issue_id=='new':
+    if 'id' in bottle.request.GET:
+      issue = idx[bottle.request.GET['id']]
+      if not issue:
+        issue = idx.new_issue()
+        issue.id = bottle.request.GET['id']
+    else:
+      issue = idx.new_issue()
   return issue.as_dict()
   
 @bottle.get('/issues/<issue_id>')
 def issue(issue_id):
-  issue = idx[issue_id]
+  issue = idx.new_issue() if issue_id=='new' else idx[issue_id]
   if not issue:
     bottle.abort(404)
   if isinstance(issue, index.Comment):
@@ -120,8 +113,9 @@ def user(user_id):
 @bottle.get('/issues/<issue_id>/comments.json')
 def comments_json(issue_id):
   issue = idx[issue_id]
+  comments = [comment.as_dict() for comment in idx.get_comments(issue.id if issue else issue_id)]
   return {
-    'comments': [comment.as_dict() for comment in idx.get_comments(issue.id)],
+    'comments': comments,
   }
   
 @bottle.get('/account.json')
@@ -145,6 +139,9 @@ def asset(asset_id):
 @bottle.post('/reply-to/<item_id>')
 def reply(item_id):
   item = idx[item_id]
+  if not item and 'create' in bottle.request.forms:
+    item = idx.new_issue()
+    item.id = item_id
   if 'comment' in bottle.request.forms and bottle.request.forms['comment']:
     comment = item.new_comment()
     comment.text = bottle.request.forms['comment']
@@ -182,6 +179,9 @@ def reply(item_id):
 @bottle.post('/update/<item_id>')
 def update(item_id):
   item = idx[item_id]
+  if not item and 'create' in bottle.request.forms:
+    item = idx.new_issue()
+    item.id = item_id
   changed = False
   if not item:
     item = idx.create(bottle.request.forms['__class__'])

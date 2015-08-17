@@ -3,6 +3,12 @@ function gid() {
   return 'gid' + Math.floor( Math.random()*1000000)
 }
 
+if (typeof String.prototype.endsWith !== 'function') {
+    String.prototype.endsWith = function(suffix) {
+        return this.indexOf(suffix, this.length - suffix.length) !== -1;
+    };
+}
+
 
 var Frame = React.createClass({
   getInitialState: function() {
@@ -193,6 +199,9 @@ var CommentForm = React.createClass({
     var text = $(this.refs.textarea.getDOMNode()).val()
     if (text) {
       data.comment = text
+    }
+    if (this.props.new_issue) {
+      data.create = true
     }
     $.post('/reply-to/'+this.props.reply_to, data, function() {
       this.props.reload()

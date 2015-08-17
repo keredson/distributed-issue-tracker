@@ -354,6 +354,7 @@ class Item(object):
       'short_id': short_id,
       'slug': slugify(short_id +' '+ self.slug_seed()),
       'dirty': False,
+      'new': not self.fn,
       'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
       'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
     }
@@ -452,7 +453,7 @@ class Issue(Item):
     d = super(self.__class__, self).as_dict()
     d['title'] = self.title
     d['url'] = '/issues/%s' % d['short_id']
-    d['comments_url'] = '/issues/%s/comments.json' % d['short_id']
+    d['comments_url'] = '/issues/%s/comments.json' % (self.id if d['new'] else d['short_id'])
     d['comment_count'] = self.comment_count()
     labels, label_user_weights, label_weights = self.get_annotated_labels()
     d['labels'] = [label.as_dict() for label in labels if label_weights[label.id]>0]

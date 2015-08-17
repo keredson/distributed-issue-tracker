@@ -28,6 +28,9 @@ var LabelController = React.createClass({
   doLabel: function(action, label_id) {
     var d = {}
     d[action] = label_id;
+    if (this.props.issue.new) {
+      d.create = true
+    }
     $.post('/reply-to/'+this.props.issue.id, d, function() {
       console.log(this.props)
       this.setState({editing: false})
@@ -167,12 +170,18 @@ var Participants = React.createClass({
   },
   claim: function(e) {
     var d = {assign:true}
+    if (this.props.issue.new) {
+      d.create = true
+    }
     $.post('/reply-to/'+this.props.issue.id, d, function() {
       this.props.reload();
     }.bind(this))
   },
   assign: function(isOwner, id) {
     var d = {}
+    if (this.props.issue.new) {
+      d.create = true
+    }
     if (isOwner) {
       d['unassign'] = true
     } else {
@@ -257,11 +266,25 @@ var IssuePage = React.createClass({
   componentDidMount: function() {
     this.load()
   },
+  componentDidUpdate: function(prevProps, prevState) {
+    if(this.state.editing) {
+      setTimeout(function() {
+        this.refs.issue_title_edit.getDOMNode().focus(); 
+      }.bind(this), 200);
+    }
+  },
   load: function() {
     DitFrame.load();
-    $.getJSON(this.props.src, function( data ) {
+    var d = {}
+    if (this.props.src.endsWith('/new.json') && this.state.issue.id) {
+      d.id = this.state.issue.id
+    }
+    $.getJSON(this.props.src, d, function( data ) {
+      if (this.props.src.endsWith('/new.json') && !data.new) {
+        document.location = '/issues/'+ data.slug
+      }
       $.getJSON(data['comments_url'], function( data2 ) {
-        this.setState({issue:data, comments:data2['comments']});
+        this.setState({issue:data, editing:data.new, comments:data2['comments']});
       }.bind(this));
     }.bind(this));
   },
@@ -272,7 +295,11 @@ var IssuePage = React.createClass({
   },
   save: function(e) {
     var title = $('#issue_title').val();
-    $.post('/update/'+this.state.issue.id, {title:title}, function() {
+    var d = {title:title}
+    if (this.state.issue.new) {
+      d.create = true
+    }
+    $.post('/update/'+this.state.issue.id, d, function() {
       var issue = this.state.issue
       issue['title'] = title
       this.setState({
@@ -294,8 +321,8 @@ var IssuePage = React.createClass({
       title = (
         <div style={{margin:'1em;'}}>
           <div className="mdl-textfield mdl-js-textfield textfield-demo">
-            <input className="mdl-textfield__input" type="text" id="issue_title" defaultValue={this.state.issue.title} />
-            <label className="mdl-textfield__label" for="issue_title">Title...</label>
+            <input className="mdl-textfield__input" type="text" ref='issue_title_edit' id="issue_title" defaultValue={this.state.issue.title} />
+            <label className="mdl-textfield__label" htmlFor="issue_title">Title...</label>
           </div>
           <button className="mdl-button mdl-js-button mdl-button--raised" onClick={this.save} style={{marginLeft:'1em'}}>
             Save
@@ -335,7 +362,7 @@ var IssuePage = React.createClass({
           <div style={{marginLeft:'-1em'}}>
             <CommentList issue={this.state.issue} comments={this.state.comments} reload={this.load}/>
           </div>
-          <CommentForm reply_to={this.state.issue.id} buttons={buttons}reload={this.load} alwaysShow={true} />
+          <CommentForm reply_to={this.state.issue.id} new_issue={this.state.issue.new} buttons={buttons} reload={this.load} alwaysShow={true} />
         </div>
         <div className="mdl-cell mdl-cell--3-col">
           <LabelController issue={this.state.issue} comments={this.state.comments} reload={this.load} />
