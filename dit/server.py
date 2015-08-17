@@ -143,7 +143,7 @@ def asset(asset_id):
   
   
 @bottle.post('/reply-to/<item_id>')
-def replay(item_id):
+def reply(item_id):
   item = idx[item_id]
   if 'comment' in bottle.request.forms and bottle.request.forms['comment']:
     comment = item.new_comment()

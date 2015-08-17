@@ -97,82 +97,59 @@ var AuthorSig = React.createClass({
 });
 
 
-var CommentEditor = React.createClass({
+var CommentForm = React.createClass({
   getInitialState: function() {
-    return {text:this.props.text, editing: this.props.editing};
-  },
-  componentDidUpdate: function(prevProps, prevState) {
-    console.log(this.state, prevState)
-    if (!this.state.text) {
-      $(this.refs.textarea.getDOMNode()).val('')
-      if (this.props.onHide) {
-        this.props.onHide()
-      }
-    }
+    return {editing: this.props.startEditing, text:this.props.text || ''};
   },
   componentDidMount: function() {
     mdlUpgradeDom();
-    $(this.refs.textarea.getDOMNode()).textcomplete([
-        {
-          match: /\B@(\w{1,})$/,
-          search: function (term, callback) {
-            $.getJSON('/search.json', {kind:'User', q:term}, function(data) {
-              callback($.map(data['items'], function (item) {
-                  return '@'+item['slug'];
-              }));
-            });
-          },
-          index: 1,
-          replace: function (word) {
-            return word + ' ';
-          }
-        },
-        {
-          match: /\B#(\w{1,})$/,
-          search: function (term, callback) {
-            $.getJSON('/search.json', {kind:'Issue', q:term}, function(data) {
-              callback($.map(data['items'], function (item) {
-                  return '#'+item['slug'];
-              }));
-            });
-          },
-          index: 1,
-          replace: function (word) {
-            return word + ' ';
-          }
-        }
-    ]);
-  },
-  handleFocus: function() {
-    this.state.editing = true
-    this.setState(this.state)
-    if (this.props.updateEditing) {
-      this.props.updateEditing(this.state.editing)
-    }
-  },
-  onChange: function() {
-    this.setState({editing:this.state.editing, text:$(this.refs.textarea.getDOMNode()).val()})
-  },
-  handleBlur: function() {
-    if (!this.state.text) {
-      this.state.editing = false
-      this.setState(this.state)
-      if (this.props.onHide) {
-        this.props.onHide()
+    if (this.refs.textarea) {
+      if (this.props.startEditing) {
+        setTimeout(function() {
+          this.refs.textarea.getDOMNode().focus(); 
+        }.bind(this), 200);
       }
-      if (this.props.updateEditing) {
-        this.props.updateEditing(this.state.editing)
-      }
+      $(this.refs.textarea.getDOMNode()).textcomplete([
+          {
+            match: /\B@(\w{1,})$/,
+            search: function (term, callback) {
+              $.getJSON('/search.json', {kind:'User', q:term}, function(data) {
+                callback($.map(data['items'], function (item) {
+                    return '@'+item['slug'];
+                }));
+              });
+            },
+            index: 1,
+            replace: function (word) {
+              return word + ' ';
+            }
+          },
+          {
+            match: /\B#(\w{1,})$/,
+            search: function (term, callback) {
+              $.getJSON('/search.json', {kind:'Issue', q:term}, function(data) {
+                callback($.map(data['items'], function (item) {
+                    return '#'+item['slug'];
+                }));
+              });
+            },
+            index: 1,
+            replace: function (word) {
+              return word + ' ';
+            }
+          }
+      ]);
     }
   },
   onPaste: function(e) {
-    e.preventDefault();
     var items = (event.clipboardData || event.originalEvent.clipboardData).items;
     var blob;
     for (var i=0; i<items.length; ++i) {
       blob = items[i].getAsFile()
       if (blob!=null) break;
     }
+    if (!blob) return;
+    e.preventDefault();
     var reader = new FileReader();
     reader.onload = function(event){
       var mimeType = event.target.result.split(",")[0].split(":")[1].split(";")[0];
@@ -195,41 +172,32 @@ var CommentEditor = React.createClass({
     }.bind(this)
     reader.readAsDataURL(blob);
   },
-  render: function() {
-    var line_numbers = this.state.text.split(/\r*\n/).length;
-    var editor_size = Math.min(Math.max(line_numbers+1, 4), 20)
-    return (
-      <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
-        <textarea className="mdl-textfield__input" type="text" rows={this.state.editing ? editor_size : 1} name='comment' ref="textarea" onFocus={this.handleFocus} onBlur={this.handleBlur} onChange={this.onChange} onPaste={this.onPaste} defaultValue={this.state.text}></textarea>
-        <label className="mdl-textfield__label">{this.props.placeholder || 'Add a comment...'}</label>
-      </div>
-    );
-  }
-});
-
-
-var NewCommentForm = React.createClass({
-  getInitialState: function() {
-    return {editing: false};
+  onChange: function() {
+    this.setState({text:$(this.refs.textarea.getDOMNode()).val()})
   },
-  componentDidMount: function() {
-    mdlUpgradeDom();
+  handleFocus: function() {
+    this.setState({editing:true})
   },
-  componentDidUpdate: function(prevProps, prevState) {
-    mdlUpgradeDom();
-  },
-  updateEditing: function(editing) {
-    this.setState({editing:editing});
-  },
-  save: function(action) {
-    data = {
-      comment: this.refs.commentEditor.state.text
+  handleBlur: function() {
+    if (!this.state.text) {
+      this.setState({editing:false})
+      if (this.props.onHide) {
+        this.props.onHide()
+      }
     }
+  },
+  save: function(action, e) {
+    e.preventDefault();
+    data = {}
     data[action] = action
+    var text = $(this.refs.textarea.getDOMNode()).val()
+    if (text) {
+      data.comment = text
+    }
     $.post('/reply-to/'+this.props.reply_to, data, function() {
       this.props.reload()
-      this.refs.commentEditor.state.text = ''
-      this.refs.commentEditor.state.editing = false
+      this.state.text = ''
+      $(this.refs.textarea.getDOMNode()).val('')
       this.setState({editing:false});
       if (this.props.onHide) {
         this.props.onHide()
@@ -237,31 +205,41 @@ var NewCommentForm = React.createClass({
     }.bind(this))
   },
   render: function() {
-    var closeButton = this.props.closeButton ? (
-      <button onClick={function() {this.save('close')}.bind(this)} className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{marginRight:'1em'}}>
-        Close Issue
-      </button>
-    ) : <span/>
-    var reopenButton = this.props.reopenButton ? (
-      <button onClick={function() {this.save('reopen')}.bind(this)} className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{marginRight:'1em'}}>
-        Reopen Issue
-      </button>
-    ) : <span/>
-    var commentButton = this.state.editing ? (
-      <button onClick={function() {this.save('add_comment')}.bind(this)} className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" style={{marginRight:'1em'}}>
-        {this.props.button || 'Add Comment'}
-      </button>
-    ) : <span/>
+    var buttons = this.props.buttons.map(function (button) {
+      if (!this.state.editing && !button.alwaysShow) return <span/>;
+      var f = button.onClick ? function() {button.onClick($(this.refs.textarea.getDOMNode()).val())}.bind(this) : this.save.bind(this, button.action)
+      return (
+        <button onClick={f} 
+            className="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect"
+            style={{marginRight:'1em'}}>
+          {button.text}
+        </button>
+      );
+    }.bind(this));
+    var editor = <span/>
+    if (this.state.editing || this.props.alwaysShow) {
+      var line_numbers = this.state.text.split(/\r*\n/).length;
+      var editor_size = Math.min(Math.max(line_numbers+1, 4), 20)
+      editor = (
+        <div className="mdl-textfield mdl-js-textfield textfield-demo" style={{width:"100%"}}>
+          <textarea className="mdl-textfield__input" type="text" 
+              rows={this.state.editing ? editor_size : 1} 
+              name='comment' 
+              ref="textarea" 
+              onFocus={this.handleFocus} 
+              onBlur={this.handleBlur} 
+              onChange={this.onChange}
+              onPaste={this.onPaste} 
+              defaultValue={this.state.text}>
+          </textarea>
+          <label className="mdl-textfield__label">{this.props.placeholder || 'Add a comment...'}</label>
+        </div>
+      );
+    }
     return (
       <div>
-        <div>
-          <CommentEditor text='' editing={this.state.editing} updateEditing={this.updateEditing} placeholder={this.props.placeholder} ref='commentEditor' onHide={this.props.onHide} />
-        </div>
-        <div style={{paddingLeft:'2em'}}>
-          {closeButton}
-          {reopenButton}
-          {commentButton}
-        </div>
+        {editor}
+        {buttons}
       </div>
     );
   }
@@ -352,19 +330,30 @@ var Comment = React.createClass({
   },
   componentDidUpdate: function(prevProps, prevState) {
     mdlUpgradeDom();
+    this.updateIds();
   },
-  componentDidMount: function() {
+  updateIds: function() {
     var ids = []
     this.props.data.text.replace(/\B[#@][\w-]+/g, function(w,m) {
       ids.push(w.substring(1))
     })
     if (ids.length) {
       $.getJSON('/items-by-id.json', {ids:ids.join(',')}, function(data) {
-        this.setState({items:data})
+        console.log(this.state.items)
+        var existingIds = Object.keys(this.state.items)
+        existingIds.sort()
+        var newIds = Object.keys(data)
+        newIds.sort()
+        if (JSON.stringify(existingIds)!=JSON.stringify(newIds)) {
+          this.setState({items:data})
+        }
         mdlUpgradeDom();
       }.bind(this))
     }
+  },
+  componentDidMount: function() {
     mdlUpgradeDom();
+    this.updateIds();
   },
   handleClick: function(e) {
     this.state.replying = !this.state.replying
@@ -372,26 +361,24 @@ var Comment = React.createClass({
     e.preventDefault();
   },
   handleHide: function() {
-    this.state.replying = false
-    this.setState(this.state)
+    this.setState({replying:false})
   },
   show_history: function(e) {
     alert('Show history.');
     e.preventDefault();
   },
   edit: function(e) {
-    this.state.editing = !this.state.editing
-    this.setState(this.state)
-    e.preventDefault();
+    if (e.preventDefault) e.preventDefault();
+    this.setState({editing: !this.state.editing})
   },
   save: function(e) {
-    var text = this.refs.commentEditor.state.text;
+    if (e.preventDefault) e.preventDefault();
+    var text = e;
     $.post('/update/'+this.props.data.id, {text:text}, function() {
       this.state.editing = !this.state.editing
       this.setState(this.state)
       this.props.reload();
     }.bind(this));
-    e.preventDefault();
   },
   render: function() {
     if (this.props.data.kind) {
@@ -457,7 +444,12 @@ var Comment = React.createClass({
       var rawMarkup = marked(text, {sanitize: true});
       var replybox = this.state.replying ? (
           <div style={{marginBottom:'1em'}}>
-            <NewCommentForm placeholder="Reply..." reload={this.props.reload} button='Reply' reply_to={this.props.data.id} onHide={this.handleHide}/>
+            <CommentForm placeholder="Reply..." 
+                startEditing={true} 
+                reload={this.props.reload} 
+                buttons={[{action:'comment', text:'Reply'}]} 
+                reply_to={this.props.data.id} 
+                onHide={this.handleHide}/>
           </div>
       ) : '';
       return (
@@ -491,14 +483,14 @@ var Comment = React.createClass({
               style={{minHeight:"1px", width:"auto", 'margin':'1em 0em'}} 
               key={this.props.data.id+'editing'}>
             <div className="mdl-card__supporting-text" style={{width:'auto'}}>
-              <CommentEditor editing={this.state.editing} updateEditing={this.updateEditing} placeholder='Details...' ref='commentEditor' onHide={this.props.onHide} text={this.props.data.text} />
+              <CommentForm startEditing={true} 
+                  placeholder='Details...' 
+                  ref='commentEditor' 
+                  onHide={this.props.onHide} 
+                  text={this.props.data.text} 
+                  buttons={[{action:'save', text:"Save", onClick:this.save}, {action:'cancel', text:"Cancel", onClick:this.edit}]}
+                  alwaysShow={true} />
               <div style={{marginTop:'1em'}}>
-                <button className="mdl-button mdl-js-button mdl-button--raised" onClick={this.save}>
-                  Save
-                </button>
-                <button className="mdl-button mdl-js-button mdl-js-ripple-effect" onClick={this.edit} style={{marginLeft:'1em'}}>
-                  Cancel
-                </button>
               </div>
             </div>
           </div>

@@ -315,6 +315,16 @@ var IssuePage = React.createClass({
       );
     }
     
+    var buttons = []
+    if (this.state.issue.i_resolved!=1 && this.state.issue.resolved<1) {
+      buttons.push({action:'close', text:'Close', alwaysShow:true})
+    }
+    if (this.state.issue.i_resolved==1 || this.state.issue.resolved>.5) {
+      buttons.push({action:'reopen', text:'Reopen', alwaysShow:true})
+    }
+    if (this.state.issue.i_resolved!=1 && this.state.issue.resolved<1) {
+      buttons.push({action:'comment', text:'Comment'})
+    }
     return (
       <div className="mdl-grid">
         <div className="mdl-cell mdl-cell--9-col">
@@ -325,7 +335,7 @@ var IssuePage = React.createClass({
           <div style={{marginLeft:'-1em'}}>
             <CommentList issue={this.state.issue} comments={this.state.comments} reload={this.load}/>
           </div>
-          <NewCommentForm reply_to={this.state.issue.id} closeButton={this.state.issue.i_resolved!=1 && this.state.issue.resolved<1} reopenButton={this.state.issue.i_resolved==1 || this.state.issue.resolved>.5} reload={this.load} />
+          <CommentForm reply_to={this.state.issue.id} buttons={buttons}reload={this.load} alwaysShow={true} />
         </div>
         <div className="mdl-cell mdl-cell--3-col">
           <LabelController issue={this.state.issue} comments={this.state.comments} reload={this.load} />

@@ -243,7 +243,7 @@ class Index(object):
     self.repo.git.reset(added)
     for fn in added:
       os.remove(os.path.join(self.base_dir, fn))
-    to_revert = [fn for fn in self.dirty if fn.startswith('.dit/')]
+    to_revert = [fn for fn in self.dirty if fn.startswith('.dit/') and os.path.exists(os.path.join(self.base_dir, fn))]
     self.repo.git.checkout(*(['--'] + to_revert))
     self.update_dirty()
     for fn in to_revert + added:
@@ -359,7 +359,6 @@ class Item(object):
     }
     if self.fn:
       rel_fn = self.fn[len(self.idx.base_dir)+1:]
-      print rel_fn, self.idx.added, rel_fn in self.idx.added
       d['dirty'] = rel_fn in self.idx.added or rel_fn in self.idx.dirty
     if hasattr(self,'author'):
       author = self.idx[self.author]
