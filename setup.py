@@ -10,5 +10,7 @@ setup(name='distributed-issue-tracker',
       url='https://github.com/keredson/distributed-issue-tracker',
       packages=['dit'],
       requires=['bottle','bleach','markdown',],
+      package_dir={'dit': 'dit'},
+      package_data={'dit': ['templates/*.html','jsx/*.jsx','static/*.css','static/*.js','static/*.ttf','static/*.woff2']},
      )
 
