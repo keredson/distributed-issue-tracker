@@ -3,7 +3,7 @@ Distributed Issue Tracker
 
 I wrote this issue tracker because of two major deficiencies I believe all existing issue trackers share.
 
-1. Distributed version control systems wonderful as everyone knows, but what use is their offline 
+1. Distributed version control systems are wonderful as everyone knows, but what use is their offline 
 ability if you're still tied to your online issue tracking system?
 
 2. Issue state is complicated.  The issue may be "closed" in `HEAD`, but is it fixed in every branch?
