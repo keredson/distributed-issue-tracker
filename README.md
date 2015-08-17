@@ -41,6 +41,8 @@ $ sudo python setup.py install
 Run
 ---
 
+From any git repo you have lying around... 
+
 ```bash
 $ python -m dit serve
 Bottle v0.12.0 server starting up (using WSGIRefServer())...
