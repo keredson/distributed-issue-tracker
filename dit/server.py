@@ -236,7 +236,7 @@ def _html(**kwargs):
     return bottle.template(f.read(), **kwargs)
 
 
-if __name__=='__main__':
+def serve():
   bottle.run(host='localhost', port=4920)
 
 
