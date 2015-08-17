@@ -209,6 +209,10 @@ def repo_commit_fn(id):
   else:
     idx.commit(id)
   return 'ok'
+
+@bottle.error(404)
+def error404(error):
+  return _html(title='404', react='error')
   
 @bottle.get('/jsx/<path>')
 def jsx(path):
