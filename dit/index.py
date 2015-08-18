@@ -69,6 +69,7 @@ class Index(object):
     
   def index_text(self, uid, vals):
     for val in vals:
+      if not val: continue
       short_val = val[:256]
       if short_val not in self.search_trie:
         self.search_trie[short_val] = set()
@@ -92,11 +93,17 @@ class Index(object):
         dirty.add(diff.b_blob.path)
     self.dirty = set([fn for fn in dirty if fn.startswith('.dit')])
     added = set()
-    for diff in self.repo.index.diff(self.repo.head.commit):
-      if diff.a_blob:
-        added.add(diff.a_blob.path)
-      if diff.b_blob:
-        added.add(diff.b_blob.path)
+    try:
+      for diff in self.repo.index.diff(self.repo.head.commit):
+        if diff.a_blob:
+          added.add(diff.a_blob.path)
+        if diff.b_blob:
+          added.add(diff.b_blob.path)
+    except Exception as e:
+      # empty repos will throw an error here
+      if e.message != "Reference at 'refs/heads/master' does not exist":
+        raise e
+      
     self.added = set([fn for fn in added if fn.startswith('.dit')])
 
   def find_dit_dir(self):
@@ -160,9 +167,9 @@ class Index(object):
     user_id = user.id
     email = user.email
     seen = set()
-    while user.aka and user.id not in seen:
-      seen.add(user.id)
-      user = self.trie[user.aka]
+#    while user.aka and user.id not in seen:
+#      seen.add(user.id)
+#      user = self.trie[user.aka]
     if self.email == email:
       self.account = user
     self.index_text(user.id, [user.name, user.email])
@@ -320,6 +327,7 @@ class Item(object):
       items = list(self.idx.trie.items(uid[:i]))
       if len(items)<=1:
         return uid[:i]
+    return uid
 
   def save(self):
     cls = self.__class__
@@ -348,6 +356,7 @@ class Item(object):
 
   def as_dict(self):
     short_id = self.short_id()
+    print short_id, self.slug_seed()
     d = {
       'id': self.id,
       '__class__': self.__class__.__name__,
@@ -433,9 +442,9 @@ class Issue(Item):
   def get_annotated_labels(self):
     label_user_weights = collections.defaultdict(lambda: collections.defaultdict(int))
     for comment in self.idx.get_comments(self.id):
-      if comment.kind=='added_label':
+      if comment.kind=='labeled':
         label_user_weights[comment.label][comment.author] += 1
-      elif comment.kind=='removed_label':
+      elif comment.kind=='unlabeled':
         label_user_weights[comment.label][comment.author] -= 1
     for label_id, user_weights in label_user_weights.items():
       for user_id, weight in user_weights.items():
@@ -532,10 +541,11 @@ class Comment(Item):
 
 class User(Item):
   dir_name = 'users'
-  to_save = {'email':None, 'name':'', 'aka':None}
+  to_save = {'email':None, 'name':'', 'aka':None, 'avatar_url':None, 'url':None}
 
   def __init__(self, idx, fn=None):
     super(self.__class__, self).__init__(idx, fn=fn)
+    if self.aka is None: self.aka = []
   
   def as_dict(self):
     d = super(self.__class__, self).as_dict()

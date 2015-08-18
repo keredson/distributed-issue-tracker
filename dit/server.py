@@ -156,12 +156,12 @@ def reply(item_id):
     comment.save()
   if 'add_label' in bottle.request.forms:
     comment = item.new_comment()
-    comment.kind = 'added_label'
+    comment.kind = 'labeled'
     comment.label = bottle.request.forms['add_label']
     comment.save()
   if 'remove_label' in bottle.request.forms:
     comment = item.new_comment()
-    comment.kind = 'removed_label'
+    comment.kind = 'unlabeled'
     comment.label = bottle.request.forms['remove_label']
     comment.save()
   if 'assign' in bottle.request.forms:
