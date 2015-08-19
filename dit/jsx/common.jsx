@@ -398,10 +398,10 @@ var Comment = React.createClass({
       if (this.props.data.kind=='reopened') {
         desc = <span style={{color:'green'}}>Reopened</span>
       } else
-      if (this.props.data.kind=='added_label') {
+      if (this.props.data.kind=='labeled') {
         desc = <span>Added <Label data={this.props.data.label}/></span>
       } else
-      if (this.props.data.kind=='removed_label') {
+      if (this.props.data.kind=='unlabeled') {
         desc = <span>Removed <Label data={this.props.data.label}/></span>
       } else
       if (this.props.data.kind=='assigned' || this.props.data.kind=='unassigned') {
