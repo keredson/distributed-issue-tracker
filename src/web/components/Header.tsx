@@ -38,11 +38,6 @@ export const Header = () => {
                 </div>
 
                 <div className="flex gap-4 items-center">
-                    {me && (
-                        <Link to={`/user/${me.username}`} className="no-underline hover:opacity-80 transition-opacity">
-                            <Avatar username={me.username} size="sm" title={`Logged in as ${me.username}`} />
-                        </Link>
-                    )}
                     {/* @ts-ignore */}
                     <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">repo:{window.repoName || 'REPO'}</span>
                     
@@ -58,9 +53,11 @@ export const Header = () => {
                         )}
                     </button>
 
-                    <Link to="/new" className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors shadow-sm no-underline">
-                        New Issue
-                    </Link>
+                    {me && (
+                        <Link to={`/user/${me.username}`} className="no-underline hover:opacity-80 transition-opacity">
+                            <Avatar username={me.username} size="sm" title={`Logged in as ${me.username}`} />
+                        </Link>
+                    )}
                 </div>
             </div>
         </header>
