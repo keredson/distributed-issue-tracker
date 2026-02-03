@@ -6,6 +6,7 @@ import { MarkdownEditor } from '../components/Markdown.js';
 import { UserSelect } from '../components/UserSelect.js';
 
 export const NewIssue = () => {
+    const [id, setId] = useState<string | null>(null);
     const [title, setTitle] = useState("");
     const [body, setBody] = useState("");
     const [severity, setSeverity] = useState("medium");
@@ -13,16 +14,51 @@ export const NewIssue = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
+    React.useEffect(() => {
+        fetch('/api/new-id')
+            .then(res => res.json())
+            .then(data => setId(data.id))
+            .catch(err => console.error("Failed to fetch new ID", err));
+    }, []);
+
+    const handleUpload = async (files: FileList): Promise<string[]> => {
+        if (!id) return [];
+        const links: string[] = [];
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            try {
+                const res = await fetch(`/api/issues/${id}/data`, {
+                    method: 'POST',
+                    headers: {
+                        'x-filename': file.name,
+                        'content-type': file.type
+                    },
+                    body: file
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const isImage = file.type.startsWith('image/');
+                    // Use relative path for the markdown link
+                    const relativeUrl = `data/${data.url.split('/').pop()}`;
+                    links.push(isImage ? `![${file.name}](${relativeUrl})` : `[${file.name}](${relativeUrl})`);
+                }
+            } catch (err) {
+                console.error("Failed to upload file", err);
+            }
+        }
+        return links;
+    };
+
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (!title.trim()) return;
+        if (!title.trim() || !id) return;
         setLoading(true);
 
         try {
             const res = await fetch('/api/issues', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, body, severity, assignee })
+                body: JSON.stringify({ id, title, body, severity, assignee })
             });
             
             if (res.ok) {
@@ -102,6 +138,8 @@ export const NewIssue = () => {
                             placeholder="Describe the issue... (Markdown supported)"
                             minHeight="150px"
                             onCmdEnter={handleSubmit}
+                            onUpload={handleUpload}
+                            issueId={id || undefined}
                         />
                     </div>
 

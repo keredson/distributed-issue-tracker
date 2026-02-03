@@ -67,6 +67,34 @@ export const IssueView = () => {
         }
     };
 
+    const handleUpload = async (files: FileList): Promise<string[]> => {
+        if (!issue) return [];
+        const links: string[] = [];
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            try {
+                const res = await fetch(`/api/issues/${issue.id}/data`, {
+                    method: 'POST',
+                    headers: {
+                        'x-filename': file.name,
+                        'content-type': file.type
+                    },
+                    body: file
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const isImage = file.type.startsWith('image/');
+                    // Use relative path for the markdown link
+                    const relativeUrl = `data/${data.url.split('/').pop()}`;
+                    links.push(isImage ? `![${file.name}](${relativeUrl})` : `[${file.name}](${relativeUrl})`);
+                }
+            } catch (err) {
+                console.error("Failed to upload file", err);
+            }
+        }
+        return links;
+    };
+
     const handleSave = async () => {
         setSaving(true);
         try {
@@ -202,6 +230,8 @@ export const IssueView = () => {
                                 placeholder="Describe the issue... (Markdown supported)"
                                 minHeight="200px"
                                 onCmdEnter={handleSave}
+                                onUpload={handleUpload}
+                                issueId={issue.id}
                             />
                         </div>
                         <div className="flex justify-end gap-3 pt-4">
@@ -254,7 +284,7 @@ export const IssueView = () => {
                     </div>
 
                     <Card className="p-8 mb-8 border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
-                        <Markdown content={issue.body} />
+                        <Markdown content={issue.body} issueId={issue.id} />
                     </Card>
                 </>
             )}
@@ -285,7 +315,7 @@ export const IssueView = () => {
                                     </div>
                                     <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{new Date(comment.date).toLocaleString()}</span>
                                 </div>
-                                <Markdown content={comment.body} />
+                                <Markdown content={comment.body} issueId={issue.id} />
                             </div>
                         </div>
                     ))}
@@ -304,6 +334,8 @@ export const IssueView = () => {
                                 minHeight="120px"
                                 className="border-none"
                                 onCmdEnter={handleAddComment}
+                                onUpload={handleUpload}
+                                issueId={issue.id}
                             />
                             <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
                                 <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Styling with Markdown is supported</span>

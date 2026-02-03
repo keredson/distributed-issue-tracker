@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
-import { getAllIssues, getIssueById, saveComment, saveIssue } from '../utils/issues.js';
+import { getAllIssues, getIssueById, saveComment, saveIssue, findIssueDirById, getAllIssueDirs } from '../utils/issues.js';
 import { getLocalUsers, getCurrentLocalUser, saveProfilePicData, deleteProfilePic } from '../utils/user.js';
 import { generateUniqueId } from '../utils/id.js';
 import { execSync } from 'child_process';
@@ -52,11 +52,92 @@ export default defineConfig({
             return;
           }
 
-          // GET /api/me
-          if (req.method === 'GET' && req.url === '/api/me') {
-            const me = await getCurrentLocalUser();
+          // GET /api/new-id
+          if (req.method === 'GET' && req.url === '/api/new-id') {
+            const id = generateUniqueId(issuesDir);
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify(me));
+            res.end(JSON.stringify({ id }));
+            return;
+          }
+
+          // POST /api/issues/:id/data
+          const dataMatch = req.url.match(/^\/api\/issues\/([^\/]+)\/data$/);
+          if (req.method === 'POST' && dataMatch) {
+            const [, id] = dataMatch;
+            const filename = req.headers['x-filename'] as string || 'upload';
+            
+            // Find or create issue directory
+            let issueDir = findIssueDirById(issuesDir, id);
+            let targetPath: string;
+
+            if (issueDir) {
+                targetPath = path.join(issuesDir, issueDir, 'data');
+            } else {
+                targetPath = path.join(issuesDir, 'data-tmp', id);
+            }
+
+            if (!fs.existsSync(targetPath)) {
+                fs.mkdirSync(targetPath, { recursive: true });
+            }
+
+            const name = filename.replace(/[^a-z0-9\._-]/gi, '_');
+            const ext = path.extname(name);
+            const base = path.basename(name, ext);
+            let safeFilename = name;
+            let finalPath = path.join(targetPath, safeFilename);
+            
+            if (fs.existsSync(finalPath)) {
+                safeFilename = `${base}_${Date.now()}${ext}`;
+                finalPath = path.join(targetPath, safeFilename);
+            }
+            
+            const chunks: any[] = [];
+            req.on('data', (chunk: any) => chunks.push(chunk));
+            req.on('end', () => {
+                const buffer = Buffer.concat(chunks);
+                fs.writeFileSync(finalPath, buffer);
+                
+                try {
+                    execSync(`git add "${finalPath}"`, { stdio: 'ignore' });
+                } catch (e) {}
+
+                const url = `/api/issues/${id}/data/${safeFilename}`;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ url }));
+            });
+            return;
+          }
+
+          // GET /api/issues/:id/data/:filename
+          const getDataMatch = req.url.match(/^\/api\/issues\/([^\/]+)\/data\/(.+)$/);
+          if (req.method === 'GET' && getDataMatch) {
+            const [, id, filename] = getDataMatch;
+            let issueDir = findIssueDirById(issuesDir, id);
+            let filePath: string | null = null;
+
+            if (issueDir) {
+                filePath = path.join(issuesDir, issueDir, 'data', filename);
+            } else {
+                filePath = path.join(issuesDir, 'data-tmp', id, filename);
+            }
+
+            if (filePath && fs.existsSync(filePath)) {
+                const ext = path.extname(filename).toLowerCase().slice(1);
+                const mimeTypes: any = {
+                    'png': 'image/png',
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'gif': 'image/gif',
+                    'webp': 'image/webp',
+                    'svg': 'image/svg+xml',
+                    'pdf': 'application/pdf'
+                };
+                res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+                res.end(fs.readFileSync(filePath));
+            } else {
+                res.statusCode = 404;
+                res.end('Not found');
+            }
             return;
           }
 
@@ -92,12 +173,12 @@ export default defineConfig({
                   }
 
                   const currentUser = await getCurrentLocalUser();
-                  const id = generateUniqueId();
+                  const id = body.id || generateUniqueId();
                   const newIssue = {
                       id,
                       title: body.title,
                       body: body.body || '',
-                      created: new Date().toISOString(),
+                      created: body.created || new Date().toISOString(),
                       status: 'open',
                       severity: body.severity || 'medium',
                       assignee: body.assignee || '',
@@ -107,6 +188,23 @@ export default defineConfig({
                   const issuePathStr = await saveIssue(newIssue, false, issuesDir);
                   const dir = path.relative(issuesDir, issuePathStr);
                   
+                  // Move temp data if any
+                  const tmpDataPath = path.join(issuesDir, 'data-tmp', id);
+                  if (fs.existsSync(tmpDataPath)) {
+                      const finalDataPath = path.join(issuePathStr, 'data');
+                      if (!fs.existsSync(finalDataPath)) {
+                          fs.mkdirSync(finalDataPath, { recursive: true });
+                      }
+                      const files = fs.readdirSync(tmpDataPath);
+                      for (const file of files) {
+                          fs.renameSync(path.join(tmpDataPath, file), path.join(finalDataPath, file));
+                      }
+                      fs.rmdirSync(tmpDataPath);
+                      try {
+                          execSync(`git add "${path.join(issuePathStr, 'data')}"`, { stdio: 'ignore' });
+                      } catch (e) {}
+                  }
+
                   res.setHeader('Content-Type', 'application/json');
                   res.end(JSON.stringify({ ...newIssue, dir }));
               } catch (err: any) {
