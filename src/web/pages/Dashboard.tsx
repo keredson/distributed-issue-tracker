@@ -4,32 +4,36 @@ import {
     CircleDot, 
     User, 
     Clock, 
-    CheckCircle2, 
-    MessageSquare, 
-    LayoutDashboard,
-    AlertCircle,
-    CheckCircle,
-    ListTodo
-} from 'lucide-react';
-import { Card, Badge, Avatar } from '../components/Common.js';
+        CheckCircle2,
+        MessageSquare,
+        AlertCircle,
+        CheckCircle,
+        ListTodo,
+        Activity
+    } from 'lucide-react';import { Card, Badge, Avatar } from '../components/Common.js';
+import { ActivityGrid } from '../components/ActivityGrid.js';
 
 export const Dashboard = () => {
     const [issues, setIssues] = useState<any[]>([]);
+    const [activity, setActivity] = useState<{[key: string]: number}>({});
     const [me, setMe] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [issuesRes, meRes] = await Promise.all([
+                const [issuesRes, activityRes, meRes] = await Promise.all([
                     fetch('/api/issues'),
+                    fetch('/api/activity'),
                     fetch('/api/me')
                 ]);
                 
                 const issuesData = await issuesRes.json();
+                const activityData = await activityRes.json();
                 const meData = await meRes.json();
                 
                 setIssues(Array.isArray(issuesData) ? issuesData : []);
+                setActivity(activityData || {});
                 setMe(meData);
             } catch (err) {
                 console.error("Failed to fetch dashboard data", err);
@@ -79,6 +83,14 @@ export const Dashboard = () => {
                     <p className="text-slate-500 dark:text-slate-400">Welcome back, {me.name}</p>
                 </div>
             </div>
+
+            <Card className="p-6 mb-8 overflow-hidden">
+                <div className="flex items-center gap-2 mb-6">
+                    <Activity className="w-5 h-5 text-slate-500" />
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Contribution Activity</h3>
+                </div>
+                <ActivityGrid data={activity} />
+            </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <Card className="p-6 border-l-4 border-l-blue-500">

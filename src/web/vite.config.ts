@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
-import { getAllIssues, getIssueById, saveComment, saveIssue, findIssueDirById, getAllIssueDirs, getFileHistory, getFileContentAtCommit, getDiff } from '../utils/issues.js';
+import { getAllIssues, getIssueById, saveComment, saveIssue, findIssueDirById, getAllIssueDirs, getFileHistory, getFileContentAtCommit, getDiff, getUserActivity } from '../utils/issues.js';
 import { getLocalUsers, getCurrentLocalUser, saveProfilePicData, deleteProfilePic } from '../utils/user.js';
 import { generateUniqueId } from '../utils/id.js';
 import { execSync } from 'child_process';
@@ -35,6 +35,21 @@ export default defineConfig({
 
         server.middlewares.use(async (req, res, next) => {
           if (!req.url) return next();
+
+          // GET /api/activity
+          if (req.method === 'GET' && req.url === '/api/activity') {
+            const user = await getCurrentLocalUser();
+            if (user && (user.email || user.name)) {
+                // Prefer email for stricter matching if available, otherwise name
+                const authorQuery = user.email || user.name;
+                const activity = await getUserActivity(authorQuery);
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(activity));
+            } else {
+                res.end(JSON.stringify({}));
+            }
+            return;
+          }
 
           // GET /api/issues
           if (req.method === 'GET' && req.url === '/api/issues') {

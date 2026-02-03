@@ -497,3 +497,31 @@ export async function getAllIssues(issuesDir: string): Promise<any[]> {
     }
     return issues.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
 }
+
+export async function getUserActivity(author: string, since: string = "1 year ago"): Promise<{[date: string]: number}> {
+    try {
+        const { stdout } = await execa('git', [
+            'log', 
+            `--author=${author}`, 
+            `--since=${since}`, 
+            '--format=%ad', 
+            '--date=short' // YYYY-MM-DD
+        ]);
+
+        const activity: {[date: string]: number} = {};
+        
+        if (!stdout.trim()) return activity;
+
+        stdout.split('\n').forEach(line => {
+            const date = line.trim();
+            if (date) {
+                activity[date] = (activity[date] || 0) + 1;
+            }
+        });
+
+        return activity;
+    } catch (e) {
+        // e.g. not a git repo or no commits
+        return {};
+    }
+}
