@@ -4,12 +4,14 @@
   "license": "GPL-3.0-or-later",
   "type": "module",
   "packageManager": "yarn@3.3.1",
-  "main": "dist/src/cli.js",
-  "bin": "dist/src/cli.js",
+  "main": "dist/dit.js",
+  "bin": {
+    "dit": "dist/dit.js"
+  },
   "scripts": {
     "build": "tsc",
-    "postbuild": "chmod +x dist/src/cli.js",
-    "start": "yarn build && node ./dist/src/cli.js",
+    "postbuild": "chmod +x dist/dit.js",
+    "start": "yarn build && node ./dist/dit.js",
     "test": "yarn build && node tests/run-all.js",
     "publish": "yarn build && yarn npm publish --access public"
   },
