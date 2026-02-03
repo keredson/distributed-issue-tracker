@@ -9,15 +9,16 @@ const USERS_DIR = '.dit/users';
 
 export interface GitUser {
     name: string;
-    email: string;
+    email?: string;
 }
 
 export interface LocalUser {
     username: string; // folder name
     name: string;
-    email: string;
+    email?: string;
     profilePic?: string;
     passkeys?: any[];
+    github?: any;
 }
 
 export async function getGitConfig(): Promise<GitUser> {
@@ -46,7 +47,7 @@ export async function getLocalUsers(): Promise<LocalUser[]> {
             try {
                 const content = await fs.readFile(infoPath, 'utf8');
                 const parsed = yaml.load(content) as any;
-                if (parsed && parsed.name && parsed.email) {
+                if (parsed && parsed.name) {
                     const passkeysDir = path.join(USERS_DIR, entry.name, 'passkeys');
                     let passkeys: any[] = [];
                     try {
@@ -72,12 +73,22 @@ export async function getLocalUsers(): Promise<LocalUser[]> {
                         } catch {}
                     }
 
+                    let github: any = undefined;
+                    try {
+                        const githubPath = path.join(USERS_DIR, entry.name, 'github.yaml');
+                        const githubContent = await fs.readFile(githubPath, 'utf8');
+                        github = yaml.load(githubContent);
+                    } catch (e) {
+                        // github.yaml might not exist
+                    }
+
                     users.push({
                         username: entry.name,
                         name: parsed.name,
                         email: parsed.email,
                         profilePic: profilePic,
-                        passkeys: passkeys
+                        passkeys: passkeys,
+                        github: github
                     });
                 }
             } catch (e) {
@@ -97,7 +108,7 @@ export async function getCurrentLocalUser(): Promise<(LocalUser & { isVirtual?: 
         
         // Fallback: return a virtual user based on git config if not found in .dit/users
         return {
-            username: gitUser.name || gitUser.email.split('@')[0],
+            username: gitUser.name || (gitUser.email ? gitUser.email.split('@')[0] : 'unknown'),
             name: gitUser.name,
             email: gitUser.email,
             isVirtual: true
@@ -127,6 +138,20 @@ export async function createUser(username: string, gitUser: GitUser, profilePicU
 
     if (profilePicUrl) {
         await saveProfilePic(username, profilePicUrl);
+    }
+}
+
+export async function saveExternalMetadata(username: string, platform: string, data: any): Promise<void> {
+    const userDir = path.join(USERS_DIR, username);
+    await fs.mkdir(userDir, { recursive: true });
+
+    const filePath = path.join(userDir, `${platform}.yaml`);
+    await fs.writeFile(filePath, yaml.dump(data));
+    
+    try {
+        await execa('git', ['add', filePath]);
+    } catch (e) {
+        // Ignore
     }
 }
 
@@ -168,6 +193,52 @@ export async function saveProfilePic(username: string, url: string): Promise<voi
         }
     } catch (e) {
         console.error(`Failed to save profile pic for ${username}:`, e);
+    }
+}
+
+export async function saveProfilePicData(username: string, buffer: Buffer, contentType?: string): Promise<void> {
+    const userDir = path.join(USERS_DIR, username);
+    await fs.mkdir(userDir, { recursive: true });
+
+    let ext = 'png';
+    if (contentType) {
+        if (contentType.includes('jpeg')) ext = 'jpg';
+        else if (contentType.includes('webp')) ext = 'webp';
+        else if (contentType.includes('png')) ext = 'png';
+        else if (contentType.includes('gif')) ext = 'gif';
+    }
+
+    const filename = `avatar.${ext}`;
+    const filePath = path.join(userDir, filename);
+
+    // Remove old avatars
+    const possiblePics = ['avatar.png', 'avatar.jpg', 'avatar.jpeg', 'avatar.webp', 'avatar.gif'];
+    for (const pic of possiblePics) {
+        try {
+            await fs.unlink(path.join(userDir, pic));
+        } catch {}
+    }
+
+    await fs.writeFile(filePath, buffer);
+    
+    try {
+        await execa('git', ['add', filePath]);
+    } catch (e) {
+        // Ignore
+    }
+}
+
+export async function deleteProfilePic(username: string): Promise<void> {
+    const userDir = path.join(USERS_DIR, username);
+    const possiblePics = ['avatar.png', 'avatar.jpg', 'avatar.jpeg', 'avatar.webp', 'avatar.gif'];
+    for (const pic of possiblePics) {
+        const filePath = path.join(userDir, pic);
+        try {
+            await fs.unlink(filePath);
+            try {
+                await execa('git', ['rm', filePath]);
+            } catch {}
+        } catch {}
     }
 }
 

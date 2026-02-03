@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
 import { getAllIssues, getIssueById, saveComment, saveIssue } from '../utils/issues.js';
-import { getLocalUsers, getCurrentLocalUser } from '../utils/user.js';
+import { getLocalUsers, getCurrentLocalUser, saveProfilePicData, deleteProfilePic } from '../utils/user.js';
 import { generateUniqueId } from '../utils/id.js';
 import { execSync } from 'child_process';
 import yaml from 'js-yaml';
@@ -215,6 +215,74 @@ export default defineConfig({
             if (!found) {
               res.statusCode = 404;
               res.end('Not found');
+            }
+            return;
+          }
+
+          // GET /api/users/:username
+          const userMatch = req.url.match(/^\/api\/users\/([^\/]+)$/);
+          if (req.method === 'GET' && userMatch) {
+            const [, username] = userMatch;
+            const users = await getLocalUsers();
+            const user = users.find(u => u.username === username);
+            if (user) {
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(user));
+            } else {
+              res.statusCode = 404;
+              res.end(JSON.stringify({ error: 'User not found' }));
+            }
+            return;
+          }
+
+          // POST /api/users/:username/avatar
+          const postAvatarMatch = req.url.match(/^\/api\/users\/([^\/]+)\/avatar$/);
+          if (req.method === 'POST' && postAvatarMatch) {
+            const [, username] = postAvatarMatch;
+            const currentUser = await getCurrentLocalUser();
+            
+            if (currentUser?.username !== username) {
+              res.statusCode = 403;
+              res.end(JSON.stringify({ error: 'Forbidden' }));
+              return;
+            }
+
+            const contentType = req.headers['content-type'];
+            const chunks: any[] = [];
+            req.on('data', (chunk: any) => chunks.push(chunk));
+            req.on('end', async () => {
+              try {
+                const buffer = Buffer.concat(chunks);
+                await saveProfilePicData(username, buffer, contentType);
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: true }));
+              } catch (err: any) {
+                res.statusCode = 500;
+                res.end(JSON.stringify({ error: err.message }));
+              }
+            });
+            return;
+          }
+
+          // DELETE /api/users/:username/avatar
+          const deleteAvatarMatch = req.url.match(/^\/api\/users\/([^\/]+)\/avatar$/);
+          if (req.method === 'DELETE' && deleteAvatarMatch) {
+            const [, username] = deleteAvatarMatch;
+            const currentUser = await getCurrentLocalUser();
+            
+            if (currentUser?.username !== username) {
+              res.statusCode = 403;
+              res.end(JSON.stringify({ error: 'Forbidden' }));
+              return;
+            }
+
+            try {
+              await deleteProfilePic(username);
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
             }
             return;
           }

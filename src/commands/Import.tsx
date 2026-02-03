@@ -4,7 +4,7 @@ import {Octokit} from '@octokit/rest';
 import {execa} from 'execa';
 import {generateUniqueId} from '../utils/id.js';
 import {saveIssue, saveComment, findIssueByExternalId, findCommentByExternalId, getCommentCountForIssue} from '../utils/issues.js';
-import {createUser, getLocalUsers, saveProfilePic} from '../utils/user.js';
+import {createUser, getLocalUsers, saveProfilePic, saveExternalMetadata} from '../utils/user.js';
 
 type Props = {
     url?: string;
@@ -75,16 +75,26 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
         
         if (!exists) {
             if (verbose) addLog(`Creating local user profile for ${username}...`);
-            // We don't have their email, but we can create a profile with a placeholder or just their login
-            await createUser(username, {
-                name: githubUser.name || githubUser.login,
-                email: `${githubUser.login}@users.noreply.github.com`
-            }, githubUser.avatar_url);
+            
+            const userData: any = {
+                name: githubUser.name || githubUser.login
+            };
+            
+            // Only add email if it's available and not a placeholder noreply email
+            if (githubUser.email && !githubUser.email.endsWith('@users.noreply.github.com')) {
+                userData.email = githubUser.email;
+            }
+
+            await createUser(username, userData, githubUser.avatar_url);
         } else if (githubUser.avatar_url) {
             // Update profile pic if it changed or if we are in usersOnly mode
             if (verbose) addLog(`Syncing profile pic for ${username}...`);
             await saveProfilePic(username, githubUser.avatar_url);
         }
+        
+        // Save full GitHub metadata
+        await saveExternalMetadata(username, 'github', githubUser);
+        
         return username;
     };
 

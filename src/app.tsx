@@ -48,7 +48,7 @@ function UserOnboarding({ onComplete }: { onComplete: () => void }) {
                 if (exists) {
                     onComplete();
                 } else {
-                    const defaultUser = user.email.split('@')[0] || user.name.replace(/\s+/g, '').toLowerCase();
+                    const defaultUser = (user.email ? user.email.split('@')[0] : '') || user.name.replace(/\s+/g, '').toLowerCase() || 'user';
                     setUsername(defaultUser);
                     setStep('prompt');
                 }

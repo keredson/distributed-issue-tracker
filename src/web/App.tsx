@@ -5,6 +5,8 @@ import { Header } from './components/Header.js';
 import { Issues } from './pages/Issues.js';
 import { NewIssue } from './pages/NewIssue.js';
 import { IssueView } from './pages/IssueView.js';
+import { Users } from './pages/Users.js';
+import { UserDetail } from './pages/UserDetail.js';
 
 export default function App() {
     return (
@@ -18,6 +20,8 @@ export default function App() {
                             <Route path="/issues" element={<Issues />} />
                             <Route path="/new" element={<NewIssue />} />
                             <Route path="/issue/:year/:month/:slug" element={<IssueView />} />
+                            <Route path="/users" element={<Users />} />
+                            <Route path="/user/:username" element={<UserDetail />} />
                             <Route path="*" element={
                                 <div className="p-12 text-center">
                                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Page not found</h2>
