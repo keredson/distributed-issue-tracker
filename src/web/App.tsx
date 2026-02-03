@@ -1,7 +1,7 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { ThemeProvider } from './components/ThemeContext.js';
 import { Header } from './components/Header.js';
+import { Dashboard } from './pages/Dashboard.js';
 import { Issues } from './pages/Issues.js';
 import { NewIssue } from './pages/NewIssue.js';
 import { IssueView } from './pages/IssueView.js';
@@ -16,7 +16,7 @@ export default function App() {
                     <Header />
                     <main className="flex-1 bg-slate-50 dark:bg-slate-950 transition-colors">
                         <Routes>
-                            <Route path="/" element={<Navigate to="/issues" replace />} />
+                            <Route path="/" element={<Dashboard />} />
                             <Route path="/issues" element={<Issues />} />
                             <Route path="/new" element={<NewIssue />} />
                             <Route path="/issue/*" element={<IssueView />} />
