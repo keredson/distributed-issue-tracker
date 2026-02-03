@@ -65,7 +65,7 @@ yarn global add @kered/dit
 -   `dit view <id>` - View details and comments for a specific issue.
 -   `dit edit <id>` - Edit an existing issue.
 -   `dit comment <id>` - Add a comment to an issue.
--   `dit import <github-url>` - Import issues and comments from a GitHub repository.
+-   `dit import [github-url] [--all] [--verbose]` - Import issues and comments from GitHub (defaults to open issues). Use `--all` to include closed issues and `--verbose` for detailed logs.
 -   `dit web` - Launch the interactive local web dashboard.
 -   `dit web passkey` - Create a passkey for secure browser authentication.
 

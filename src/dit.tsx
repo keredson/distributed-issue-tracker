@@ -29,6 +29,11 @@ const cli = meow(`
 		all: {
 			type: 'boolean',
 			default: false,
+		},
+		verbose: {
+			type: 'boolean',
+			default: false,
+			shortFlag: 'v'
 		}
 	},
 });

@@ -2,6 +2,12 @@ import React, {useEffect, useState} from 'react';
 import {Text, Box} from 'ink';
 import { spawn, ChildProcess } from 'node:child_process';
 import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '../../');
 
 export default function Web() {
     const [status, setStatus] = useState('Starting Vite server...');
@@ -11,35 +17,44 @@ export default function Web() {
         let viteProcess: ChildProcess | null = null;
 
         const startVite = () => {
-            const args = ['vite', 'src/web', '--port', '1337'];
+            const webPath = path.join(projectRoot, 'src/web');
             
-            // If watch is explicitly requested or implied, Vite does it.
-            // We'll use the 'open' package in the main process if we want, or just let Vite do it?
-            // If we let Vite do it: args.push('--open');
+            if (!fs.existsSync(webPath)) {
+                setStatus(`Error: Web directory not found at ${webPath}`);
+                return;
+            }
+
+            const args = [webPath, '--port', '1337'];
             
-            // args.push('--open'); 
-            
-            viteProcess = spawn('npx', args, {
+            const env = { ...process.env };
+            const localBin = path.join(projectRoot, 'node_modules/.bin');
+            env.PATH = `${localBin}${path.delimiter}${env.PATH}`;
+
+            viteProcess = spawn('vite', args, {
                 stdio: ['ignore', 'pipe', 'pipe'],
-                shell: true
+                shell: true,
+                env
             });
 
             setStatus(`Vite server started (PID: ${viteProcess.pid})`);
 
-            viteProcess.stdout?.on('data', (data) => {
-                const msg = data.toString().trim();
-                // Vite outputs color codes, we might want to strip them for simple Ink logging or keep them
-                // For now, simple log
-                if (msg) setServerLogs(prev => [...prev.slice(-5), `[Vite] ${msg}`]);
-                if (msg.includes('Local:')) {
-                    setStatus('Server running at http://localhost:1337');
-                }
-            });
+            const handleLog = (data: any, isErr = false) => {
+                const lines = data.toString().split('\n');
+                for (let line of lines) {
+                    line = line.trim();
+                    if (!line) continue;
 
-            viteProcess.stderr?.on('data', (data) => {
-                const msg = data.toString().trim();
-                if (msg) setServerLogs(prev => [...prev.slice(-5), `[Vite ERR] ${msg}`]);
-            });
+                    const prefix = isErr ? '[Vite ERR]' : '[Vite]';
+                    setServerLogs(prev => [...prev.slice(-15), `${prefix} ${line}`]);
+                    
+                    if (line.includes('Local:') || line.includes('http://localhost:1337')) {
+                        setStatus('Server running at http://localhost:1337');
+                    }
+                }
+            };
+
+            viteProcess.stdout?.on('data', (data) => handleLog(data));
+            viteProcess.stderr?.on('data', (data) => handleLog(data, true));
 
             viteProcess.on('exit', (code) => {
                 if (code !== 0 && code !== null) {

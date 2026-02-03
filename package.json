@@ -9,8 +9,8 @@
     "dit": "dist/dit.js"
   },
   "scripts": {
-    "build": "tsc",
-    "postbuild": "chmod +x dist/dit.js",
+    "build": "tsc && yarn build:chmod",
+    "build:chmod": "chmod +x dist/dit.js",
     "start": "yarn build && node ./dist/dit.js",
     "test": "yarn build && node tests/run-all.js",
     "publish": "yarn build && yarn npm publish --access public"
