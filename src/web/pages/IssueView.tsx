@@ -59,7 +59,7 @@ export const IssueView = () => {
         const res = await fetch("/api/issues/" + (issue ? issue.id : "") + "/comments", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ body: commentBody, author: currentUser?.username || "Anonymous" })
+            body: JSON.stringify({ body: commentBody })
         });
 
         if (res.ok) {

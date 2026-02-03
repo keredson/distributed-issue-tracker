@@ -52,6 +52,14 @@ export default defineConfig({
             return;
           }
 
+          // GET /api/me
+          if (req.method === 'GET' && req.url === '/api/me') {
+            const user = await getCurrentLocalUser();
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(user));
+            return;
+          }
+
           // GET /api/new-id
           if (req.method === 'GET' && req.url === '/api/new-id') {
             const id = generateUniqueId(issuesDir);
@@ -182,7 +190,7 @@ export default defineConfig({
                       status: 'open',
                       severity: body.severity || 'medium',
                       assignee: body.assignee || '',
-                      author: currentUser?.username || ''
+                      author: currentUser?.username || 'unknown'
                   };
 
                   const issuePathStr = await saveIssue(newIssue, false, issuesDir);
@@ -274,7 +282,7 @@ export default defineConfig({
             const currentUser = await getCurrentLocalUser();
             const commentData = {
                 id: generateUniqueId(),
-                author: (body.author && body.author !== 'Web User') ? body.author : (currentUser?.username || 'Anonymous'),
+                author: currentUser?.username || 'unknown',
                 body: body.body,
                 date: new Date().toISOString()
             };
