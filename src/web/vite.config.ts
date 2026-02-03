@@ -149,10 +149,10 @@ export default defineConfig({
             return;
           }
 
-          // GET /api/issues/details/:year/:month/:slug
-          const detailsMatch = req.url.match(/^\/api\/issues\/details\/(\d{4})\/(\d{2})\/([^\/]+)$/);
+          // GET /api/issues/details/*
+          const detailsMatch = req.url.match(/^\/api\/issues\/details\/(.+)$/);
           if (req.method === 'GET' && detailsMatch) {
-            const [, , , slug] = detailsMatch;
+            const slug = detailsMatch[1];
             const id = slug.split('-').pop();
             if (!id) {
                 res.statusCode = 400;

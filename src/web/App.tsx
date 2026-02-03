@@ -19,7 +19,7 @@ export default function App() {
                             <Route path="/" element={<Navigate to="/issues" replace />} />
                             <Route path="/issues" element={<Issues />} />
                             <Route path="/new" element={<NewIssue />} />
-                            <Route path="/issue/:year/:month/:slug" element={<IssueView />} />
+                            <Route path="/issue/*" element={<IssueView />} />
                             <Route path="/users" element={<Users />} />
                             <Route path="/user/:username" element={<UserDetail />} />
                             <Route path="*" element={

@@ -2,6 +2,7 @@ import React, {useState, useEffect} from 'react';
 import {Text, useApp, useInput, Box} from 'ink';
 import {generateUniqueId} from '../utils/id.js';
 import {generateSlug} from '../utils/slug.js';
+import {getIssueTargetDir} from '../utils/issues.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
@@ -137,10 +138,7 @@ export default function NewIssue({skipAdd, onBack}: {skipAdd?: boolean; onBack?:
             const finalDirName = `${slug}-${issueId}`;
             const issuesDir = path.join('.dit', 'issues');
             
-            const date = new Date(updatedMeta.created || new Date().toISOString());
-            const year = date.getUTCFullYear().toString();
-            const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-            const targetDir = path.join(issuesDir, year, month);
+            const targetDir = getIssueTargetDir(issuesDir, updatedMeta.created || new Date().toISOString());
             
             if (!fs.existsSync(targetDir)) {
                 fs.mkdirSync(targetDir, {recursive: true});

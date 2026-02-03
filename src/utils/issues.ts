@@ -4,6 +4,50 @@ import yaml from 'js-yaml';
 import { execa } from 'execa';
 import { generateSlug } from './slug.js';
 
+const THRESHOLD = 128;
+
+export function getIssueTargetDir(issuesDir: string, createdDate: string): string {
+    const date = new Date(createdDate);
+    
+    // Level 1: .dit/issues/
+    if (!fs.existsSync(issuesDir)) {
+        return issuesDir;
+    }
+    
+    const items = fs.readdirSync(issuesDir);
+    if (items.length < THRESHOLD) {
+        return issuesDir;
+    }
+    
+    // Level 2: .dit/issues/yyyy/
+    const year = date.getUTCFullYear().toString();
+    const yearDir = path.join(issuesDir, year);
+    if (!fs.existsSync(yearDir)) {
+        return yearDir;
+    }
+    
+    const yearItems = fs.readdirSync(yearDir);
+    if (yearItems.length < THRESHOLD) {
+        return yearDir;
+    }
+    
+    // Level 3: .dit/issues/yyyy/mm/
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const monthDir = path.join(yearDir, month);
+    if (!fs.existsSync(monthDir)) {
+        return monthDir;
+    }
+    
+    const monthItems = fs.readdirSync(monthDir);
+    if (monthItems.length < THRESHOLD) {
+        return monthDir;
+    }
+    
+    // Level 4: .dit/issues/yyyy/mm/dd/
+    const day = date.getUTCDate().toString().padStart(2, '0');
+    return path.join(monthDir, day);
+}
+
 export function findIssueDirById(issuesDir: string, id: string): string | null {
     if (!fs.existsSync(issuesDir)) {
         return null;
@@ -13,9 +57,10 @@ export function findIssueDirById(issuesDir: string, id: string): string | null {
         const items = fs.readdirSync(issuesDir, { recursive: true });
         for (const item of items) {
             const itemStr = item.toString();
+            // Look for directories that end with -ID and contain an issue.yaml
             if (itemStr.endsWith(`-${id}`)) {
                 const fullPath = path.join(issuesDir, itemStr);
-                if (fs.statSync(fullPath).isDirectory()) {
+                if (fs.statSync(fullPath).isDirectory() && fs.existsSync(path.join(fullPath, 'issue.yaml'))) {
                     return itemStr;
                 }
             }
@@ -37,6 +82,7 @@ export function getAllIssueDirs(issuesDir: string): string[] {
     for (const item of items) {
         const itemStr = item.toString();
         const fullPath = path.join(issuesDir, itemStr);
+        // Ensure it's a directory and contains issue.yaml
         if (fs.statSync(fullPath).isDirectory() && fs.existsSync(path.join(fullPath, 'issue.yaml'))) {
             issueDirs.push(itemStr);
         }
@@ -54,10 +100,8 @@ export async function saveIssue(meta: any, skipAdd: boolean = false, issuesDir: 
     const id = updatedMeta.id;
     const finalDirName = `${slug}-${id}`;
     
-    const date = new Date(updatedMeta.created || new Date().toISOString());
-    const year = date.getUTCFullYear().toString();
-    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-    const targetDir = path.join(issuesDir, year, month);
+    const dateStr = updatedMeta.created || new Date().toISOString();
+    const targetDir = getIssueTargetDir(issuesDir, dateStr);
     
     if (!fs.existsSync(targetDir)) {
         fs.mkdirSync(targetDir, {recursive: true});
@@ -210,12 +254,7 @@ export async function getFilesWithHistory(issueDir: string): Promise<Set<string>
 }
 
 export async function getIssueById(issuesDir: string, id: string): Promise<any | null> {
-    const dir = findIssueDirById(issuesDir, id);
-    if (!dir) return null;
-
-    // We need to find the actual path which includes year/month
-    const allDirs = getAllIssueDirs(issuesDir);
-    const actualDir = allDirs.find(d => d.endsWith(`-${id}`));
+    const actualDir = findIssueDirById(issuesDir, id);
     if (!actualDir) return null;
 
     const issuePath = path.join(issuesDir, actualDir, 'issue.yaml');

@@ -7,7 +7,8 @@ import { UserSelect, User } from '../components/UserSelect.js';
 import { HistoryView } from '../components/HistoryView.js';
 
 export const IssueView = () => {
-    const { year, month, slug } = useParams();
+    const params = useParams();
+    const splat = params['*'];
     const navigate = useNavigate();
     const [issue, setIssue] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -24,7 +25,7 @@ export const IssueView = () => {
     const [saving, setSaving] = useState(false);
 
     const fetchIssue = () => {
-        fetch("/api/issues/details/" + year + "/" + month + "/" + slug)
+        fetch("/api/issues/details/" + splat)
             .then(res => {
                 if (!res.ok) throw new Error("Not found");
                 return res.json();
@@ -50,7 +51,7 @@ export const IssueView = () => {
             .then(res => res.json())
             .then(data => setCurrentUser(data))
             .catch(() => setCurrentUser(null));
-    }, [year, month, slug]);
+    }, [splat]);
 
     const handleAddComment = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
