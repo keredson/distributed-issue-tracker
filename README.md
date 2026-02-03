@@ -14,9 +14,14 @@ Traditional issue trackers often suffer from two major deficiencies:
 -   🚀 **Distributed & Offline-First:** Your issue database is embedded in your repo.
 -   🌿 **Branch-Aware:** Issue status evolves with your code across branches and merges.
 -   💻 **Dual Interface:** Use the high-performance CLI for quick tasks or the interactive Web Dashboard for a richer experience.
--   📥 **GitHub Import:** Easily migrate your existing GitHub issues and comments.
+-   📜 **Issue History:** Track every change to an issue or comment with integrated version history.
+-   📎 **Rich Media Support:** Attach files and paste images directly into issues and comments via the web dashboard.
+-   ⌨️ **Keyboard Shortcuts:** Efficiently navigate and manage issues with intuitive keyboard commands (e.g., `/` to search, `c` for new).
+-   👤 **User Profiles & Avatars:** Visualize authors and assignees with customized local profiles and avatars.
+-   📥 **GitHub Import:** Easily migrate your existing GitHub issues, comments, and user metadata.
 -   📄 **Human-Readable:** Data is stored in YAML, making it easy to inspect, search, and version control.
 -   🔑 **Passkey Support:** Securely authenticate with the web interface using modern WebAuthn passkeys.
+-   🟡 **Change Tracking:** Instantly see uncommitted changes to issues with visual "dirty" indicators in both CLI and Web.
 
 ## Installation
 
@@ -45,7 +50,7 @@ yarn global add @kered/dit
     ```bash
     dit new
     ```
-    This will open your default editor to write the issue description.
+    If it's your first time, `dit` will guide you through a quick one-time profile setup.
 
 2.  **List open issues:**
     ```bash
@@ -61,11 +66,11 @@ yarn global add @kered/dit
 ## CLI Commands
 
 -   `dit new [issue|template]` - Create a new issue or a new issue template.
--   `dit ls` - List all issues in the current branch.
+-   `dit ls [--all]` - List all issues in the current branch.
 -   `dit view <id>` - View details and comments for a specific issue.
 -   `dit edit <id>` - Edit an existing issue.
 -   `dit comment <id>` - Add a comment to an issue.
--   `dit import [github-url] [--all] [--verbose]` - Import issues and comments from GitHub (defaults to open issues). Use `--all` to include closed issues and `--verbose` for detailed logs.
+-   `dit import [github-url] [--all] [--users] [--verbose]` - Import issues and comments from GitHub. Use `--all` for closed issues, and `--users` to only sync user metadata/avatars.
 -   `dit web` - Launch the interactive local web dashboard.
 -   `dit web passkey` - Create a passkey for secure browser authentication.
 
