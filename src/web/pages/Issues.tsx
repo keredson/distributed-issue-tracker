@@ -1,18 +1,39 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, X, CircleDot, User, Clock, Check, CheckCircle2, MessageSquare } from 'lucide-react';
 import { Card, Badge, Avatar, Pagination } from '../components/Common.js';
 import { FilterDropdown } from '../components/FilterDropdown.js';
 
 export const Issues = () => {
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
     const [issues, setIssues] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const searchInputRef = useRef<HTMLInputElement>(null);
     
     const searchQuery = searchParams.get('q') ?? "is:open ";
     const sortBy = searchParams.get('sort') ?? "Newest";
     const currentPage = parseInt(searchParams.get('page') ?? "1", 10);
     const itemsPerPage = 50;
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+                return;
+            }
+
+            if (e.key === '/') {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+            } else if (e.key === 'c' || e.key === 'n') {
+                e.preventDefault();
+                navigate('/new');
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [navigate]);
 
     useEffect(() => {
         fetch('/api/issues')
@@ -214,6 +235,7 @@ export const Issues = () => {
                 <div className="relative w-full">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                     <input 
+                        ref={searchInputRef}
                         type="text" 
                         placeholder="Search all issues" 
                         value={searchQuery}

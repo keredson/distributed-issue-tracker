@@ -51,8 +51,8 @@ export const IssueView = () => {
             .catch(() => setCurrentUser(null));
     }, [year, month, slug]);
 
-    const handleAddComment = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleAddComment = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!commentBody.trim()) return;
 
         const res = await fetch("/api/issues/" + (issue ? issue.id : "") + "/comments", {
@@ -96,6 +96,23 @@ export const IssueView = () => {
             setSaving(false);
         }
     };
+
+    useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+                return;
+            }
+
+            if (e.key === 'Escape' && editMode) {
+                setEditMode(false);
+            } else if (e.key === 'e' && !editMode) {
+                e.preventDefault();
+                setEditMode(true);
+            }
+        };
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [editMode]);
 
     if (loading) return <div className="flex justify-center p-12"><div className="animate-spin h-8 w-8 border-4 border-slate-900 border-t-transparent rounded-full"></div></div>;
     if (!issue) return (
@@ -184,6 +201,7 @@ export const IssueView = () => {
                                 onChange={setEditBody}
                                 placeholder="Describe the issue... (Markdown supported)"
                                 minHeight="200px"
+                                onCmdEnter={handleSave}
                             />
                         </div>
                         <div className="flex justify-end gap-3 pt-4">
@@ -285,6 +303,7 @@ export const IssueView = () => {
                                 placeholder="Leave a comment"
                                 minHeight="120px"
                                 className="border-none"
+                                onCmdEnter={handleAddComment}
                             />
                             <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
                                 <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Styling with Markdown is supported</span>

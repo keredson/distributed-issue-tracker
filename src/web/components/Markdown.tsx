@@ -6,8 +6,32 @@ export const Markdown = ({ content }: { content: string }) => {
     return <div className="prose prose-slate dark:prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
-export const MarkdownEditor = ({ value, onChange, placeholder, minHeight = "150px", className = "border border-slate-200 dark:border-slate-800 rounded-lg" }: { value: string, onChange: (val: string) => void, placeholder?: string, minHeight?: string, className?: string }) => {
+export const MarkdownEditor = ({ 
+    value, 
+    onChange, 
+    placeholder, 
+    minHeight = "150px", 
+    className = "border border-slate-200 dark:border-slate-800 rounded-lg",
+    onKeyDown,
+    onCmdEnter
+}: { 
+    value: string, 
+    onChange: (val: string) => void, 
+    placeholder?: string, 
+    minHeight?: string, 
+    className?: string,
+    onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void,
+    onCmdEnter?: () => void
+}) => {
     const [isPreview, setIsPreview] = useState(false);
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (onKeyDown) onKeyDown(e);
+        if (onCmdEnter && (e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            e.preventDefault();
+            onCmdEnter();
+        }
+    };
 
     return (
         <div className={`overflow-hidden bg-white dark:bg-slate-900 focus-within:ring-2 focus-within:ring-slate-900 dark:focus-within:ring-slate-100 focus-within:border-transparent transition-all ${className}`}>
@@ -39,6 +63,7 @@ export const MarkdownEditor = ({ value, onChange, placeholder, minHeight = "150p
                 <textarea 
                     value={value}
                     onChange={e => onChange(e.target.value)}
+                    onKeyDown={handleKeyDown}
                     placeholder={placeholder}
                     className="w-full p-4 text-sm focus:outline-none border-none resize-y bg-white dark:bg-slate-900 dark:text-slate-200"
                     style={{ minHeight }}

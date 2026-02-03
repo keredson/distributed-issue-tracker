@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { User, Mail, ChevronRight, Search, X } from 'lucide-react';
 import { Card, Avatar, Pagination } from '../components/Common.js';
@@ -7,10 +7,27 @@ export const Users = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const searchInputRef = useRef<HTMLInputElement>(null);
     
     const searchQuery = searchParams.get('q') ?? "";
     const currentPage = parseInt(searchParams.get('page') ?? "1", 10);
     const itemsPerPage = 50;
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+                return;
+            }
+
+            if (e.key === '/') {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     useEffect(() => {
         fetch('/api/users')
@@ -87,6 +104,7 @@ export const Users = () => {
                 <div className="relative w-full">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                     <input 
+                        ref={searchInputRef}
                         type="text" 
                         placeholder="Search by name or @username..." 
                         value={searchQuery}

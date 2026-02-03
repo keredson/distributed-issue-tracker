@@ -13,8 +13,8 @@ export const NewIssue = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!title.trim()) return;
         setLoading(true);
 
@@ -37,6 +37,16 @@ export const NewIssue = () => {
             setLoading(false);
         }
     };
+
+    React.useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                navigate('/issues');
+            }
+        };
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [navigate]);
 
     return (
         <div className="max-w-2xl mx-auto p-8">
@@ -91,6 +101,7 @@ export const NewIssue = () => {
                             onChange={setBody}
                             placeholder="Describe the issue... (Markdown supported)"
                             minHeight="150px"
+                            onCmdEnter={handleSubmit}
                         />
                     </div>
 
