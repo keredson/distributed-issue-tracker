@@ -314,6 +314,13 @@ export async function getIssueById(issuesDir: string, id: string): Promise<any |
         const historyPaths = await getFilesWithHistory(absoluteIssueDir);
 
         const content = yaml.load(fs.readFileSync(issuePath, 'utf8')) as any;
+        
+        // Normalize tags to labels for backward compatibility
+        if (content.tags && !content.labels) {
+            content.labels = content.tags;
+            delete content.tags;
+        }
+
         const comments = getCommentsForIssue(path.join(issuesDir, actualDir), dirtyPaths, historyPaths);
         
         let author = content.author;
@@ -467,6 +474,13 @@ export async function getAllIssues(issuesDir: string): Promise<any[]> {
         const issuePath = path.join(fullIssuePath, 'issue.yaml');
         try {
             const content = yaml.load(fs.readFileSync(issuePath, 'utf8')) as any;
+            
+            // Normalize tags to labels for backward compatibility
+            if (content.tags && !content.labels) {
+                content.labels = content.tags;
+                delete content.tags;
+            }
+
             const comments_count = getCommentCountForIssue(fullIssuePath);
             
             let author = content.author;

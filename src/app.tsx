@@ -102,7 +102,7 @@ export default function App({command, input, flags, showHelp}: Props) {
 		if (command === 'ls') {
 			return (
 				<Text>
-					{`Usage\n  $ dit ls\n\nOptions\n  --all       Show all issues (including closed)\n  --author    Filter by author (TODO)`}
+					{`Usage\n  $ dit ls\n\nOptions\n  --all       Show all issues (including closed)\n  --label     Filter by label (comma separated)`}
 				</Text>
 			);
 		}

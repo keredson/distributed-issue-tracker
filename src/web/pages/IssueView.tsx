@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, CircleDot, MessageSquare } from 'lucide-react';
-import { Card, Badge, Avatar, TagInput } from '../components/Common.js';
+import { Card, Badge, Avatar, LabelInput } from '../components/Common.js';
 import { Markdown, MarkdownEditor } from '../components/Markdown.js';
 import { UserSelect, User } from '../components/UserSelect.js';
 import { HistoryView } from '../components/HistoryView.js';
@@ -22,7 +22,7 @@ export const IssueView = () => {
     const [editStatus, setEditStatus] = useState("");
     const [editSeverity, setEditSeverity] = useState("");
     const [editAssignee, setEditAssignee] = useState("");
-    const [editTags, setEditTags] = useState<string[]>([]);
+    const [editLabels, setEditLabels] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
 
     const fetchIssue = () => {
@@ -38,7 +38,7 @@ export const IssueView = () => {
                 setEditStatus(data.status);
                 setEditSeverity(data.severity);
                 setEditAssignee(data.assignee || "");
-                setEditTags(data.tags || []);
+                setEditLabels(data.labels || []);
                 setLoading(false);
             })
             .catch(err => {
@@ -111,7 +111,7 @@ export const IssueView = () => {
                     status: editStatus,
                     severity: editSeverity,
                     assignee: editAssignee,
-                    tags: editTags
+                    labels: editLabels
                 })
             });
 
@@ -227,14 +227,15 @@ export const IssueView = () => {
                                 />
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Tags</label>
-                            <TagInput 
-                                tags={editTags}
-                                onChange={setEditTags}
-                                placeholder="Add tags (Enter or comma to add)..."
-                            />
-                        </div>
+                                                    <div>
+                                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Labels</label>
+                                                        <LabelInput 
+                                                            labels={editLabels}
+                                                            onChange={setEditLabels}
+                                                            placeholder="Add labels (Enter or comma to add)..."
+                                                        />
+                                                    </div>
+                        
                         <div>
                             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Description</label>
                             <MarkdownEditor 
@@ -269,9 +270,9 @@ export const IssueView = () => {
                     <div className="mb-8">
                         <div className="flex items-center gap-3 mb-4">
                             <Badge variant={issue.status}>{issue.status}</Badge>
-                            {issue.tags && issue.tags.map((tag: string) => (
-                                <span key={tag} className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold border border-blue-100 dark:border-blue-900/30">
-                                    {tag.toUpperCase()}
+                            {issue.labels && issue.labels.map((label: string) => (
+                                <span key={label} className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold border border-blue-100 dark:border-blue-900/30">
+                                    {label.toUpperCase()}
                                 </span>
                             ))}
                             <span className="text-xs font-mono text-slate-400 dark:text-slate-500">#{issue.id}</span>

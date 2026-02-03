@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { Card, TagInput } from '../components/Common.js';
+import { Card, LabelInput } from '../components/Common.js';
 import { MarkdownEditor } from '../components/Markdown.js';
 import { UserSelect } from '../components/UserSelect.js';
 
@@ -11,7 +11,7 @@ export const NewIssue = () => {
     const [body, setBody] = useState("");
     const [severity, setSeverity] = useState("medium");
     const [assignee, setAssignee] = useState("");
-    const [tags, setTags] = useState<string[]>([]);
+    const [labels, setLabels] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
@@ -65,7 +65,7 @@ export const NewIssue = () => {
                     body, 
                     severity, 
                     assignee,
-                    tags
+                    labels
                 })
             });
             
@@ -139,11 +139,11 @@ export const NewIssue = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Tags</label>
-                        <TagInput 
-                            tags={tags}
-                            onChange={setTags}
-                            placeholder="Add tags (Enter or comma to add)..."
+                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Labels</label>
+                        <LabelInput 
+                            labels={labels}
+                            onChange={setLabels}
+                            placeholder="Add labels (Enter or comma to add)..."
                         />
                     </div>
 

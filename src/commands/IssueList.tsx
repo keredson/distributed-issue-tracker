@@ -15,7 +15,7 @@ type Issue = {
     assignee: string;
     author: string;
     created: string;
-    tags: string[];
+    labels: string[];
     isDirty?: boolean;
     slug: string;
 };
@@ -51,6 +51,21 @@ export default function IssueList({flags}: {flags: any}) {
                     const content = fs.readFileSync(issueYamlPath, 'utf8');
                     const meta = yaml.load(content) as any;
                     
+                    const status = meta.status || 'open';
+                    
+                    // Filter by status
+                    if (!flags.all && status === 'closed') continue;
+
+                    // Filter by label
+                    const filterLabelsStr = flags.label;
+                    if (filterLabelsStr) {
+                        const filterLabels = filterLabelsStr.split(',').map((l: string) => l.trim().toLowerCase());
+                        const issueLabels = (meta.labels || []).map((l: string) => l.toLowerCase());
+                        if (!filterLabels.every((fl: string) => issueLabels.includes(fl))) {
+                            continue;
+                        }
+                    }
+
                     let author = meta.author;
                     if (!author) {
                         try {
@@ -79,7 +94,7 @@ export default function IssueList({flags}: {flags: any}) {
                         assignee: meta.assignee || 'Unassigned',
                         author: author,
                         created: meta.created,
-                        tags: meta.tags || [],
+                        labels: meta.labels || [],
                         isDirty: isDirty,
                         slug: dir
                     });
@@ -119,7 +134,7 @@ export default function IssueList({flags}: {flags: any}) {
                 <Box width={12}><Text bold underline>Status</Text></Box>
                 <Box width={12}><Text bold underline>Severity</Text></Box>
                 <Box width={15}><Text bold underline>Assignee</Text></Box>
-                <Box width={15}><Text bold underline>Tags</Text></Box>
+                <Box width={15}><Text bold underline>Labels</Text></Box>
                 <Box width={12}><Text bold underline>Created</Text></Box>
                 <Box width={3}><Text bold> </Text></Box>
             </Box>
@@ -146,7 +161,7 @@ export default function IssueList({flags}: {flags: any}) {
                         </Text>
                     </Box>
                     <Box width={15}><Text color="magenta" wrap="truncate-end">{issue.assignee}</Text></Box>
-                    <Box width={15}><Text color="blue" wrap="truncate-end">{issue.tags.join(', ')}</Text></Box>
+                    <Box width={15}><Text color="blue" wrap="truncate-end">{issue.labels.join(', ')}</Text></Box>
                     <Box width={12}><Text color="dim">{new Date(issue.created).toLocaleDateString()}</Text></Box>
                     <Box width={3}>
                         <Text color="yellow" bold>

@@ -14,9 +14,9 @@ async function assert(condition: boolean, message: string) {
 }
 
 async function runTests() {
-    console.log('Running tags tests...');
+    console.log('Running labels tests...');
     
-    const testIssuesDir = path.join(process.cwd(), '.dit', 'test-tags-issues');
+    const testIssuesDir = path.join(process.cwd(), '.dit', 'test-labels-issues');
     if (fs.existsSync(testIssuesDir)) {
         console.log('Cleaning up existing test dir...');
         fs.rmSync(testIssuesDir, { recursive: true, force: true });
@@ -25,52 +25,52 @@ async function runTests() {
 
     try {
         const issueData = {
-            id: 'tagtest1',
-            title: 'Test Issue with Tags',
+            id: 'labeltest1',
+            title: 'Test Issue with Labels',
             body: 'This is a test issue',
             created: new Date().toISOString(),
             status: 'open',
             severity: 'medium',
             assignee: '',
             author: 'testuser',
-            tags: ['bug', 'ui', 'high-priority']
+            labels: ['bug', 'ui', 'high-priority']
         };
 
-        console.log('Saving issue with tags...');
+        console.log('Saving issue with labels...');
         await saveIssue(issueData, true, testIssuesDir);
         
         console.log('Verifying getAllIssues...');
         const issues = await getAllIssues(testIssuesDir);
         assert(issues.length === 1, 'Should have 1 issue');
-        assert(Array.isArray(issues[0].tags), 'Tags should be an array');
-        assert(issues[0].tags.length === 3, 'Should have 3 tags');
-        assert(issues[0].tags.includes('bug'), 'Should include "bug" tag');
-        assert(issues[0].tags.includes('ui'), 'Should include "ui" tag');
-        assert(issues[0].tags.includes('high-priority'), 'Should include "high-priority" tag');
+        assert(Array.isArray(issues[0].labels), 'Labels should be an array');
+        assert(issues[0].labels.length === 3, 'Should have 3 labels');
+        assert(issues[0].labels.includes('bug'), 'Should include "bug" label');
+        assert(issues[0].labels.includes('ui'), 'Should include "ui" label');
+        assert(issues[0].labels.includes('high-priority'), 'Should include "high-priority" label');
 
         console.log('Verifying getIssueById...');
-        const issue = await getIssueById(testIssuesDir, 'tagtest1');
+        const issue = await getIssueById(testIssuesDir, 'labeltest1');
         assert(issue !== null, 'Issue should be found');
-        assert(Array.isArray(issue.tags), 'Tags should be an array in getIssueById');
-        assert(issue.tags.length === 3, 'Should have 3 tags in getIssueById');
+        assert(Array.isArray(issue.labels), 'Labels should be an array in getIssueById');
+        assert(issue.labels.length === 3, 'Should have 3 labels in getIssueById');
 
-        console.log('Testing updating tags...');
+        console.log('Testing updating labels...');
         const updatedData = {
             ...issueData,
-            tags: ['bug', 'fixed']
+            labels: ['bug', 'fixed']
         };
         
         const issuePath = path.join(testIssuesDir, issues[0].dir, 'issue.yaml');
         fs.writeFileSync(issuePath, yaml.dump(updatedData));
         
-        const updatedIssue = await getIssueById(testIssuesDir, 'tagtest1');
-        assert(updatedIssue.tags.length === 2, 'Should have 2 tags after update');
-        assert(updatedIssue.tags.includes('fixed'), 'Should include "fixed" tag');
-        assert(!updatedIssue.tags.includes('ui'), 'Should not include "ui" tag');
+        const updatedIssue = await getIssueById(testIssuesDir, 'labeltest1');
+        assert(updatedIssue.labels.length === 2, 'Should have 2 labels after update');
+        assert(updatedIssue.labels.includes('fixed'), 'Should include "fixed" label');
+        assert(!updatedIssue.labels.includes('ui'), 'Should not include "ui" label');
 
-        console.log('Tags tests passed!');
+        console.log('Labels tests passed!');
     } catch (error: any) {
-        console.error('Tags tests failed:', error);
+        console.error('Labels tests failed:', error);
         if (error.stack) console.error(error.stack);
         process.exit(1);
     } finally {

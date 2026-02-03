@@ -168,7 +168,7 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
                             assignee: assignee || '',
                             body: issue.body || '',
                             github_url: issue.html_url,
-                            tags: issue.labels.map((l: any) => typeof l === 'string' ? l : l.name)
+                            labels: issue.labels.map((l: any) => typeof l === 'string' ? l : l.name)
                         };
                         
                         // Also ensure the author exists

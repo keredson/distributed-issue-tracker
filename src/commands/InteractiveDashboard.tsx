@@ -24,6 +24,7 @@ type Issue = {
     author: string;
     created: string;
     slug: string;
+    labels: string[];
     isDirty?: boolean;
 };
 
@@ -91,7 +92,7 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
             index.remove(meta.id);
             index.add({
                 id: meta.id,
-                content: fullContent,
+                content: fullContent + '\n' + (meta.labels || []).join(' '),
                 assignee: meta.assignee || 'Unassigned',
                 author: author
             });
@@ -197,6 +198,8 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
                     if (!values.some(v => issue.assignee.toLowerCase().includes(v))) return false;
                 } else if (key === 'author') {
                     if (!values.some(v => issue.author.toLowerCase().includes(v))) return false;
+                } else if (key === 'label') {
+                    if (!values.every(v => issue.labels.some(l => l.toLowerCase() === v))) return false;
                 } else if (key === 'id') {
                     if (!values.includes(issue.id.toLowerCase())) return false;
                 }
@@ -293,6 +296,7 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
                     author: author,
                     created: meta.created,
                     slug: dir,
+                    labels: meta.labels || [],
                     isDirty: isDirty
                 });
             }
@@ -466,10 +470,11 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
             <Box flexDirection="column">
                 <Box marginBottom={1}>
                     <Box width={10}><Text bold underline>ID{sortBy === 'id' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}</Text></Box>
-                    <Box width={35}><Text bold underline>Title{sortBy === 'title' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}</Text></Box>
+                    <Box width={30}><Text bold underline>Title{sortBy === 'title' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}</Text></Box>
                     <Box width={12}><Text bold underline>Status{sortBy === 'status' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}</Text></Box>
                     <Box width={12}><Text bold underline>Severity{sortBy === 'severity' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}</Text></Box>
-                    <Box width={20}><Text bold underline>Assignee{sortBy === 'assignee' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}</Text></Box>
+                    <Box width={15}><Text bold underline>Assignee{sortBy === 'assignee' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}</Text></Box>
+                    <Box width={15}><Text bold underline>Labels</Text></Box>
                     <Box width={12}><Text bold underline>Created{sortBy === 'created' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}</Text></Box>
                     <Box width={3}><Text bold> </Text></Box>
                 </Box>
@@ -480,7 +485,7 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
                                 {!isSearching && index === selectedIndex ? '❯ ' : '  '}{issue.id}
                             </Text>
                         </Box>
-                        <Box width={35}>
+                        <Box width={30}>
                             <Text wrap="truncate-end" bold={!isSearching && index === selectedIndex}>
                                 {issue.title}
                             </Text>
@@ -503,7 +508,8 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
                                 {issue.severity}
                             </Text>
                         </Box>
-                        <Box width={20}><Text color="magenta" wrap="truncate-end">{issue.assignee}</Text></Box>
+                        <Box width={15}><Text color="magenta" wrap="truncate-end">{issue.assignee}</Text></Box>
+                        <Box width={15}><Text color="blue" wrap="truncate-end">{issue.labels.join(', ')}</Text></Box>
                         <Box width={12}><Text color="dim">{new Date(issue.created).toLocaleDateString()}</Text></Box>
                         <Box width={3}>
                             <Text color="yellow" bold>

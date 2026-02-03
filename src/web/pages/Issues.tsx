@@ -129,8 +129,8 @@ export const Issues = () => {
                     })) return false;
                 } else if (key === 'author') {
                     if (!values.some(v => (issue.author || "").toLowerCase() === v)) return false;
-                } else if (key === 'tag' || key === 'label') {
-                    if (!values.every(v => (issue.tags || []).some((t: string) => t.toLowerCase() === v))) return false;
+                } else if (key === 'label') {
+                    if (!values.every(v => (issue.labels || []).some((l: string) => l.toLowerCase() === v))) return false;
                 }
             }
             return true;
@@ -148,10 +148,10 @@ export const Issues = () => {
     }, [issues, searchQuery]);
 
     const allLabels = useMemo(() => {
-        const filtered = getFilteredIssuesExcept('tag');
+        const filtered = getFilteredIssuesExcept('label');
         const labels = new Set<string>();
         filtered.forEach(issue => {
-            (issue.tags || []).forEach((tag: string) => labels.add(tag));
+            (issue.labels || []).forEach((label: string) => labels.add(label));
         });
         return Array.from(labels).sort();
     }, [issues, searchQuery]);
@@ -207,8 +207,8 @@ export const Issues = () => {
                     })) return false;
                 } else if (key === 'author') {
                     if (!values.some(v => (issue.author || "").toLowerCase() === v)) return false;
-                } else if (key === 'tag' || key === 'label') {
-                    if (!values.every(v => (issue.tags || []).some((t: string) => t.toLowerCase() === v))) return false;
+                } else if (key === 'label') {
+                    if (!values.every(v => (issue.labels || []).some((l: string) => l.toLowerCase() === v))) return false;
                 } else if (key === 'id') {
                     if (!values.includes((issue.id || "").toLowerCase())) return false;
                 }
@@ -351,12 +351,12 @@ export const Issues = () => {
                         <FilterDropdown 
                             label="Label" 
                             items={allLabels} 
-                            value={currentFilters.tag || currentFilters.label}
+                            value={currentFilters.label}
                             onChange={(val) => {
-                                let newQuery = searchQuery.replace(/(tag|label):("[^"]+"|[^\s]+)/gi, '').trim();
+                                let newQuery = searchQuery.replace(/label:("[^"]+"|[^\s]+)/gi, '').trim();
                                 if (val) {
                                     const escapedVal = val.includes(' ') ? `"${val}"` : val;
-                                    newQuery += ` tag:${escapedVal}`;
+                                    newQuery += ` label:${escapedVal}`;
                                 }
                                 setSearchQuery(newQuery.trim() + ' ');
                             }} 
@@ -397,9 +397,9 @@ export const Issues = () => {
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <h3 className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{issue.title}</h3>
-                                            {issue.tags && issue.tags.map((tag: string) => (
-                                                <span key={tag} className="px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold border border-blue-100 dark:border-blue-900/30">
-                                                    {tag}
+                                            {issue.labels && issue.labels.map((label: string) => (
+                                                <span key={label} className="px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold border border-blue-100 dark:border-blue-900/30">
+                                                    {label}
                                                 </span>
                                             ))}
                                             {issue.isDirty && (

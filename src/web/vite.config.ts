@@ -227,7 +227,8 @@ export default defineConfig({
                       status: 'open',
                       severity: body.severity || 'medium',
                       assignee: body.assignee || '',
-                      author: currentUser?.username || 'unknown'
+                      author: currentUser?.username || 'unknown',
+                      labels: body.labels || []
                   };
 
                   const issuePathStr = await saveIssue(newIssue, false, issuesDir);
