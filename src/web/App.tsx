@@ -223,6 +223,94 @@ const UserSelect = ({ value, onChange, placeholder = "Select user..." }: { value
     );
 };
 
+const FilterDropdown = ({ label, items, value, onChange }: { label: string, items: string[], value?: string, onChange: (val: string) => void }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+    const filteredItems = useMemo(() => {
+        if (!search) return items;
+        const s = search.toLowerCase();
+        return items.filter(item => item.toLowerCase().includes(s));
+    }, [items, search]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (isOpen) {
+            setSearch("");
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        // @ts-ignore
+        if (window.lucide) {
+            // @ts-ignore
+            window.lucide.createIcons();
+        }
+    }, [isOpen, filteredItems]);
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <button 
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors py-1 px-2"
+            >
+                {label} {value && <span className="text-slate-900 dark:text-slate-200 font-bold ml-0.5">{value}</span>}
+                <i data-lucide="chevron-down" className="w-3 h-3"></i>
+            </button>
+            {isOpen && (
+                <div className="absolute right-0 mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-20 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Filter by {label}</span>
+                    </div>
+                    {items.length > 5 && (
+                        <div className="p-2 border-b border-slate-100 dark:border-slate-800">
+                            <input 
+                                type="text"
+                                autoFocus
+                                placeholder={`Filter ${label.toLowerCase()}s...`}
+                                className="w-full px-2 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none rounded dark:text-slate-200"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                onClick={e => e.stopPropagation()}
+                            />
+                        </div>
+                    )}
+                    <div className="max-h-60 overflow-y-auto">
+                        {filteredItems.map(item => (
+                            <div 
+                                key={item}
+                                className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer flex justify-between items-center"
+                                onClick={() => {
+                                    onChange(item);
+                                    setIsOpen(false);
+                                }}
+                            >
+                                <span className="truncate pr-2">{item}</span>
+                                {value === item && <i data-lucide="check" className="w-3 h-3 text-blue-600"></i>}
+                            </div>
+                        ))}
+                        {filteredItems.length === 0 && (
+                            <div className="px-4 py-3 text-xs text-slate-500 italic text-center">
+                                No {label.toLowerCase()}s found
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const Header = () => {
     const { isDark, toggleTheme } = useTheme();
 
@@ -380,7 +468,8 @@ const NewIssue = () => {
 const Issues = () => {
     const [issues, setIssues] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState("state:open ");
+    const [searchQuery, setSearchQuery] = useState("is:open ");
+    const [sortBy, setSortBy] = useState("Newest");
 
     useEffect(() => {
         fetch('/api/issues')
@@ -396,27 +485,115 @@ const Issues = () => {
             });
     }, []);
 
-    const filteredIssues = useMemo(() => {
-        if (!searchQuery.trim()) return issues;
-        
-        const terms = searchQuery.split(/\s+/);
+    const counts = useMemo(() => {
+        const open = issues.filter(i => i.status === 'open' || i.status === 'assigned' || i.status === 'in-progress').length;
+        const closed = issues.filter(i => i.status === 'closed').length;
+        return { open, closed };
+    }, [issues]);
+
+    const currentFilters = useMemo(() => {
+        const filters: {[key: string]: string} = {};
+        const regex = /([a-zA-Z]+):("[^"]+"|[^\s]+)/gi;
+        let match;
+        while ((match = regex.exec(searchQuery)) !== null) {
+            let val = match[2];
+            if (val.startsWith('"') && val.endsWith('"')) {
+                val = val.substring(1, val.length - 1);
+            }
+            filters[match[1].toLowerCase()] = val;
+        }
+        return filters;
+    }, [searchQuery]);
+
+    const getFilteredIssuesExcept = (excludeKey: string) => {
+        let result = [...issues];
         const filters: {[key: string]: string[]} = {};
         const textTerms: string[] = [];
-
-        terms.forEach(term => {
-            if (term.includes(':')) {
-                const [key, value] = term.split(':');
-                if (key && value) {
-                    const k = key.toLowerCase();
-                    if (!filters[k]) filters[k] = [];
-                    filters[k].push(value.toLowerCase());
-                }
-            } else if (term) {
+        const regex = /([a-zA-Z]+):("[^"]+"|[^\s]+)|("[^"]+"|[^\s]+)/gi;
+        let match;
+        while ((match = regex.exec(searchQuery)) !== null) {
+            if (match[1]) {
+                const key = match[1].toLowerCase();
+                if (key === excludeKey) continue;
+                let value = match[2];
+                if (value.startsWith('"') && value.endsWith('"')) value = value.substring(1, value.length - 1);
+                if (!filters[key]) filters[key] = [];
+                filters[key].push(value.toLowerCase());
+            } else if (match[3]) {
+                let term = match[3];
+                if (term.startsWith('"') && term.endsWith('"')) term = term.substring(1, term.length - 1);
                 textTerms.push(term.toLowerCase());
             }
-        });
+        }
 
-        return issues.filter(issue => {
+        return result.filter(issue => {
+            if (textTerms.length > 0) {
+                const content = ((issue.title || "") + " " + (issue.author || "") + " " + (issue.id || "") + " " + (issue.body || "") + " " + (issue.assignee || "")).toLowerCase();
+                if (!textTerms.every(term => content.includes(term))) return false;
+            }
+            for (const [key, values] of Object.entries(filters)) {
+                if (key === 'state' || key === 'is') {
+                    if (!values.some(v => {
+                        if (v === 'open') return issue.status === 'open' || issue.status === 'assigned' || issue.status === 'in-progress';
+                        if (v === 'closed') return issue.status === 'closed';
+                        return (issue.status || "").toLowerCase() === v;
+                    })) return false;
+                } else if (key === 'severity') {
+                    if (!values.includes((issue.severity || "").toLowerCase())) return false;
+                } else if (key === 'assignee') {
+                    if (!values.some(v => {
+                        if (v === 'none' || v === 'unassigned') return !issue.assignee;
+                        return (issue.assignee || "").toLowerCase() === v;
+                    })) return false;
+                } else if (key === 'author') {
+                    if (!values.some(v => (issue.author || "").toLowerCase() === v)) return false;
+                }
+            }
+            return true;
+        });
+    };
+
+    const authors = useMemo(() => {
+        const filtered = getFilteredIssuesExcept('author');
+        return Array.from(new Set(filtered.map(i => i.author).filter(Boolean))).sort();
+    }, [issues, searchQuery]);
+
+    const assignees = useMemo(() => {
+        const filtered = getFilteredIssuesExcept('assignee');
+        return Array.from(new Set(filtered.map(i => i.assignee).filter(Boolean))).sort();
+    }, [issues, searchQuery]);
+
+    const filteredIssues = useMemo(() => {
+        let result = [...issues];
+        
+        // Improved parsing to handle quoted values like author:"John Doe"
+        const filters: {[key: string]: string[]} = {};
+        const textTerms: string[] = [];
+        
+        const regex = /([a-zA-Z]+):("[^"]+"|[^\s]+)|("[^"]+"|[^\s]+)/gi;
+        let match;
+        
+        while ((match = regex.exec(searchQuery)) !== null) {
+            if (match[1]) {
+                // It's a key:value filter
+                const key = match[1].toLowerCase();
+                let value = match[2];
+                if (value.startsWith('"') && value.endsWith('"')) {
+                    value = value.substring(1, value.length - 1);
+                }
+                if (!filters[key]) filters[key] = [];
+                filters[key].push(value.toLowerCase());
+            } else if (match[3]) {
+                // It's a text term
+                let term = match[3];
+                if (term.startsWith('"') && term.endsWith('"')) {
+                    term = term.substring(1, term.length - 1);
+                }
+                textTerms.push(term.toLowerCase());
+            }
+        }
+
+        result = result.filter(issue => {
             // Text Search
             if (textTerms.length > 0) {
                 const content = (
@@ -437,22 +614,38 @@ const Issues = () => {
                 if (key === 'state' || key === 'is') {
                     if (!values.some(v => {
                         if (v === 'open') return issue.status === 'open' || issue.status === 'assigned' || issue.status === 'in-progress';
+                        if (v === 'closed') return issue.status === 'closed';
                         return (issue.status || "").toLowerCase() === v;
                     })) return false;
                 } else if (key === 'severity') {
                     if (!values.includes((issue.severity || "").toLowerCase())) return false;
-                } else if (key === 'assignee') {
-                    if (!values.some(v => (issue.assignee || "").toLowerCase().includes(v))) return false;
-                } else if (key === 'author') {
-                    if (!values.some(v => (issue.author || "").toLowerCase().includes(v))) return false;
-                } else if (key === 'id') {
+                                                } else if (key === 'assignee') {
+                                                    if (!values.some(v => {
+                                                        if (v === 'none' || v === 'unassigned') return !issue.assignee;
+                                                        return (issue.assignee || "").toLowerCase() === v;
+                                                    })) return false;
+                                                } else if (key === 'author') {
+                                                    if (!values.some(v => (issue.author || "").toLowerCase() === v)) return false;
+                                                }
+                                 else if (key === 'id') {
                     if (!values.includes((issue.id || "").toLowerCase())) return false;
                 }
             }
 
             return true;
         });
-    }, [issues, searchQuery]);
+
+        // Sorting
+        result.sort((a, b) => {
+            if (sortBy === 'Newest') return new Date(b.created).getTime() - new Date(a.created).getTime();
+            if (sortBy === 'Oldest') return new Date(a.created).getTime() - new Date(b.created).getTime();
+            if (sortBy === 'Most Commented') return (b.comments_count || 0) - (a.comments_count || 0);
+            if (sortBy === 'Least Commented') return (a.comments_count || 0) - (b.comments_count || 0);
+            return 0;
+        });
+
+        return result;
+    }, [issues, searchQuery, sortBy]);
 
     useEffect(() => {
         // @ts-ignore
@@ -467,12 +660,17 @@ const Issues = () => {
     return (
         <div className="max-w-7xl mx-auto p-8">
             <div className="flex flex-col gap-6 mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Issues</h2>
+                <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Issues</h2>
+                    <Link to="/new" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm no-underline">
+                        New Issue
+                    </Link>
+                </div>
                 <div className="relative w-full">
                     <i data-lucide="search" className="absolute left-3 top-2.5 h-4 w-4 text-slate-400"></i>
                     <input 
                         type="text" 
-                        placeholder="Search e.g. state:open author:derek bug..." 
+                        placeholder="Search all issues" 
                         value={searchQuery}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                         className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg py-2.5 pl-9 pr-10 text-sm font-mono focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-100 focus:border-transparent outline-none transition-all shadow-sm dark:text-slate-200"
@@ -488,7 +686,76 @@ const Issues = () => {
                 </div>
             </div>
             
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden border-slate-200 dark:border-slate-800">
+                <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={() => {
+                                // Replace is:closed or state:closed with is:open
+                                let newQuery = searchQuery.replace(/(is|state):closed/g, 'is:open');
+                                if (!newQuery.includes('is:open') && !newQuery.includes('state:open')) {
+                                    newQuery = 'is:open ' + newQuery;
+                                }
+                                setSearchQuery(newQuery);
+                            }}
+                            className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${searchQuery.includes('is:open') || searchQuery.includes('state:open') || (!searchQuery.includes('is:closed') && !searchQuery.includes('state:closed')) ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                        >
+                            <i data-lucide="circle-dot" className="w-4 h-4"></i>
+                            {counts.open} Open
+                        </button>
+                        <button 
+                            onClick={() => {
+                                // Replace is:open or state:open with is:closed
+                                let newQuery = searchQuery.replace(/(is|state):open/g, 'is:closed');
+                                if (!newQuery.includes('is:closed') && !newQuery.includes('state:closed')) {
+                                    newQuery = 'is:closed ' + newQuery;
+                                }
+                                setSearchQuery(newQuery);
+                            }}
+                            className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${searchQuery.includes('is:closed') || searchQuery.includes('state:closed') ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                        >
+                            <i data-lucide="check" className="w-4 h-4"></i>
+                            {counts.closed} Closed
+                        </button>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                        <FilterDropdown 
+                            label="Author" 
+                            items={authors} 
+                            value={currentFilters.author}
+                            onChange={(val) => {
+                                // Remove existing author filter and add new one
+                                let newQuery = searchQuery.replace(/author:("[^"]+"|[^\s]+)/gi, '').trim();
+                                const escapedVal = val.includes(' ') ? `"${val}"` : val;
+                                newQuery += ` author:${escapedVal}`;
+                                setSearchQuery(newQuery.trim() + ' ');
+                            }} 
+                        />
+                        <FilterDropdown 
+                            label="Assignee" 
+                            items={['Unassigned', ...assignees]} 
+                            value={currentFilters.assignee === 'none' ? 'Unassigned' : currentFilters.assignee}
+                            onChange={(val) => {
+                                let newQuery = searchQuery.replace(/assignee:("[^"]+"|[^\s]+)/gi, '').trim();
+                                if (val === 'Unassigned') {
+                                    newQuery += ' assignee:none';
+                                } else {
+                                    const escapedVal = val.includes(' ') ? `"${val}"` : val;
+                                    newQuery += ` assignee:${escapedVal}`;
+                                }
+                                setSearchQuery(newQuery.trim() + ' ');
+                            }} 
+                        />
+                        <FilterDropdown 
+                            label="Sort" 
+                            items={['Newest', 'Oldest', 'Most Commented', 'Least Commented']} 
+                            value={sortBy}
+                            onChange={setSortBy} 
+                        />
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800">
                     {filteredIssues.length === 0 ? (
                         <div className="p-12 text-center text-slate-500">
