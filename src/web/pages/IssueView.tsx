@@ -313,14 +313,16 @@ export const IssueView = () => {
                                         <Link to={`/user/${comment.author}`} className="font-bold text-sm text-slate-900 dark:text-slate-100 no-underline hover:underline">
                                             {comment.author}
                                         </Link>
-                                        {comment.hasHistory && (
-                                            <HistoryView issueId={issue.id} commentId={comment.id} />
-                                        )}
                                         {comment.isDirty && (
                                             <CircleDot className="w-2.5 h-2.5 text-yellow-500 fill-yellow-500" title="Uncommitted changes" />
                                         )}
                                     </div>
-                                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{new Date(comment.date).toLocaleString()}</span>
+                                    <div className="flex items-center gap-2">
+                                        {comment.hasHistory && (
+                                            <HistoryView issueId={issue.id} commentId={comment.id} />
+                                        )}
+                                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{new Date(comment.date).toLocaleString()}</span>
+                                    </div>
                                 </div>
                                 <Markdown content={comment.body} issueId={issue.id} />
                             </div>
