@@ -1,4 +1,4 @@
-import { getAllIssues, saveIssue, saveComment } from '../src/utils/issues.js';
+import { getAllIssues, saveIssue, saveComment, getCommentsForIssue } from '../src/utils/issues.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { generateUniqueId } from '../src/utils/id.js';
@@ -37,13 +37,12 @@ async function runTests() {
         const savedIssue = issues.find((i: any) => i.id === issueId);
         assert(savedIssue !== undefined, 'Issue should be found');
         
-        // This is the bug: comments_count is likely undefined or 0
-        console.log('Comments count (initial):', savedIssue.comments_count);
-        // We expect this to fail initially if the bug exists and we assert it to be 0 (if undefined) or simply verify it's missing
+        assert(savedIssue.comments_count === 0, 'Initial comments count should be 0');
         
         // Add a comment
+        const commentId = generateUniqueId();
         const commentData = {
-            id: generateUniqueId(),
+            id: commentId,
             author: 'Commenter',
             body: 'This is a comment',
             created: new Date().toISOString()
@@ -55,9 +54,31 @@ async function runTests() {
         issues = await getAllIssues(testDir);
         const updatedIssue = issues.find((i: any) => i.id === issueId);
         
-        console.log('Comments count (after comment):', updatedIssue.comments_count);
-        
         assert(updatedIssue.comments_count === 1, `Expected comments_count to be 1, but got ${updatedIssue.comments_count}`);
+
+        // Test dynamic nesting when threshold exceeded
+        const commentsBaseDir = path.join(issuePath, 'comments');
+        // Pre-fill threshold
+        if (!fs.existsSync(commentsBaseDir)) fs.mkdirSync(commentsBaseDir, { recursive: true });
+        for (let i = 0; i < 128; i++) {
+            fs.mkdirSync(path.join(commentsBaseDir, `fill-${i}`));
+        }
+
+        const nestedCommentData = {
+            id: 'nested-123',
+            author: 'Nester',
+            body: 'Nested comment',
+            created: '2026-02-02T12:00:00Z'
+        };
+        await saveComment(issuePath, nestedCommentData, true);
+        
+        const expectedNestedPath = path.join(commentsBaseDir, '2026', `nested-comment-nested-123.yaml`);
+        assert(fs.existsSync(expectedNestedPath), `Nested comment should be found in date-based directory: ${expectedNestedPath}`);
+
+        // Test recursive loading
+        const allComments = getCommentsForIssue(issuePath);
+        assert(allComments.length === 2, `Should find 2 actual comments, but got ${allComments.length}`);
+        assert(allComments.some((c: any) => c.id === 'nested-123'), 'Should find the nested comment');
 
         // Test Date Normalization
         console.log('Testing date normalization...');
@@ -70,9 +91,8 @@ async function runTests() {
         // Save without 'date' field
         await saveComment(issuePath, legacyCommentData, true);
         
-        const { getCommentsForIssue } = await import('../src/utils/issues.js');
-        const comments = getCommentsForIssue(issuePath);
-        const legacyComment = comments.find((c: any) => c.id === legacyCommentData.id);
+        const commentsAfterLegacy = getCommentsForIssue(issuePath);
+        const legacyComment = commentsAfterLegacy.find((c: any) => c.id === legacyCommentData.id);
         
         assert(legacyComment !== undefined, 'Legacy comment should be found');
         assert(legacyComment.date !== undefined, 'Legacy comment should have normalized date field');
@@ -93,4 +113,7 @@ async function runTests() {
     }
 }
 
-runTests();
+runTests().catch(err => {
+    console.error('Unhandled error in runTests:', err);
+    process.exit(1);
+});

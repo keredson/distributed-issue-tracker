@@ -325,14 +325,29 @@ export default defineConfig({
             const issuePath = path.join(issuesDir, actualDir);
 
             if (commentId) {
-                const files = fs.readdirSync(issuePath);
-                const commentFile = files.find(f => f.startsWith('comment-') && f.endsWith(`-${commentId}.yaml`));
-                if (!commentFile) {
+                // Search recursively for the comment file
+                const findCommentFile = (dir: string): string | null => {
+                    const items = fs.readdirSync(dir);
+                    for (const item of items) {
+                        const fullPath = path.join(dir, item);
+                        if (fs.statSync(fullPath).isDirectory()) {
+                            const found = findCommentFile(fullPath);
+                            if (found) return found;
+                        } else if (item.endsWith(`-${commentId}.yaml`)) {
+                            // Match if it ends with -ID.yaml (works with or without comment- prefix)
+                            return fullPath;
+                        }
+                    }
+                    return null;
+                };
+
+                const foundPath = findCommentFile(issuePath);
+                if (!foundPath) {
                     res.statusCode = 404;
                     res.end(JSON.stringify({ error: 'Comment not found' }));
                     return;
                 }
-                filePath = path.join(issuePath, commentFile);
+                filePath = foundPath;
             } else {
                 filePath = path.join(issuePath, 'issue.yaml');
             }
@@ -369,14 +384,29 @@ export default defineConfig({
             const issuePath = path.join(issuesDir, actualDir);
 
             if (commentId) {
-                const files = fs.readdirSync(issuePath);
-                const commentFile = files.find(f => f.startsWith('comment-') && f.endsWith(`-${commentId}.yaml`));
-                if (!commentFile) {
+                // Search recursively for the comment file
+                const findCommentFile = (dir: string): string | null => {
+                    const items = fs.readdirSync(dir);
+                    for (const item of items) {
+                        const fullPath = path.join(dir, item);
+                        if (fs.statSync(fullPath).isDirectory()) {
+                            const found = findCommentFile(fullPath);
+                            if (found) return found;
+                        } else if (item.endsWith(`-${commentId}.yaml`)) {
+                            // Match if it ends with -ID.yaml (works with or without comment- prefix)
+                            return fullPath;
+                        }
+                    }
+                    return null;
+                };
+
+                const foundPath = findCommentFile(issuePath);
+                if (!foundPath) {
                     res.statusCode = 404;
                     res.end(JSON.stringify({ error: 'Comment not found' }));
                     return;
                 }
-                filePath = path.join(issuePath, commentFile);
+                filePath = foundPath;
             } else {
                 filePath = path.join(issuePath, 'issue.yaml');
             }
@@ -414,14 +444,29 @@ export default defineConfig({
             const issuePath = path.join(issuesDir, actualDir);
 
             if (commentId) {
-                const files = fs.readdirSync(issuePath);
-                const commentFile = files.find(f => f.startsWith('comment-') && f.endsWith(`-${commentId}.yaml`));
-                if (!commentFile) {
+                // Search recursively for the comment file
+                const findCommentFile = (dir: string): string | null => {
+                    const items = fs.readdirSync(dir);
+                    for (const item of items) {
+                        const fullPath = path.join(dir, item);
+                        if (fs.statSync(fullPath).isDirectory()) {
+                            const found = findCommentFile(fullPath);
+                            if (found) return found;
+                        } else if (item.endsWith(`-${commentId}.yaml`)) {
+                            // Match if it ends with -ID.yaml (works with or without comment- prefix)
+                            return fullPath;
+                        }
+                    }
+                    return null;
+                };
+
+                const foundPath = findCommentFile(issuePath);
+                if (!foundPath) {
                     res.statusCode = 404;
                     res.end(JSON.stringify({ error: 'Comment not found' }));
                     return;
                 }
-                filePath = path.join(issuePath, commentFile);
+                filePath = foundPath;
             } else {
                 filePath = path.join(issuePath, 'issue.yaml');
             }

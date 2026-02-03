@@ -6,22 +6,21 @@ import { generateSlug } from './slug.js';
 
 const THRESHOLD = 128;
 
-export function getIssueTargetDir(issuesDir: string, createdDate: string): string {
-    const date = new Date(createdDate);
+export function getTargetDir(baseDir: string, dateStr: string): string {
+    const date = new Date(dateStr);
     
-    // Level 1: .dit/issues/
-    if (!fs.existsSync(issuesDir)) {
-        return issuesDir;
+    if (!fs.existsSync(baseDir)) {
+        return baseDir;
     }
     
-    const items = fs.readdirSync(issuesDir);
+    const items = fs.readdirSync(baseDir);
     if (items.length < THRESHOLD) {
-        return issuesDir;
+        return baseDir;
     }
     
-    // Level 2: .dit/issues/yyyy/
+    // Level 2: baseDir/yyyy/
     const year = date.getUTCFullYear().toString();
-    const yearDir = path.join(issuesDir, year);
+    const yearDir = path.join(baseDir, year);
     if (!fs.existsSync(yearDir)) {
         return yearDir;
     }
@@ -31,7 +30,7 @@ export function getIssueTargetDir(issuesDir: string, createdDate: string): strin
         return yearDir;
     }
     
-    // Level 3: .dit/issues/yyyy/mm/
+    // Level 3: baseDir/yyyy/mm/
     const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
     const monthDir = path.join(yearDir, month);
     if (!fs.existsSync(monthDir)) {
@@ -43,9 +42,13 @@ export function getIssueTargetDir(issuesDir: string, createdDate: string): strin
         return monthDir;
     }
     
-    // Level 4: .dit/issues/yyyy/mm/dd/
+    // Level 4: baseDir/yyyy/mm/dd/
     const day = date.getUTCDate().toString().padStart(2, '0');
     return path.join(monthDir, day);
+}
+
+export function getIssueTargetDir(issuesDir: string, createdDate: string): string {
+    return getTargetDir(issuesDir, createdDate);
 }
 
 export function findIssueDirById(issuesDir: string, id: string): string | null {
@@ -150,10 +153,31 @@ export function findIssueByExternalId(externalId: string, issuesDir: string = pa
 export function findCommentByExternalId(issuePath: string, externalId: string): string | null {
     if (!fs.existsSync(issuePath)) return null;
 
-    const files = fs.readdirSync(issuePath);
-    for (const file of files) {
-        if (file.startsWith('comment-') && file.endsWith('.yaml')) {
-            const commentPath = path.join(issuePath, file);
+    const commentsDir = path.join(issuePath, 'comments');
+    if (!fs.existsSync(commentsDir)) {
+        // Fallback for old structure where comments were at the root of the issue dir
+        const files = fs.readdirSync(issuePath);
+        for (const file of files) {
+            if (file.startsWith('comment-') && file.endsWith('.yaml')) {
+                const commentPath = path.join(issuePath, file);
+                try {
+                    const content = yaml.load(fs.readFileSync(commentPath, 'utf8')) as any;
+                    if (content && content.external_id === externalId) {
+                        return commentPath;
+                    }
+                } catch (e) {
+                    // Ignore
+                }
+            }
+        }
+        return null;
+    }
+
+    const items = fs.readdirSync(commentsDir, { recursive: true });
+    for (const item of items) {
+        const itemStr = item.toString();
+        if (itemStr.endsWith('.yaml')) {
+            const commentPath = path.join(commentsDir, itemStr);
             try {
                 const content = yaml.load(fs.readFileSync(commentPath, 'utf8')) as any;
                 if (content && content.external_id === externalId) {
@@ -172,8 +196,17 @@ export async function saveComment(issuePath: string, commentData: any, skipAdd: 
     const firstLine = (commentData.body || '').split('\n')[0] || '';
     const slug = generateSlug(firstLine.substring(0, 20), 20);
     
-    const commentFileName = `comment-${slug}-${commentId}.yaml`;
-    const commentPath = path.join(issuePath, commentFileName);
+    const commentFileName = `${slug}-${commentId}.yaml`;
+    const commentsBaseDir = path.join(issuePath, 'comments');
+    
+    const dateStr = commentData.date || commentData.created || new Date().toISOString();
+    const targetDir = getTargetDir(commentsBaseDir, dateStr);
+
+    if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, {recursive: true});
+    }
+    
+    const commentPath = path.join(targetDir, commentFileName);
 
     fs.writeFileSync(commentPath, yaml.dump({
         ...commentData,
@@ -222,12 +255,27 @@ export function getCommentCountForIssue(issuePath: string): number {
     if (!fs.existsSync(issuePath)) return 0;
     
     let count = 0;
-    const files = fs.readdirSync(issuePath);
-    for (const file of files) {
+    
+    // Check old structure
+    const rootFiles = fs.readdirSync(issuePath);
+    for (const file of rootFiles) {
         if (file.startsWith('comment-') && file.endsWith('.yaml')) {
             count++;
         }
     }
+
+    // Check new structure
+    const commentsDir = path.join(issuePath, 'comments');
+    if (fs.existsSync(commentsDir)) {
+        const items = fs.readdirSync(commentsDir, { recursive: true });
+        for (const item of items) {
+            const itemStr = item.toString();
+            if (itemStr.endsWith('.yaml')) {
+                count++;
+            }
+        }
+    }
+    
     return count;
 }
 
@@ -300,35 +348,61 @@ export function getCommentsForIssue(issuePath: string, dirtyPaths?: Set<string>,
     if (!fs.existsSync(issuePath)) return [];
 
     const comments: any[] = [];
-    const files = fs.readdirSync(issuePath);
-
-    for (const file of files) {
+    
+    // Find all .yaml files starting with 'comment-' recursively
+    const allFiles: {path: string, relative: string}[] = [];
+    
+    // Root level comments (old structure)
+    const rootFiles = fs.readdirSync(issuePath);
+    for (const file of rootFiles) {
         if (file.startsWith('comment-') && file.endsWith('.yaml')) {
-            try {
-                const commentFilePath = path.join(issuePath, file);
-                const absoluteCommentPath = path.resolve(commentFilePath);
-                const content = yaml.load(fs.readFileSync(commentFilePath, 'utf8')) as any;
-                // Normalize date/created
-                content.date = content.date || content.created;
+            allFiles.push({
+                path: path.join(issuePath, file),
+                relative: file
+            });
+        }
+    }
 
-                let isDirty = false;
-                if (dirtyPaths) {
-                    if (dirtyPaths.has(absoluteCommentPath)) {
-                        isDirty = true;
-                    }
-                }
-
-                let hasHistory = false;
-                if (historyPaths) {
-                    if (historyPaths.has(absoluteCommentPath)) {
-                        hasHistory = true;
-                    }
-                }
-
-                comments.push({ ...content, isDirty, hasHistory, file });
-            } catch (e) {
-                // Ignore
+    // Nested comments (new structure)
+    const commentsDir = path.join(issuePath, 'comments');
+    if (fs.existsSync(commentsDir)) {
+        const nestedItems = fs.readdirSync(commentsDir, { recursive: true });
+        for (const item of nestedItems) {
+            const itemStr = item.toString();
+            if (itemStr.endsWith('.yaml')) {
+                allFiles.push({
+                    path: path.join(commentsDir, itemStr),
+                    relative: path.join('comments', itemStr)
+                });
             }
+        }
+    }
+
+    for (const fileInfo of allFiles) {
+        try {
+            const commentFilePath = fileInfo.path;
+            const absoluteCommentPath = path.resolve(commentFilePath);
+            const content = yaml.load(fs.readFileSync(commentFilePath, 'utf8')) as any;
+            // Normalize date/created
+            content.date = content.date || content.created;
+
+            let isDirty = false;
+            if (dirtyPaths) {
+                if (dirtyPaths.has(absoluteCommentPath)) {
+                    isDirty = true;
+                }
+            }
+
+            let hasHistory = false;
+            if (historyPaths) {
+                if (historyPaths.has(absoluteCommentPath)) {
+                    hasHistory = true;
+                }
+            }
+
+            comments.push({ ...content, isDirty, hasHistory, file: fileInfo.relative });
+        } catch (e) {
+            // Ignore
         }
     }
     return comments.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());

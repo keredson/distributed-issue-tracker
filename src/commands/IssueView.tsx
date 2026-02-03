@@ -70,24 +70,42 @@ export default function IssueView({id, onBack}: Props) {
             setContent(data.body || '');
 
             // Load comments
-            const files = fs.readdirSync(fullPath);
-            const commentFiles = files.filter(f => f.startsWith('comment-') && f.endsWith('.yaml'));
+            const getAllFilesRecursive = (dir: string): string[] => {
+                let results: string[] = [];
+                const list = fs.readdirSync(dir);
+                list.forEach(file => {
+                    const fullPath = path.join(dir, file);
+                    const stat = fs.statSync(fullPath);
+                    if (stat && stat.isDirectory()) {
+                        results = results.concat(getAllFilesRecursive(fullPath));
+                    } else {
+                        results.push(fullPath);
+                    }
+                });
+                return results;
+            };
+
+            const allFiles = getAllFilesRecursive(fullPath);
+            const commentFiles = allFiles.filter(f => {
+                const base = path.basename(f);
+                return f.endsWith('.yaml') && (base.startsWith('comment-') || f.includes(`${path.sep}comments${path.sep}`));
+            });
             
             // Get dirty status for all files in the issue directory at once
             const {stdout: gitStatus} = await execa('git', ['status', '--porcelain', fullPath]);
             const dirtyFiles = new Set(
                 gitStatus.split('\n')
                     .map(line => line.slice(3).trim())
-                    .map(p => path.basename(p))
+                    .map(p => path.resolve(p))
             );
 
             const loadedComments = commentFiles.map(f => {
-                const commentContent = fs.readFileSync(path.join(fullPath, f), 'utf8');
+                const commentContent = fs.readFileSync(f, 'utf8');
                 const commentData = yaml.load(commentContent) as any;
                 return {
                     ...commentData,
                     date: commentData.date || commentData.created,
-                    isDirty: dirtyFiles.has(f)
+                    isDirty: dirtyFiles.has(path.resolve(f))
                 };
             });
             // Sort comments by date
