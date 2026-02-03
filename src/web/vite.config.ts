@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
-import { getAllIssues, getIssueById, saveComment, saveIssue, findIssueDirById, getAllIssueDirs } from '../utils/issues.js';
+import { getAllIssues, getIssueById, saveComment, saveIssue, findIssueDirById, getAllIssueDirs, getFileHistory, getFileContentAtCommit, getDiff } from '../utils/issues.js';
 import { getLocalUsers, getCurrentLocalUser, saveProfilePicData, deleteProfilePic } from '../utils/user.js';
 import { generateUniqueId } from '../utils/id.js';
 import { execSync } from 'child_process';
@@ -288,6 +288,139 @@ export default defineConfig({
                 res.statusCode = 500;
                 res.end(JSON.stringify({ error: 'Failed to save comment' }));
             }
+            return;
+          }
+
+          // GET /api/issues/:id/history
+          const historyMatch = req.url.match(/^\/api\/issues\/([^\/]+)\/history(\?.*)?$/);
+          if (req.method === 'GET' && historyMatch) {
+            const [, id] = historyMatch;
+            const url = new URL(req.url, 'http://localhost');
+            const commentId = url.searchParams.get('commentId');
+            
+            const issueDirName = findIssueDirById(issuesDir, id);
+            if (!issueDirName) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: 'Issue not found' }));
+                return;
+            }
+
+            const allDirs = getAllIssueDirs(issuesDir);
+            const actualDir = allDirs.find(d => d.endsWith(`-${id}`));
+            if (!actualDir) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: 'Issue directory not found' }));
+                return;
+            }
+
+            let filePath: string;
+            const issuePath = path.join(issuesDir, actualDir);
+
+            if (commentId) {
+                const files = fs.readdirSync(issuePath);
+                const commentFile = files.find(f => f.startsWith('comment-') && f.endsWith(`-${commentId}.yaml`));
+                if (!commentFile) {
+                    res.statusCode = 404;
+                    res.end(JSON.stringify({ error: 'Comment not found' }));
+                    return;
+                }
+                filePath = path.join(issuePath, commentFile);
+            } else {
+                filePath = path.join(issuePath, 'issue.yaml');
+            }
+
+            const history = await getFileHistory(filePath);
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(history));
+            return;
+          }
+
+          // GET /api/issues/:id/history/content
+          const historyContentMatch = req.url.match(/^\/api\/issues\/([^\/]+)\/history\/content(\?.*)?$/);
+          if (req.method === 'GET' && historyContentMatch) {
+            const [, id] = historyContentMatch;
+            const url = new URL(req.url, 'http://localhost');
+            const commentId = url.searchParams.get('commentId');
+            const commit = url.searchParams.get('commit');
+
+            if (!commit) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'Commit hash is required' }));
+                return;
+            }
+
+            const allDirs = getAllIssueDirs(issuesDir);
+            const actualDir = allDirs.find(d => d.endsWith(`-${id}`));
+            if (!actualDir) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: 'Issue not found' }));
+                return;
+            }
+
+            let filePath: string;
+            const issuePath = path.join(issuesDir, actualDir);
+
+            if (commentId) {
+                const files = fs.readdirSync(issuePath);
+                const commentFile = files.find(f => f.startsWith('comment-') && f.endsWith(`-${commentId}.yaml`));
+                if (!commentFile) {
+                    res.statusCode = 404;
+                    res.end(JSON.stringify({ error: 'Comment not found' }));
+                    return;
+                }
+                filePath = path.join(issuePath, commentFile);
+            } else {
+                filePath = path.join(issuePath, 'issue.yaml');
+            }
+
+            const content = await getFileContentAtCommit(filePath, commit);
+            res.setHeader('Content-Type', 'text/plain');
+            res.end(content);
+            return;
+          }
+
+          // GET /api/issues/:id/history/diff
+          const historyDiffMatch = req.url.match(/^\/api\/issues\/([^\/]+)\/history\/diff(\?.*)?$/);
+          if (req.method === 'GET' && historyDiffMatch) {
+            const [, id] = historyDiffMatch;
+            const url = new URL(req.url, 'http://localhost');
+            const commentId = url.searchParams.get('commentId');
+            const commit1 = url.searchParams.get('commit1');
+            const commit2 = url.searchParams.get('commit2') || 'current';
+
+            if (!commit1) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'commit1 is required' }));
+                return;
+            }
+
+            const allDirs = getAllIssueDirs(issuesDir);
+            const actualDir = allDirs.find(d => d.endsWith(`-${id}`));
+            if (!actualDir) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: 'Issue not found' }));
+                return;
+            }
+
+            let filePath: string;
+            const issuePath = path.join(issuesDir, actualDir);
+
+            if (commentId) {
+                const files = fs.readdirSync(issuePath);
+                const commentFile = files.find(f => f.startsWith('comment-') && f.endsWith(`-${commentId}.yaml`));
+                if (!commentFile) {
+                    res.statusCode = 404;
+                    res.end(JSON.stringify({ error: 'Comment not found' }));
+                    return;
+                }
+                filePath = path.join(issuePath, commentFile);
+            } else {
+                filePath = path.join(issuePath, 'issue.yaml');
+            }
+
+            const diff = await getDiff(filePath, commit1, commit2);
+            res.setHeader('Content-Type', 'text/plain');
+            res.end(diff);
             return;
           }
 

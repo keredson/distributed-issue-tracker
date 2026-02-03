@@ -4,6 +4,7 @@ import { ArrowLeft, Edit2, CircleDot, MessageSquare } from 'lucide-react';
 import { Card, Badge, Avatar } from '../components/Common.js';
 import { Markdown, MarkdownEditor } from '../components/Markdown.js';
 import { UserSelect, User } from '../components/UserSelect.js';
+import { HistoryView } from '../components/HistoryView.js';
 
 export const IssueView = () => {
     const { year, month, slug } = useParams();
@@ -257,6 +258,9 @@ export const IssueView = () => {
                         <div className="flex items-center gap-3 mb-4">
                             <Badge variant={issue.status}>{issue.status}</Badge>
                             <span className="text-xs font-mono text-slate-400 dark:text-slate-500">#{issue.id}</span>
+                            {issue.hasHistory && (
+                                <HistoryView issueId={issue.id} />
+                            )}
                             {issue.isDirty && (
                                 <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-500 text-[10px] font-bold border border-yellow-100 dark:border-yellow-900/30">
                                     <CircleDot className="w-2.5 h-2.5 fill-yellow-400 dark:fill-yellow-500" />
@@ -309,6 +313,9 @@ export const IssueView = () => {
                                         <Link to={`/user/${comment.author}`} className="font-bold text-sm text-slate-900 dark:text-slate-100 no-underline hover:underline">
                                             {comment.author}
                                         </Link>
+                                        {comment.hasHistory && (
+                                            <HistoryView issueId={issue.id} commentId={comment.id} />
+                                        )}
                                         {comment.isDirty && (
                                             <CircleDot className="w-2.5 h-2.5 text-yellow-500 fill-yellow-500" title="Uncommitted changes" />
                                         )}

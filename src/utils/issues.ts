@@ -174,6 +174,41 @@ export async function getDirtyPaths(issuesDir: string): Promise<Set<string>> {
     }
 }
 
+export function getCommentCountForIssue(issuePath: string): number {
+    if (!fs.existsSync(issuePath)) return 0;
+    
+    let count = 0;
+    const files = fs.readdirSync(issuePath);
+    for (const file of files) {
+        if (file.startsWith('comment-') && file.endsWith('.yaml')) {
+            count++;
+        }
+    }
+    return count;
+}
+
+export async function getFilesWithHistory(issueDir: string): Promise<Set<string>> {
+    try {
+        const {stdout: repoRootRaw} = await execa('git', ['rev-parse', '--show-toplevel']);
+        const repoRoot = repoRootRaw.trim();
+        const {stdout} = await execa('git', [
+            'log', '--format=', '--name-only', '--diff-filter=M', '--', issueDir
+        ], { cwd: repoRoot });
+        
+        const files = new Set<string>();
+        stdout.split('\n').forEach(line => {
+            const trimmed = line.trim();
+            if (trimmed) {
+                // git log --name-only returns paths relative to repo root
+                files.add(path.resolve(repoRoot, trimmed));
+            }
+        });
+        return files;
+    } catch (e) {
+        return new Set();
+    }
+}
+
 export async function getIssueById(issuesDir: string, id: string): Promise<any | null> {
     const dir = findIssueDirById(issuesDir, id);
     if (!dir) return null;
@@ -188,8 +223,11 @@ export async function getIssueById(issuesDir: string, id: string): Promise<any |
 
     try {
         const dirtyPaths = await getDirtyPaths(issuesDir);
+        const absoluteIssueDir = path.resolve(issuesDir, actualDir);
+        const historyPaths = await getFilesWithHistory(absoluteIssueDir);
+
         const content = yaml.load(fs.readFileSync(issuePath, 'utf8')) as any;
-        const comments = getCommentsForIssue(path.join(issuesDir, actualDir), dirtyPaths);
+        const comments = getCommentsForIssue(path.join(issuesDir, actualDir), dirtyPaths, historyPaths);
         
         let author = content.author;
         if (!author) {
@@ -204,7 +242,6 @@ export async function getIssueById(issuesDir: string, id: string): Promise<any |
         }
 
         let isDirty = false;
-        const absoluteIssueDir = path.resolve(issuesDir, actualDir);
         for (const dirtyPath of dirtyPaths) {
             if (dirtyPath.startsWith(absoluteIssueDir)) {
                 isDirty = true;
@@ -212,18 +249,19 @@ export async function getIssueById(issuesDir: string, id: string): Promise<any |
             }
         }
 
-        return { ...content, comments, dir: actualDir, author, isDirty };
+        const hasHistory = historyPaths.has(path.resolve(issuePath));
+
+        return { ...content, comments, dir: actualDir, author, isDirty, hasHistory };
     } catch (e) {
         return null;
     }
 }
 
-export function getCommentsForIssue(issuePath: string, dirtyPaths?: Set<string>): any[] {
+export function getCommentsForIssue(issuePath: string, dirtyPaths?: Set<string>, historyPaths?: Set<string>): any[] {
     if (!fs.existsSync(issuePath)) return [];
 
     const comments: any[] = [];
     const files = fs.readdirSync(issuePath);
-    const absoluteIssuePath = path.resolve(issuePath);
 
     for (const file of files) {
         if (file.startsWith('comment-') && file.endsWith('.yaml')) {
@@ -241,7 +279,14 @@ export function getCommentsForIssue(issuePath: string, dirtyPaths?: Set<string>)
                     }
                 }
 
-                comments.push({ ...content, isDirty });
+                let hasHistory = false;
+                if (historyPaths) {
+                    if (historyPaths.has(absoluteCommentPath)) {
+                        hasHistory = true;
+                    }
+                }
+
+                comments.push({ ...content, isDirty, hasHistory, file });
             } catch (e) {
                 // Ignore
             }
@@ -250,17 +295,53 @@ export function getCommentsForIssue(issuePath: string, dirtyPaths?: Set<string>)
     return comments.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
-export function getCommentCountForIssue(issuePath: string): number {
-    if (!fs.existsSync(issuePath)) return 0;
-    
-    let count = 0;
-    const files = fs.readdirSync(issuePath);
-    for (const file of files) {
-        if (file.startsWith('comment-') && file.endsWith('.yaml')) {
-            count++;
-        }
+export async function getFileHistory(filePath: string): Promise<any[]> {
+    try {
+        const {stdout} = await execa('git', [
+            'log', '--pretty=format:%H|%an|%ad|%s', '--date=iso', '--', filePath
+        ]);
+        
+        if (!stdout.trim()) return [];
+
+        return stdout.split('\n').map(line => {
+            const [hash, author, date, message] = line.split('|');
+            return { hash, author, date, message };
+        });
+    } catch (e) {
+        return [];
     }
-    return count;
+}
+
+export async function getFileContentAtCommit(filePath: string, commitHash: string): Promise<string> {
+    try {
+        // We need the path relative to the repo root for git show
+        const {stdout: repoRoot} = await execa('git', ['rev-parse', '--show-toplevel']);
+        const relativePath = path.relative(repoRoot.trim(), filePath);
+        
+        const {stdout} = await execa('git', ['show', `${commitHash}:${relativePath}`]);
+        return stdout;
+    } catch (e) {
+        return "";
+    }
+}
+
+export async function getDiff(filePath: string, commit1: string, commit2: string): Promise<string> {
+    try {
+        const {stdout: repoRoot} = await execa('git', ['rev-parse', '--show-toplevel']);
+        const relativePath = path.relative(repoRoot.trim(), filePath);
+        
+        // If commit2 is "current", diff against working tree
+        const args = ['diff', commit1];
+        if (commit2 !== 'current') {
+            args.push(commit2);
+        }
+        args.push('--', relativePath);
+        
+        const {stdout} = await execa('git', args);
+        return stdout;
+    } catch (e) {
+        return "";
+    }
 }
 
 export async function getAllIssues(issuesDir: string): Promise<any[]> {
