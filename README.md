@@ -23,24 +23,20 @@ Traditional issue trackers often suffer from two major deficiencies:
 ### Prerequisites
 
 -   **Node.js** (v18 or later recommended)
--   **Yarn** (v3.x or later recommended)
 -   **Git**
 
 ### Setup
 
-Since `dit` is currently in development, you can set it up by cloning the repository:
+You can install `dit` globally using npm:
 
 ```bash
-git clone https://github.com/your-username/distributed-issue-tracker.git
-cd distributed-issue-tracker
-yarn install
-yarn build
+npm install -g @kered/dit
 ```
 
-To use the `dit` command globally, you can link it:
+Or using yarn:
 
 ```bash
-npm link
+yarn global add @kered/dit
 ```
 
 ## Quick Start

@@ -1,5 +1,5 @@
 {
-  "name": "dit",
+  "name": "@kered/dit",
   "version": "0.1.0",
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -10,7 +10,8 @@
     "build": "tsc",
     "postbuild": "chmod +x dist/src/cli.js",
     "start": "yarn build && node ./dist/src/cli.js",
-    "test": "yarn build && node tests/run-all.js"
+    "test": "yarn build && node tests/run-all.js",
+    "publish": "yarn build && yarn npm publish --access public"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",
@@ -25,7 +26,7 @@
     "ink": "^6.6.0",
     "ink-text-input": "^6.0.0",
     "js-yaml": "^4.1.1",
-    "marked": "^17.0.1",
+    "marked": "^15.0.12",
     "marked-terminal": "^7.3.0",
     "meow": "^14.0.0",
     "nanoid": "^5.1.6",
