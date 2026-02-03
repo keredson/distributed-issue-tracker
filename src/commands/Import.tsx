@@ -167,7 +167,8 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
                             author: issue.user?.login || 'unknown',
                             assignee: assignee || '',
                             body: issue.body || '',
-                            github_url: issue.html_url
+                            github_url: issue.html_url,
+                            tags: issue.labels.map((l: any) => typeof l === 'string' ? l : l.name)
                         };
                         
                         // Also ensure the author exists

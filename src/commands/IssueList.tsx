@@ -15,6 +15,7 @@ type Issue = {
     assignee: string;
     author: string;
     created: string;
+    tags: string[];
     isDirty?: boolean;
     slug: string;
 };
@@ -78,6 +79,7 @@ export default function IssueList({flags}: {flags: any}) {
                         assignee: meta.assignee || 'Unassigned',
                         author: author,
                         created: meta.created,
+                        tags: meta.tags || [],
                         isDirty: isDirty,
                         slug: dir
                     });
@@ -113,26 +115,28 @@ export default function IssueList({flags}: {flags: any}) {
         <Box flexDirection="column" paddingY={1}>
             <Box marginBottom={1}>
                 <Box width={10}><Text bold underline>ID</Text></Box>
-                <Box width={35}><Text bold underline>Title</Text></Box>
+                <Box width={30}><Text bold underline>Title</Text></Box>
                 <Box width={12}><Text bold underline>Status</Text></Box>
                 <Box width={12}><Text bold underline>Severity</Text></Box>
-                <Box width={20}><Text bold underline>Assignee</Text></Box>
+                <Box width={15}><Text bold underline>Assignee</Text></Box>
+                <Box width={15}><Text bold underline>Tags</Text></Box>
                 <Box width={12}><Text bold underline>Created</Text></Box>
                 <Box width={3}><Text bold> </Text></Box>
             </Box>
             {issues.map((issue) => (
                 <Box key={issue.id}>
                     <Box width={10}><Text color="dim">{issue.id}</Text></Box>
-                    <Box width={35}><Text wrap="truncate-end">{issue.title}</Text></Box>
-                                            <Box width={12}>
-                                                <Text color={
-                                                    issue.status === 'open' ? 'green' : 
-                                                    issue.status === 'assigned' ? 'blue' :
-                                                    issue.status === 'in-progress' ? 'yellow' : 'gray'
-                                                }>
-                                                    {issue.status}
-                                                </Text>
-                                            </Box>                    <Box width={12}>
+                    <Box width={30}><Text wrap="truncate-end">{issue.title}</Text></Box>
+                    <Box width={12}>
+                        <Text color={
+                            issue.status === 'open' ? 'green' : 
+                            issue.status === 'assigned' ? 'blue' :
+                            issue.status === 'in-progress' ? 'yellow' : 'gray'
+                        }>
+                            {issue.status}
+                        </Text>
+                    </Box>
+                    <Box width={12}>
                         <Text color={
                             issue.severity === 'critical' ? 'red' : 
                             issue.severity === 'high' ? 'red' : 
@@ -141,7 +145,8 @@ export default function IssueList({flags}: {flags: any}) {
                             {issue.severity}
                         </Text>
                     </Box>
-                    <Box width={20}><Text color="magenta" wrap="truncate-end">{issue.assignee}</Text></Box>
+                    <Box width={15}><Text color="magenta" wrap="truncate-end">{issue.assignee}</Text></Box>
+                    <Box width={15}><Text color="blue" wrap="truncate-end">{issue.tags.join(', ')}</Text></Box>
                     <Box width={12}><Text color="dim">{new Date(issue.created).toLocaleDateString()}</Text></Box>
                     <Box width={3}>
                         <Text color="yellow" bold>

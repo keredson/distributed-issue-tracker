@@ -367,6 +367,12 @@ export default function IssueView({id, onBack}: Props) {
                     <Text color="dim">Assignee: </Text>
                     <Text color="magenta">{meta.assignee || 'Unassigned'}</Text>
                 </Box>
+                {meta.tags && meta.tags.length > 0 && (
+                    <Box marginRight={2}>
+                        <Text color="dim">Tags: </Text>
+                        <Text color="blue">{(meta.tags as string[]).join(', ')}</Text>
+                    </Box>
+                )}
                 <Box flexGrow={1}>
                     <Text color="dim">Created: </Text>
                     <Text>{new Date(meta.created).toLocaleString()}</Text>

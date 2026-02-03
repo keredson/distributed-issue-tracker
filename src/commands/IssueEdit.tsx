@@ -33,9 +33,10 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
     const [isDirty, setIsDirty] = useState(false);
     
     const [selectedIndex, setSelectedIndex] = useState(0);
-    const [mode, setMode] = useState<'menu' | 'edit-title' | 'edit-assignee' | 'select-status' | 'select-severity' | 'confirm-revert'>('menu');
+    const [mode, setMode] = useState<'menu' | 'edit-title' | 'edit-assignee' | 'edit-tags' | 'select-status' | 'select-severity' | 'confirm-revert'>('menu');
     const [tempTitle, setTempTitle] = useState('');
     const [tempAssignee, setTempAssignee] = useState('');
+    const [tempTags, setTempTags] = useState('');
     const [tempStatusIndex, setTempStatusIndex] = useState(0);
     const [tempSeverityIndex, setTempSeverityIndex] = useState(0);
     const [localUsers, setLocalUsers] = useState<LocalUser[]>([]);
@@ -94,6 +95,7 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
                     setMeta(loadedData);
                     setTempTitle(loadedData.title || '');
                     setTempAssignee(loadedData.assignee || '');
+                    setTempTags((loadedData.tags || []).join(', '));
                     setTempStatusIndex(STATUSES.indexOf(loadedData.status || 'open'));
                     setTempSeverityIndex(SEVERITIES.indexOf(loadedData.severity || 'medium'));
                 } else {
@@ -107,11 +109,13 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
                         severity: 'medium',
                         assignee: '',
                         author: currentUser?.username || '',
-                        body: ''
+                        body: '',
+                        tags: []
                     };
                     setMeta(newMeta);
                     setTempTitle(newMeta.title);
                     setTempAssignee('');
+                    setTempTags('');
                     setTempStatusIndex(0);
                     setTempSeverityIndex(1);
                 }
@@ -198,8 +202,9 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
                     setMode('select-severity');
                 }
                 if (selectedIndex === 3) setMode('edit-assignee');
-                if (selectedIndex === 4) openDescriptionEditor();
-                // 5 is separator
+                if (selectedIndex === 4) setMode('edit-tags');
+                if (selectedIndex === 5) openDescriptionEditor();
+                // 6 is separator
                 if (selectedItem.label === saveLabel) handleSave();
                 if (selectedItem.label === 'Revert Changes') setMode('confirm-revert');
                 if (selectedItem.label === 'Cancel') onBack();
@@ -224,6 +229,11 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
                 if (key.tab || (key.rightArrow && assigneeSuggestions.length > 0)) {
                     setTempAssignee(assigneeSuggestions[selectedSuggestionIndex].username);
                 }
+            }
+        } else if (mode === 'edit-tags') {
+            if (key.escape) {
+                setTempTags((meta.tags || []).join(', '));
+                setMode('menu');
             }
         } else if (mode === 'select-status') {
             if (key.escape) setMode('menu');
@@ -266,6 +276,7 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
         {label: 'Status', value: meta.status || 'open'},
         {label: 'Severity', value: meta.severity || 'medium'},
         {label: 'Assignee', value: meta.assignee || 'Unassigned'},
+        {label: 'Tags', value: (meta.tags || []).join(', ') || '(None)'},
         {label: 'Edit Content', value: '(External Editor)'},
         {label: '', value: '--------------------'},
         {label: saveLabel, value: ''},
@@ -330,6 +341,17 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
                                     </Box>
                                 )}
                             </Box>
+                        ) : index === 4 && mode === 'edit-tags' ? (
+                            <TextInput 
+                                value={tempTags} 
+                                onChange={setTempTags} 
+                                placeholder="Comma separated tags..."
+                                onSubmit={() => {
+                                    const tags = tempTags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                                    setMeta({...meta, tags});
+                                    setMode('menu');
+                                }}
+                            />
                         ) : (
                             <Text color="yellow">{item.value}</Text>
                         )}

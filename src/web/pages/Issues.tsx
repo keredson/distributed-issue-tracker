@@ -129,6 +129,8 @@ export const Issues = () => {
                     })) return false;
                 } else if (key === 'author') {
                     if (!values.some(v => (issue.author || "").toLowerCase() === v)) return false;
+                } else if (key === 'tag' || key === 'label') {
+                    if (!values.every(v => (issue.tags || []).some((t: string) => t.toLowerCase() === v))) return false;
                 }
             }
             return true;
@@ -143,6 +145,15 @@ export const Issues = () => {
     const assignees = useMemo(() => {
         const filtered = getFilteredIssuesExcept('assignee');
         return Array.from(new Set(filtered.map(i => i.assignee).filter(Boolean))).sort();
+    }, [issues, searchQuery]);
+
+    const allLabels = useMemo(() => {
+        const filtered = getFilteredIssuesExcept('tag');
+        const labels = new Set<string>();
+        filtered.forEach(issue => {
+            (issue.tags || []).forEach((tag: string) => labels.add(tag));
+        });
+        return Array.from(labels).sort();
     }, [issues, searchQuery]);
 
     const filteredIssues = useMemo(() => {
@@ -196,6 +207,8 @@ export const Issues = () => {
                     })) return false;
                 } else if (key === 'author') {
                     if (!values.some(v => (issue.author || "").toLowerCase() === v)) return false;
+                } else if (key === 'tag' || key === 'label') {
+                    if (!values.every(v => (issue.tags || []).some((t: string) => t.toLowerCase() === v))) return false;
                 } else if (key === 'id') {
                     if (!values.includes((issue.id || "").toLowerCase())) return false;
                 }
@@ -336,6 +349,19 @@ export const Issues = () => {
                             }} 
                         />
                         <FilterDropdown 
+                            label="Label" 
+                            items={allLabels} 
+                            value={currentFilters.tag || currentFilters.label}
+                            onChange={(val) => {
+                                let newQuery = searchQuery.replace(/(tag|label):("[^"]+"|[^\s]+)/gi, '').trim();
+                                if (val) {
+                                    const escapedVal = val.includes(' ') ? `"${val}"` : val;
+                                    newQuery += ` tag:${escapedVal}`;
+                                }
+                                setSearchQuery(newQuery.trim() + ' ');
+                            }} 
+                        />
+                        <FilterDropdown 
                             label="Sort" 
                             items={['Newest', 'Oldest', 'Most Commented', 'Least Commented']} 
                             value={sortBy}
@@ -371,6 +397,11 @@ export const Issues = () => {
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <h3 className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{issue.title}</h3>
+                                            {issue.tags && issue.tags.map((tag: string) => (
+                                                <span key={tag} className="px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold border border-blue-100 dark:border-blue-900/30">
+                                                    {tag}
+                                                </span>
+                                            ))}
                                             {issue.isDirty && (
                                                 <CircleDot className="w-3 h-3 text-yellow-500 fill-yellow-500" title="Uncommitted changes" />
                                             )}

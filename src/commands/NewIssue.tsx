@@ -87,7 +87,8 @@ export default function NewIssue({skipAdd, onBack}: {skipAdd?: boolean; onBack?:
                     severity: 'medium',
                     assignee: '',
                     author: currentUser?.username || '',
-                    body: templateContent
+                    body: templateContent,
+                    tags: []
                 }, {lineWidth: -1, styles: {'!!str': 'literal'}}));
             }
             setTempPath(tp);

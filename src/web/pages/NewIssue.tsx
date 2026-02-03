@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { Card } from '../components/Common.js';
+import { Card, TagInput } from '../components/Common.js';
 import { MarkdownEditor } from '../components/Markdown.js';
 import { UserSelect } from '../components/UserSelect.js';
 
@@ -11,6 +11,7 @@ export const NewIssue = () => {
     const [body, setBody] = useState("");
     const [severity, setSeverity] = useState("medium");
     const [assignee, setAssignee] = useState("");
+    const [tags, setTags] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
@@ -58,7 +59,14 @@ export const NewIssue = () => {
             const res = await fetch('/api/issues', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, title, body, severity, assignee })
+                body: JSON.stringify({ 
+                    id, 
+                    title, 
+                    body, 
+                    severity, 
+                    assignee,
+                    tags
+                })
             });
             
             if (res.ok) {
@@ -128,6 +136,15 @@ export const NewIssue = () => {
                                 placeholder="Assign to..."
                             />
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Tags</label>
+                        <TagInput 
+                            tags={tags}
+                            onChange={setTags}
+                            placeholder="Add tags (Enter or comma to add)..."
+                        />
                     </div>
 
                     <div>
