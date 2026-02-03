@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Search, X, CircleDot, User, Clock, Check, CheckCircle2, MessageSquare } from 'lucide-react';
-import { Card, Badge, Avatar } from '../components/Common.js';
+import { Card, Badge, Avatar, Pagination } from '../components/Common.js';
 import { FilterDropdown } from '../components/FilterDropdown.js';
 
 export const Issues = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [issues, setIssues] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState("is:open ");
-    const [sortBy, setSortBy] = useState("Newest");
+    
+    const searchQuery = searchParams.get('q') ?? "is:open ";
+    const sortBy = searchParams.get('sort') ?? "Newest";
+    const currentPage = parseInt(searchParams.get('page') ?? "1", 10);
+    const itemsPerPage = 50;
 
     useEffect(() => {
         fetch('/api/issues')
@@ -23,6 +27,30 @@ export const Issues = () => {
                 setLoading(false);
             });
     }, []);
+
+    const updateParams = (updates: Record<string, string | number | null>) => {
+        const newParams = new URLSearchParams(searchParams);
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value === null) {
+                newParams.delete(key);
+            } else {
+                newParams.set(key, value.toString());
+            }
+        });
+        setSearchParams(newParams, { replace: true });
+    };
+
+    const setSearchQuery = (q: string) => {
+        updateParams({ q, page: 1 });
+    };
+
+    const setSortBy = (sort: string) => {
+        updateParams({ sort, page: 1 });
+    };
+
+    const setCurrentPage = (page: number) => {
+        updateParams({ page });
+    };
 
     const currentFilters = useMemo(() => {
         const filters: {[key: string]: string} = {};
@@ -165,6 +193,13 @@ export const Issues = () => {
         return result;
     }, [issues, searchQuery, sortBy]);
 
+    const paginatedIssues = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredIssues.slice(start, start + itemsPerPage);
+    }, [filteredIssues, currentPage]);
+
+    const totalPages = Math.ceil(filteredIssues.length / itemsPerPage);
+
     if (loading) return <div className="flex justify-center p-12"><div className="animate-spin h-8 w-8 border-4 border-slate-900 border-t-transparent rounded-full"></div></div>;
 
     return (
@@ -288,12 +323,12 @@ export const Issues = () => {
                 </div>
 
                 <div className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800 rounded-b-xl overflow-hidden">
-                    {filteredIssues.length === 0 ? (
+                    {paginatedIssues.length === 0 ? (
                         <div className="p-12 text-center text-slate-500 rounded-b-xl">
                             {searchQuery ? "No issues match your search." : "No issues found."}
                         </div>
                     ) : (
-                        filteredIssues.map(issue => (
+                        paginatedIssues.map(issue => (
                             <Link 
                                 key={issue.id} 
                                 to={"/issue/" + issue.dir}
@@ -349,6 +384,12 @@ export const Issues = () => {
                     )}
                 </div>
             </Card>
+
+            <Pagination 
+                currentPage={currentPage} 
+                totalPages={totalPages} 
+                onPageChange={setCurrentPage} 
+            />
         </div>
     );
 };

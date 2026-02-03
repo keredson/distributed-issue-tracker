@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, CircleDot, MessageSquare } from 'lucide-react';
 import { Card, Badge, Avatar } from '../components/Common.js';
 import { Markdown, MarkdownEditor } from '../components/Markdown.js';
@@ -7,6 +7,7 @@ import { UserSelect, User } from '../components/UserSelect.js';
 
 export const IssueView = () => {
     const { year, month, slug } = useParams();
+    const navigate = useNavigate();
     const [issue, setIssue] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [commentBody, setCommentBody] = useState("");
@@ -100,16 +101,24 @@ export const IssueView = () => {
     if (!issue) return (
         <div className="max-w-4xl mx-auto p-8 text-center">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Issue not found</h2>
-            <Link to="/issues" className="text-blue-600 dark:text-blue-400 hover:underline">Back to issues</Link>
+            <button 
+                onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/issues')}
+                className="text-blue-600 dark:text-blue-400 hover:underline bg-transparent border-none cursor-pointer"
+            >
+                Back to issues
+            </button>
         </div>
     );
 
     return (
         <div className="max-w-4xl mx-auto p-8">
             <div className="flex justify-between items-center mb-8">
-                <Link to="/issues" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white no-underline group">
+                <button 
+                    onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/issues')}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white no-underline group bg-transparent border-none cursor-pointer p-0"
+                >
                     <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> Back to issues
-                </Link>
+                </button>
                 {!editMode && (
                     <button 
                         onClick={() => setEditMode(true)}

@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { User, Mail, ChevronRight, Search, X } from 'lucide-react';
-import { Card, Avatar } from '../components/Common.js';
+import { Card, Avatar, Pagination } from '../components/Common.js';
 
 export const Users = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState("");
+    
+    const searchQuery = searchParams.get('q') ?? "";
+    const currentPage = parseInt(searchParams.get('page') ?? "1", 10);
+    const itemsPerPage = 50;
 
     useEffect(() => {
         fetch('/api/users')
@@ -20,6 +24,26 @@ export const Users = () => {
                 setLoading(false);
             });
     }, []);
+
+    const updateParams = (updates: Record<string, string | number | null>) => {
+        const newParams = new URLSearchParams(searchParams);
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value === null) {
+                newParams.delete(key);
+            } else {
+                newParams.set(key, value.toString());
+            }
+        });
+        setSearchParams(newParams, { replace: true });
+    };
+
+    const setSearchQuery = (q: string) => {
+        updateParams({ q, page: 1 });
+    };
+
+    const setCurrentPage = (page: number) => {
+        updateParams({ page });
+    };
 
     const filteredUsers = useMemo(() => {
         if (!searchQuery.trim()) return users;
@@ -45,6 +69,13 @@ export const Users = () => {
             return false;
         });
     }, [users, searchQuery]);
+
+    const paginatedUsers = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filteredUsers.slice(start, start + itemsPerPage);
+    }, [filteredUsers, currentPage]);
+
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
     if (loading) return <div className="flex justify-center p-12"><div className="animate-spin h-8 w-8 border-4 border-slate-900 border-t-transparent rounded-full"></div></div>;
 
@@ -74,7 +105,7 @@ export const Users = () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredUsers.map(user => (
+                {paginatedUsers.map(user => (
                     <Link key={user.username} to={`/user/${user.username}`} className="no-underline group">
                         <Card className="p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center justify-between">
                             <div className="flex items-center gap-4">
@@ -99,6 +130,12 @@ export const Users = () => {
                     {searchQuery ? "No users match your search." : "No users found."}
                 </div>
             )}
+
+            <Pagination 
+                currentPage={currentPage} 
+                totalPages={totalPages} 
+                onPageChange={setCurrentPage} 
+            />
         </div>
     );
 };
