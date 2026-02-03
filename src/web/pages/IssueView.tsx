@@ -209,16 +209,18 @@ export const IssueView = () => {
                         </div>
                         <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">{issue.title}</h2>
                         <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-6">
-                            <div className="flex items-center gap-2">
+                            <Link to={`/user/${issue.author}`} className="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
                                 <Avatar username={issue.author} size="sm" />
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{issue.author}</span>
-                            </div>
+                            </Link>
                             <span>opened on {new Date(issue.created).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                             {issue.assignee && (
                                 <span className="flex items-center gap-1.5 ml-4">
                                     <span className="text-slate-400 dark:text-slate-500">assigned to</span>
-                                    <Avatar username={issue.assignee} size="xs" />
-                                    <span className="font-medium text-slate-900 dark:text-slate-100">{issue.assignee}</span>
+                                    <Link to={`/user/${issue.assignee}`} className="flex items-center gap-1.5 no-underline hover:opacity-80 transition-opacity">
+                                        <Avatar username={issue.assignee} size="xs" />
+                                        <span className="font-medium text-slate-900 dark:text-slate-100">{issue.assignee}</span>
+                                    </Link>
                                 </span>
                             )}
                         </div>
@@ -241,13 +243,15 @@ export const IssueView = () => {
                 <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-slate-200 dark:before:from-slate-800 before:via-slate-200 dark:before:via-slate-800 before:to-transparent">
                     {issue.comments?.map((comment: any, i: number) => (
                         <div key={i} className="relative pl-12">
-                            <div className="absolute left-0 top-1 z-10">
+                            <Link to={`/user/${comment.author}`} className="absolute left-0 top-1 z-10 no-underline hover:opacity-80 transition-opacity">
                                 <Avatar username={comment.author} size="md" className="ring-4 ring-white dark:ring-slate-900" />
-                            </div>
+                            </Link>
                             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
                                 <div className="flex justify-between items-center mb-3">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{comment.author}</span>
+                                        <Link to={`/user/${comment.author}`} className="font-bold text-sm text-slate-900 dark:text-slate-100 no-underline hover:underline">
+                                            {comment.author}
+                                        </Link>
                                         {comment.isDirty && (
                                             <CircleDot className="w-2.5 h-2.5 text-yellow-500 fill-yellow-500" title="Uncommitted changes" />
                                         )}

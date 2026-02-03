@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { User, Mail, ChevronRight } from 'lucide-react';
+import { User, Mail, ChevronRight, Search, X } from 'lucide-react';
 import { Card, Avatar } from '../components/Common.js';
 
 export const Users = () => {
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         fetch('/api/users')
@@ -20,14 +21,60 @@ export const Users = () => {
             });
     }, []);
 
+    const filteredUsers = useMemo(() => {
+        if (!searchQuery.trim()) return users;
+        
+        const query = searchQuery.toLowerCase().trim();
+        
+        return users.filter(user => {
+            const name = (user.name || "").toLowerCase();
+            const username = (user.username || "").toLowerCase();
+            
+            // Prefix match on username
+            if (username.startsWith(query) || (query.startsWith('@') && username.startsWith(query.slice(1)))) {
+                return true;
+            }
+            
+            // Fuzzy match on name (simple version: name contains query)
+            // Or if query is multiple words, check if all words are in the name
+            const words = query.split(/\s+/);
+            if (words.every(word => name.includes(word))) {
+                return true;
+            }
+
+            return false;
+        });
+    }, [users, searchQuery]);
+
     if (loading) return <div className="flex justify-center p-12"><div className="animate-spin h-8 w-8 border-4 border-slate-900 border-t-transparent rounded-full"></div></div>;
 
     return (
         <div className="max-w-4xl mx-auto p-8">
-            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-8 tracking-tight">Community</h2>
+            <div className="flex flex-col gap-6 mb-8">
+                <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Community</h2>
+                
+                <div className="relative w-full">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <input 
+                        type="text" 
+                        placeholder="Search by name or @username..." 
+                        value={searchQuery}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg py-2.5 pl-9 pr-10 text-sm focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-100 focus:border-transparent outline-none transition-all shadow-sm dark:text-slate-200"
+                    />
+                    {searchQuery && (
+                        <button 
+                            onClick={() => setSearchQuery("")}
+                            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {users.map(user => (
+                {filteredUsers.map(user => (
                     <Link key={user.username} to={`/user/${user.username}`} className="no-underline group">
                         <Card className="p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center justify-between">
                             <div className="flex items-center gap-4">
@@ -47,9 +94,9 @@ export const Users = () => {
                 ))}
             </div>
             
-            {users.length === 0 && (
+            {filteredUsers.length === 0 && (
                 <div className="text-center p-12 text-slate-500">
-                    No users found.
+                    {searchQuery ? "No users match your search." : "No users found."}
                 </div>
             )}
         </div>
