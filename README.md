@@ -21,32 +21,3 @@ been made into a branch, an issue will remain open in a branch.
 
 For the overall look and feel of the app, if you're used to the excellent issue tracker GitHub provides you'll feel right at home!
 
-Status
-------
-
-Currently only `git` repos are supported, but `hg` support is intended / planned.
-
-DIT is in a `pre-aplha` stage currently.
-I welcome anyone who wishes to contribute!
-
-Install
--------
-
-```bash
-$ git clone https://github.com/keredson/distributed-issue-tracker.git
-$ cd distributed-issue-tracker
-$ sudo python setup.py install
-```
-
-Run
----
-
-From any git repo you have lying around... 
-
-```bash
-$ python -m dit serve
-Bottle v0.12.0 server starting up (using WSGIRefServer())...
-Listening on http://localhost:4920/
-Hit Ctrl-C to quit.
-```
-

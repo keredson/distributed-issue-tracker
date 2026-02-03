@@ -1,0 +1,48 @@
+{
+  "name": "dit",
+  "type": "module",
+  "packageManager": "yarn@3.3.1",
+  "main": "dist/src/cli.js",
+  "bin": "dist/src/cli.js",
+  "scripts": {
+    "build": "tsc",
+    "postbuild": "chmod +x dist/src/cli.js",
+    "start": "yarn build && node ./dist/src/cli.js",
+    "test": "yarn build && node tests/run-all.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^22.0.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@vitejs/plugin-react": "^5.1.3",
+    "chokidar": "^5.0.0",
+    "cors": "^2.8.6",
+    "execa": "^9.6.1",
+    "express": "^5.2.1",
+    "flexsearch": "^0.8.212",
+    "ink": "^6.6.0",
+    "ink-text-input": "^6.0.0",
+    "js-yaml": "^4.1.1",
+    "marked": "^17.0.1",
+    "marked-terminal": "^7.3.0",
+    "meow": "^14.0.0",
+    "nanoid": "^5.1.6",
+    "open": "^11.0.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "6",
+    "slugify": "^1.6.6",
+    "vite": "^7.3.1",
+    "wrap-ansi": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/chokidar": "^2.1.7",
+    "@types/flexsearch": "^0.7.42",
+    "@types/js-yaml": "^4.0.9",
+    "@types/marked-terminal": "^6.1.1",
+    "@types/node": "^25.2.0",
+    "@types/react": "^19.2.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
