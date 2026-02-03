@@ -502,10 +502,12 @@ export async function getUserActivity(author: string, since: string = "1 year ag
     try {
         const { stdout } = await execa('git', [
             'log', 
-            `--author=${author}`, 
-            `--since=${since}`, 
+            '--all',
+            '--author', author,
+            '--regexp-ignore-case',
+            '--since', since, 
             '--format=%ad', 
-            '--date=short' // YYYY-MM-DD
+            '--date=short'
         ]);
 
         const activity: {[date: string]: number} = {};
@@ -521,7 +523,6 @@ export async function getUserActivity(author: string, since: string = "1 year ag
 
         return activity;
     } catch (e) {
-        // e.g. not a git repo or no commits
         return {};
     }
 }

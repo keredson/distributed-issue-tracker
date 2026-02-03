@@ -1,21 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Mail, Github, MapPin, Camera, Trash2, ArrowLeft } from 'lucide-react';
+import { Mail, Github, MapPin, Camera, Trash2, ArrowLeft, Activity } from 'lucide-react';
 import { Card, Avatar } from '../components/Common.js';
+import { ActivityGrid } from '../components/ActivityGrid.js';
 
 export const UserDetail = () => {
     const { username } = useParams();
     const [user, setUser] = useState<any>(null);
     const [currentUser, setCurrentUser] = useState<any>(null);
+    const [activity, setActivity] = useState<{[key: string]: number}>({});
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchData = async () => {
         try {
-            const [userRes, meRes] = await Promise.all([
+            const [userRes, meRes, activityRes] = await Promise.all([
                 fetch(`/api/users/${username}`),
-                fetch('/api/me')
+                fetch('/api/me'),
+                fetch(`/api/activity?username=${username}`)
             ]);
             
             if (userRes.ok) {
@@ -26,6 +29,11 @@ export const UserDetail = () => {
             if (meRes.ok) {
                 const meData = await meRes.json();
                 setCurrentUser(meData);
+            }
+
+            if (activityRes.ok) {
+                const activityData = await activityRes.json();
+                setActivity(activityData || {});
             }
         } catch (err) {
             console.error("Error fetching user data", err);
@@ -177,6 +185,14 @@ export const UserDetail = () => {
                         </div>
                     </div>
                 </div>
+            </Card>
+
+            <Card className="p-6 mt-8 overflow-hidden border-none shadow-xl ring-1 ring-slate-200 dark:ring-slate-800">
+                <div className="flex items-center gap-2 mb-6">
+                    <Activity className="w-5 h-5 text-slate-500" />
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Contribution Activity</h3>
+                </div>
+                <ActivityGrid data={activity} />
             </Card>
         </div>
     );

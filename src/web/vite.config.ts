@@ -37,15 +37,37 @@ export default defineConfig({
           if (!req.url) return next();
 
           // GET /api/activity
-          if (req.method === 'GET' && req.url === '/api/activity') {
-            const user = await getCurrentLocalUser();
-            if (user && (user.email || user.name)) {
-                // Prefer email for stricter matching if available, otherwise name
-                const authorQuery = user.email || user.name;
+          const activityMatch = req.url.match(/^\/api\/activity(\?.*)?$/);
+          if (req.method === 'GET' && activityMatch) {
+            const url = new URL(req.url, 'http://localhost');
+            const username = url.searchParams.get('username');
+            
+            let targetUser: any;
+            if (username) {
+              const users = await getLocalUsers();
+              targetUser = users.find(u => u.username === username);
+            } else {
+              targetUser = await getCurrentLocalUser();
+            }
+
+            if (targetUser) {
+                const parts = new Set<string>();
+                parts.add(targetUser.username);
+                if (targetUser.name) parts.add(targetUser.name);
+                if (targetUser.email) parts.add(targetUser.email);
+                
+                if (targetUser.github) {
+                    if (targetUser.github.login) parts.add(targetUser.github.login);
+                    if (targetUser.github.name) parts.add(targetUser.github.name);
+                    if (targetUser.github.email) parts.add(targetUser.github.email);
+                }
+                
+                const authorQuery = Array.from(parts).map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\|');
                 const activity = await getUserActivity(authorQuery);
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify(activity));
             } else {
+                res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({}));
             }
             return;
