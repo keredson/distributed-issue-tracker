@@ -5,9 +5,7 @@
   "type": "module",
   "packageManager": "yarn@3.3.1",
   "main": "dist/dit.js",
-  "bin": {
-    "dit": "dist/dit.js"
-  },
+  "bin": "dist/dit.js",
   "scripts": {
     "build": "tsc && yarn build:chmod",
     "build:chmod": "chmod +x dist/dit.js",
@@ -28,6 +26,7 @@
     "ink": "^6.6.0",
     "ink-text-input": "^6.0.0",
     "js-yaml": "^4.1.1",
+    "lucide-react": "^0.563.0",
     "marked": "^15.0.12",
     "marked-terminal": "^7.3.0",
     "meow": "^14.0.0",

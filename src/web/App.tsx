@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useMemo, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Link, useParams, useNavigate, Navigate } from 'react-router-dom';
 import { marked } from 'marked';
+import { 
+    Sun, Moon, ChevronDown, Check, Search, X, 
+    CircleDot, User, Clock, CheckCircle2, 
+    MessageSquare, ArrowLeft, Edit2, Layout
+} from 'lucide-react';
 
 // Theme Context
 const ThemeContext = createContext<{
@@ -27,13 +32,6 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         } else {
             document.documentElement.classList.remove('dark');
             localStorage.setItem('theme', 'light');
-        }
-        
-        // Refresh Lucide icons after theme change
-        // @ts-ignore
-        if (window.lucide) {
-            // @ts-ignore
-            window.lucide.createIcons();
         }
     }, [isDark]);
 
@@ -148,14 +146,6 @@ const UserSelect = ({ value, onChange, placeholder = "Select user..." }: { value
     }, [users, search]);
 
     useEffect(() => {
-        // @ts-ignore
-        if (window.lucide) {
-            // @ts-ignore
-            window.lucide.createIcons();
-        }
-    }, [isOpen, filteredUsers]);
-
-    useEffect(() => {
         fetch('/api/users')
             .then(res => res.json())
             .then(data => setUsers(Array.isArray(data) ? data : []));
@@ -172,7 +162,7 @@ const UserSelect = ({ value, onChange, placeholder = "Select user..." }: { value
                 <span className={selectedUser ? "text-slate-900 dark:text-slate-100" : "text-slate-400"}>
                     {selectedUser ? `${selectedUser.username} (${selectedUser.name})` : placeholder}
                 </span>
-                <i data-lucide="chevron-down" className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
+                <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </div>
 
             {isOpen && (
@@ -210,7 +200,7 @@ const UserSelect = ({ value, onChange, placeholder = "Select user..." }: { value
                                 }}
                             >
                                 <span>{user.username} <span className="text-slate-500 text-xs ml-1">({user.name})</span></span>
-                                {value === user.username && <i data-lucide="check" className="w-4 h-4 text-blue-600"></i>}
+                                {value === user.username && <Check className="w-4 h-4 text-blue-600" />}
                             </div>
                         ))}
                         {filteredUsers.length === 0 && (
@@ -250,14 +240,6 @@ const FilterDropdown = ({ label, items, value, onChange }: { label: string, item
         }
     }, [isOpen]);
 
-    useEffect(() => {
-        // @ts-ignore
-        if (window.lucide) {
-            // @ts-ignore
-            window.lucide.createIcons();
-        }
-    }, [isOpen, filteredItems]);
-
     return (
         <div className="relative" ref={dropdownRef}>
             <button 
@@ -265,12 +247,24 @@ const FilterDropdown = ({ label, items, value, onChange }: { label: string, item
                 className="flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors py-1 px-2"
             >
                 {label} {value && <span className="text-slate-900 dark:text-slate-200 font-bold ml-0.5">{value}</span>}
-                <i data-lucide="chevron-down" className="w-3 h-3"></i>
+                <ChevronDown className="w-3 h-3" />
             </button>
             {isOpen && (
                 <div className="absolute right-0 mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-20 overflow-hidden">
-                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Filter by {label}</span>
+                        {value && (
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onChange("");
+                                    setIsOpen(false);
+                                }}
+                                className="text-[10px] font-bold text-red-600 dark:text-red-400 hover:underline"
+                            >
+                                Clear
+                            </button>
+                        )}
                     </div>
                     {items.length > 5 && (
                         <div className="p-2 border-b border-slate-100 dark:border-slate-800">
@@ -296,7 +290,7 @@ const FilterDropdown = ({ label, items, value, onChange }: { label: string, item
                                 }}
                             >
                                 <span className="truncate pr-2">{item}</span>
-                                {value === item && <i data-lucide="check" className="w-3 h-3 text-blue-600"></i>}
+                                {value === item && <Check className="w-3 h-3 text-blue-600" />}
                             </div>
                         ))}
                         {filteredItems.length === 0 && (
@@ -319,12 +313,7 @@ const Header = () => {
             <div className="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
                 <Link to="/issues" className="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
                 <div className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 p-1.5 rounded-lg">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 2H2v10h10V2z"/>
-                        <path d="M22 12H12v10h10V12z"/>
-                        <path d="M12 12H2v10h10V12z"/>
-                        <path d="M22 2H12v10h10V2z"/>
-                    </svg>
+                    <Layout className="w-5 h-5" />
                 </div>
                 <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">dit</h1>
                 </Link>
@@ -338,9 +327,9 @@ const Header = () => {
                         title={isDark ? "Switch to light mode" : "Switch to dark mode"}
                     >
                         {isDark ? (
-                            <i data-lucide="sun" className="w-5 h-5"></i>
+                            <Sun className="w-5 h-5" />
                         ) : (
-                            <i data-lucide="moon" className="w-5 h-5"></i>
+                            <Moon className="w-5 h-5" />
                         )}
                     </button>
 
@@ -360,14 +349,6 @@ const NewIssue = () => {
     const [assignee, setAssignee] = useState("");
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-
-    useEffect(() => {
-        // @ts-ignore
-        if (window.lucide) {
-            // @ts-ignore
-            window.lucide.createIcons();
-        }
-    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -397,7 +378,7 @@ const NewIssue = () => {
     return (
         <div className="max-w-2xl mx-auto p-8">
             <Link to="/issues" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white mb-8 no-underline group">
-                <i data-lucide="arrow-left" className="w-4 h-4 transition-transform group-hover:-translate-x-1"></i> Back to issues
+                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> Back to issues
             </Link>
 
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Create New Issue</h2>
@@ -563,260 +544,509 @@ const Issues = () => {
         return Array.from(new Set(filtered.map(i => i.assignee).filter(Boolean))).sort();
     }, [issues, searchQuery]);
 
-    const filteredIssues = useMemo(() => {
-        let result = [...issues];
-        
-        // Improved parsing to handle quoted values like author:"John Doe"
-        const filters: {[key: string]: string[]} = {};
-        const textTerms: string[] = [];
-        
-        const regex = /([a-zA-Z]+):("[^"]+"|[^\s]+)|("[^"]+"|[^\s]+)/gi;
-        let match;
-        
-        while ((match = regex.exec(searchQuery)) !== null) {
-            if (match[1]) {
-                // It's a key:value filter
-                const key = match[1].toLowerCase();
-                let value = match[2];
-                if (value.startsWith('"') && value.endsWith('"')) {
-                    value = value.substring(1, value.length - 1);
-                }
-                if (!filters[key]) filters[key] = [];
-                filters[key].push(value.toLowerCase());
-            } else if (match[3]) {
-                // It's a text term
-                let term = match[3];
-                if (term.startsWith('"') && term.endsWith('"')) {
-                    term = term.substring(1, term.length - 1);
-                }
-                textTerms.push(term.toLowerCase());
-            }
-        }
+        const filteredIssues = useMemo(() => {
 
-        result = result.filter(issue => {
-            // Text Search
-            if (textTerms.length > 0) {
-                const content = (
-                    (issue.title || "") + " " + 
-                    (issue.author || "") + " " + 
-                    (issue.id || "") + " " + 
-                    (issue.body || "") + " " +
-                    (issue.assignee || "")
-                ).toLowerCase();
-                
-                if (!textTerms.every(term => content.includes(term))) {
-                    return false;
-                }
-            }
+            let result = [...issues];
 
-            // Field Filters
-            for (const [key, values] of Object.entries(filters)) {
-                if (key === 'state' || key === 'is') {
-                    if (!values.some(v => {
-                        if (v === 'open') return issue.status === 'open' || issue.status === 'assigned' || issue.status === 'in-progress';
-                        if (v === 'closed') return issue.status === 'closed';
-                        return (issue.status || "").toLowerCase() === v;
-                    })) return false;
-                } else if (key === 'severity') {
-                    if (!values.includes((issue.severity || "").toLowerCase())) return false;
-                                                } else if (key === 'assignee') {
-                                                    if (!values.some(v => {
-                                                        if (v === 'none' || v === 'unassigned') return !issue.assignee;
-                                                        return (issue.assignee || "").toLowerCase() === v;
-                                                    })) return false;
-                                                } else if (key === 'author') {
-                                                    if (!values.some(v => (issue.author || "").toLowerCase() === v)) return false;
-                                                }
-                                 else if (key === 'id') {
-                    if (!values.includes((issue.id || "").toLowerCase())) return false;
-                }
-            }
-
-            return true;
-        });
-
-        // Sorting
-        result.sort((a, b) => {
-            if (sortBy === 'Newest') return new Date(b.created).getTime() - new Date(a.created).getTime();
-            if (sortBy === 'Oldest') return new Date(a.created).getTime() - new Date(b.created).getTime();
-            if (sortBy === 'Most Commented') return (b.comments_count || 0) - (a.comments_count || 0);
-            if (sortBy === 'Least Commented') return (a.comments_count || 0) - (b.comments_count || 0);
-            return 0;
-        });
-
-        return result;
-    }, [issues, searchQuery, sortBy]);
-
-    useEffect(() => {
-        // @ts-ignore
-        if (window.lucide) {
-            // @ts-ignore
-            window.lucide.createIcons();
-        }
-    }, [filteredIssues, loading]);
-
-    if (loading) return <div className="flex justify-center p-12"><div className="animate-spin h-8 w-8 border-4 border-slate-900 border-t-transparent rounded-full"></div></div>;
-
-    return (
-        <div className="max-w-7xl mx-auto p-8">
-            <div className="flex flex-col gap-6 mb-8">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Issues</h2>
-                    <Link to="/new" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm no-underline">
-                        New Issue
-                    </Link>
-                </div>
-                <div className="relative w-full">
-                    <i data-lucide="search" className="absolute left-3 top-2.5 h-4 w-4 text-slate-400"></i>
-                    <input 
-                        type="text" 
-                        placeholder="Search all issues" 
-                        value={searchQuery}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg py-2.5 pl-9 pr-10 text-sm font-mono focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-100 focus:border-transparent outline-none transition-all shadow-sm dark:text-slate-200"
-                    />
-                    {searchQuery && (
-                        <button 
-                            onClick={() => setSearchQuery("")}
-                            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
-                        >
-                            <i data-lucide="x" className="h-4 w-4"></i>
-                        </button>
-                    )}
-                </div>
-            </div>
             
-            <Card className="overflow-hidden border-slate-200 dark:border-slate-800">
-                <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <button 
-                            onClick={() => {
-                                // Replace is:closed or state:closed with is:open
-                                let newQuery = searchQuery.replace(/(is|state):closed/g, 'is:open');
-                                if (!newQuery.includes('is:open') && !newQuery.includes('state:open')) {
-                                    newQuery = 'is:open ' + newQuery;
-                                }
-                                setSearchQuery(newQuery);
-                            }}
-                            className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${searchQuery.includes('is:open') || searchQuery.includes('state:open') || (!searchQuery.includes('is:closed') && !searchQuery.includes('state:closed')) ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                        >
-                            <i data-lucide="circle-dot" className="w-4 h-4"></i>
-                            {counts.open} Open
-                        </button>
-                        <button 
-                            onClick={() => {
-                                // Replace is:open or state:open with is:closed
-                                let newQuery = searchQuery.replace(/(is|state):open/g, 'is:closed');
-                                if (!newQuery.includes('is:closed') && !newQuery.includes('state:closed')) {
-                                    newQuery = 'is:closed ' + newQuery;
-                                }
-                                setSearchQuery(newQuery);
-                            }}
-                            className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${searchQuery.includes('is:closed') || searchQuery.includes('state:closed') ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                        >
-                            <i data-lucide="check" className="w-4 h-4"></i>
-                            {counts.closed} Closed
-                        </button>
-                    </div>
+
+            // Improved parsing to handle quoted values like author:"John Doe"
+
+            const filters: {[key: string]: string[]} = {};
+
+            const textTerms: string[] = [];
+
+            
+
+            const regex = /([a-zA-Z]+):("[^"]+"|[^\s]+)|("[^"]+"|[^\s]+)/gi;
+
+            let match;
+
+            
+
+            while ((match = regex.exec(searchQuery)) !== null) {
+
+                if (match[1]) {
+
+                    // It's a key:value filter
+
+                    const key = match[1].toLowerCase();
+
+                    let value = match[2];
+
+                    if (value.startsWith('"') && value.endsWith('"')) {
+
+                        value = value.substring(1, value.length - 1);
+
+                    }
+
+                    if (!filters[key]) filters[key] = [];
+
+                    filters[key].push(value.toLowerCase());
+
+                } else if (match[3]) {
+
+                    // It's a text term
+
+                    let term = match[3];
+
+                    if (term.startsWith('"') && term.endsWith('"')) {
+
+                        term = term.substring(1, term.length - 1);
+
+                    }
+
+                    textTerms.push(term.toLowerCase());
+
+                }
+
+            }
+
+    
+
+            result = result.filter(issue => {
+
+                // Text Search
+
+                if (textTerms.length > 0) {
+
+                    const content = (
+
+                        (issue.title || "") + " " + 
+
+                        (issue.author || "") + " " + 
+
+                        (issue.id || "") + " " + 
+
+                        (issue.body || "") + " " +
+
+                        (issue.assignee || "")
+
+                    ).toLowerCase();
+
                     
-                    <div className="flex items-center gap-2">
-                        <FilterDropdown 
-                            label="Author" 
-                            items={authors} 
-                            value={currentFilters.author}
-                            onChange={(val) => {
-                                // Remove existing author filter and add new one
-                                let newQuery = searchQuery.replace(/author:("[^"]+"|[^\s]+)/gi, '').trim();
-                                const escapedVal = val.includes(' ') ? `"${val}"` : val;
-                                newQuery += ` author:${escapedVal}`;
-                                setSearchQuery(newQuery.trim() + ' ');
-                            }} 
-                        />
-                        <FilterDropdown 
-                            label="Assignee" 
-                            items={['Unassigned', ...assignees]} 
-                            value={currentFilters.assignee === 'none' ? 'Unassigned' : currentFilters.assignee}
-                            onChange={(val) => {
-                                let newQuery = searchQuery.replace(/assignee:("[^"]+"|[^\s]+)/gi, '').trim();
-                                if (val === 'Unassigned') {
-                                    newQuery += ' assignee:none';
-                                } else {
-                                    const escapedVal = val.includes(' ') ? `"${val}"` : val;
-                                    newQuery += ` assignee:${escapedVal}`;
-                                }
-                                setSearchQuery(newQuery.trim() + ' ');
-                            }} 
-                        />
-                        <FilterDropdown 
-                            label="Sort" 
-                            items={['Newest', 'Oldest', 'Most Commented', 'Least Commented']} 
-                            value={sortBy}
-                            onChange={setSortBy} 
-                        />
+
+                    if (!textTerms.every(term => content.includes(term))) {
+
+                        return false;
+
+                    }
+
+                }
+
+    
+
+                // Field Filters
+
+                for (const [key, values] of Object.entries(filters)) {
+
+                    if (key === 'state' || key === 'is') {
+
+                        if (!values.some(v => {
+
+                            if (v === 'open') return issue.status === 'open' || issue.status === 'assigned' || issue.status === 'in-progress';
+
+                            if (v === 'closed') return issue.status === 'closed';
+
+                            return (issue.status || "").toLowerCase() === v;
+
+                        })) return false;
+
+                    } else if (key === 'severity') {
+
+                        if (!values.includes((issue.severity || "").toLowerCase())) return false;
+
+                    } else if (key === 'assignee') {
+
+                        if (!values.some(v => {
+
+                            if (v === 'none' || v === 'unassigned') return !issue.assignee;
+
+                            return (issue.assignee || "").toLowerCase() === v;
+
+                        })) return false;
+
+                    } else if (key === 'author') {
+
+                        if (!values.some(v => (issue.author || "").toLowerCase() === v)) return false;
+
+                    } else if (key === 'id') {
+
+                        if (!values.includes((issue.id || "").toLowerCase())) return false;
+
+                    }
+
+                }
+
+    
+
+                return true;
+
+            });
+
+    
+
+            // Sorting
+
+            result.sort((a, b) => {
+
+                if (sortBy === 'Newest') return new Date(b.created).getTime() - new Date(a.created).getTime();
+
+                if (sortBy === 'Oldest') return new Date(a.created).getTime() - new Date(b.created).getTime();
+
+                if (sortBy === 'Most Commented') return (b.comments_count || 0) - (a.comments_count || 0);
+
+                if (sortBy === 'Least Commented') return (a.comments_count || 0) - (b.comments_count || 0);
+
+                return 0;
+
+            });
+
+    
+
+            return result;
+
+        }, [issues, searchQuery, sortBy]);
+
+    
+
+        if (loading) return <div className="flex justify-center p-12"><div className="animate-spin h-8 w-8 border-4 border-slate-900 border-t-transparent rounded-full"></div></div>;
+
+    
+
+        return (
+
+            <div className="max-w-7xl mx-auto p-8">
+
+                <div className="flex flex-col gap-6 mb-8">
+
+                    <div className="flex justify-between items-center">
+
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Issues</h2>
+
+                        <Link to="/new" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm no-underline">
+
+                            New Issue
+
+                        </Link>
+
                     </div>
+
+                    <div className="relative w-full">
+
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+
+                        <input 
+
+                            type="text" 
+
+                            placeholder="Search all issues" 
+
+                            value={searchQuery}
+
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg py-2.5 pl-9 pr-10 text-sm font-mono focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-100 focus:border-transparent outline-none transition-all shadow-sm dark:text-slate-200"
+
+                        />
+
+                        {searchQuery && (
+
+                            <button 
+
+                                onClick={() => setSearchQuery("")}
+
+                                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+
+                            >
+
+                                <X className="h-4 w-4" />
+
+                            </button>
+
+                        )}
+
+                    </div>
+
                 </div>
 
-                <div className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800">
-                    {filteredIssues.length === 0 ? (
-                        <div className="p-12 text-center text-slate-500">
-                            {searchQuery ? "No issues match your search." : "No issues found."}
-                        </div>
-                    ) : (
-                        filteredIssues.map(issue => (
-                            <Link 
-                                key={issue.id} 
-                                to={"/issue/" + issue.dir}
-                                className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 flex items-center justify-between no-underline group transition-colors"
+                
+
+                <Card className="overflow-hidden border-slate-200 dark:border-slate-800">
+
+                    <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+
+                        <div className="flex items-center gap-4">
+
+                            <button 
+
+                                onClick={() => {
+
+                                    // Replace is:closed or state:closed with is:open
+
+                                    let newQuery = searchQuery.replace(/(is|state):closed/gi, 'is:open');
+
+                                    if (!newQuery.match(/(is|state):open/i)) {
+
+                                        newQuery = 'is:open ' + newQuery;
+
+                                    }
+
+                                    setSearchQuery(newQuery);
+
+                                }}
+
+                                className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${searchQuery.match(/(is|state):open/i) || (!searchQuery.match(/(is|state):closed/i)) ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+
                             >
-                                <div className="flex items-start gap-4">
-                                    <div className="mt-1">
-                                        {issue.status === 'open' ? (
-                                            <i data-lucide="circle-dot" className="w-5 h-5 text-green-600 dark:text-green-500"></i>
-                                        ) : issue.status === 'assigned' ? (
-                                            <i data-lucide="user" className="w-5 h-5 text-indigo-600 dark:text-indigo-400"></i>
-                                        ) : issue.status === 'in-progress' ? (
-                                            <i data-lucide="clock" className="w-5 h-5 text-yellow-600 dark:text-yellow-500"></i>
-                                        ) : (
-                                            <i data-lucide="check-circle-2" className="w-5 h-5 text-purple-600 dark:text-purple-400"></i>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{issue.title}</h3>
-                                            {issue.isDirty && (
-                                                <i data-lucide="circle-dot" className="w-3 h-3 text-yellow-500 fill-yellow-500" title="Uncommitted changes"></i>
+
+                                <CircleDot className="w-4 h-4" />
+
+                                {counts.open} Open
+
+                            </button>
+
+                            <button 
+
+                                onClick={() => {
+
+                                    // Replace is:open or state:open with is:closed
+
+                                    let newQuery = searchQuery.replace(/(is|state):open/gi, 'is:closed');
+
+                                    if (!newQuery.match(/(is|state):closed/i)) {
+
+                                        newQuery = 'is:closed ' + newQuery;
+
+                                    }
+
+                                    setSearchQuery(newQuery);
+
+                                }}
+
+                                className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${searchQuery.match(/(is|state):closed/i) ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+
+                            >
+
+                                <Check className="w-4 h-4" />
+
+                                {counts.closed} Closed
+
+                            </button>
+
+                        </div>
+
+                        
+
+                        <div className="flex items-center gap-2">
+
+                                                    <FilterDropdown 
+
+                                                        label="Author" 
+
+                                                        items={authors} 
+
+                                                        value={currentFilters.author}
+
+                                                        onChange={(val) => {
+
+                                                            // Remove existing author filter
+
+                                                            let newQuery = searchQuery.replace(/author:("[^"]+"|[^\s]+)/gi, '').trim();
+
+                                                            if (val) {
+
+                                                                const escapedVal = val.includes(' ') ? `"${val}"` : val;
+
+                                                                newQuery += ` author:${escapedVal}`;
+
+                                                            }
+
+                                                            setSearchQuery(newQuery.trim() + ' ');
+
+                                                        }} 
+
+                                                    />
+
+                                                    <FilterDropdown 
+
+                                                        label="Assignee" 
+
+                                                        items={['Unassigned', ...assignees]} 
+
+                                                        value={currentFilters.assignee === 'none' ? 'Unassigned' : currentFilters.assignee}
+
+                                                        onChange={(val) => {
+
+                                                            // Remove existing assignee filter
+
+                                                            let newQuery = searchQuery.replace(/assignee:("[^"]+"|[^\s]+)/gi, '').trim();
+
+                                                            if (val) {
+
+                                                                if (val === 'Unassigned') {
+
+                                                                    newQuery += ' assignee:none';
+
+                                                                } else {
+
+                                                                    const escapedVal = val.includes(' ') ? `"${val}"` : val;
+
+                                                                    newQuery += ` assignee:${escapedVal}`;
+
+                                                                }
+
+                                                            }
+
+                                                            setSearchQuery(newQuery.trim() + ' ');
+
+                                                        }} 
+
+                                                    />
+
+                            
+
+                            <FilterDropdown 
+
+                                label="Sort" 
+
+                                items={['Newest', 'Oldest', 'Most Commented', 'Least Commented']} 
+
+                                value={sortBy}
+
+                                onChange={setSortBy} 
+
+                            />
+
+                        </div>
+
+                    </div>
+
+    
+
+                    <div className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800">
+
+                        {filteredIssues.length === 0 ? (
+
+                            <div className="p-12 text-center text-slate-500">
+
+                                {searchQuery ? "No issues match your search." : "No issues found."}
+
+                            </div>
+
+                        ) : (
+
+                            filteredIssues.map(issue => (
+
+                                <Link 
+
+                                    key={issue.id} 
+
+                                    to={"/issue/" + issue.dir}
+
+                                    className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 flex items-center justify-between no-underline group transition-colors"
+
+                                >
+
+                                    <div className="flex items-start gap-4">
+
+                                        <div className="mt-1">
+
+                                            {issue.status === 'open' ? (
+
+                                                <CircleDot className="w-5 h-5 text-green-600 dark:text-green-500" />
+
+                                            ) : issue.status === 'assigned' ? (
+
+                                                <User className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+
+                                            ) : issue.status === 'in-progress' ? (
+
+                                                <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-500" />
+
+                                            ) : (
+
+                                                <CheckCircle2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+
                                             )}
+
                                         </div>
-                                        <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            <span className="font-mono">#{issue.id}</span>
-                                            <span>•</span>
-                                            <span>opened {new Date(issue.created).toLocaleDateString()} by {issue.author}</span>
+
+                                        <div>
+
+                                            <div className="flex items-center gap-2">
+
+                                                <h3 className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{issue.title}</h3>
+
+                                                {issue.isDirty && (
+
+                                                    <CircleDot className="w-3 h-3 text-yellow-500 fill-yellow-500" title="Uncommitted changes" />
+
+                                                )}
+
+                                            </div>
+
+                                            <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+
+                                                <span className="font-mono">#{issue.id}</span>
+
+                                                <span>•</span>
+
+                                                <span>opened {new Date(issue.created).toLocaleDateString()} by {issue.author}</span>
+
+                                            </div>
+
                                         </div>
+
                                     </div>
-                                </div>
-                                <div className="flex flex-col items-end gap-2">
-                                    <div className="flex items-center gap-4">
-                                        <Badge variant={issue.status}>{issue.status}</Badge>
-                                        <div className="flex items-center gap-1 text-slate-400">
-                                            <i data-lucide="message-square" className="w-4 h-4"></i>
-                                            <span className="text-xs font-bold">{issue.comments_count || 0}</span>
+
+                                    <div className="flex flex-col items-end gap-2">
+
+                                        <div className="flex items-center gap-4">
+
+                                            <Badge variant={issue.status}>{issue.status}</Badge>
+
+                                            <div className="flex items-center gap-1 text-slate-400">
+
+                                                <MessageSquare className="w-4 h-4" />
+
+                                                <span className="text-xs font-bold">{issue.comments_count || 0}</span>
+
+                                            </div>
+
                                         </div>
+
+                                        {issue.assignee && (
+
+                                            <div className="flex items-center gap-1 text-xs text-slate-500">
+
+                                                <User className="w-3 h-3" />
+
+                                                <span className="font-medium">{issue.assignee}</span>
+
+                                            </div>
+
+                                        )}
+
                                     </div>
-                                    {issue.assignee && (
-                                        <div className="flex items-center gap-1 text-xs text-slate-500">
-                                            <i data-lucide="user" className="w-3 h-3"></i>
-                                            <span className="font-medium">{issue.assignee}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </Link>
-                        ))
-                    )}
-                </div>
-            </Card>
-        </div>
-    );
-};
+
+                                </Link>
+
+                            ))
+
+                        )}
+
+                    </div>
+
+                </Card>
+
+            </div>
+
+        );
+
+    };
+
+    
 
 const IssueView = () => {
     const { year, month, slug } = useParams();
@@ -862,14 +1092,6 @@ const IssueView = () => {
             .then(data => setCurrentUser(data))
             .catch(() => setCurrentUser(null));
     }, [year, month, slug]);
-
-    useEffect(() => {
-        // @ts-ignore
-        if (window.lucide) {
-            // @ts-ignore
-            window.lucide.createIcons();
-        }
-    }, [issue, loading, editMode]);
 
     const handleAddComment = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -929,14 +1151,14 @@ const IssueView = () => {
         <div className="max-w-4xl mx-auto p-8">
             <div className="flex justify-between items-center mb-8">
                 <Link to="/issues" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white no-underline group">
-                    <i data-lucide="arrow-left" className="w-4 h-4 transition-transform group-hover:-translate-x-1"></i> Back to issues
+                    <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> Back to issues
                 </Link>
                 {!editMode && (
                     <button 
                         onClick={() => setEditMode(true)}
                         className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-2"
                     >
-                        <i data-lucide="edit-2" className="w-4 h-4"></i> Edit Issue
+                        <Edit2 className="w-4 h-4" /> Edit Issue
                     </button>
                 )}
             </div>
@@ -1023,7 +1245,7 @@ const IssueView = () => {
                             <span className="text-xs font-mono text-slate-400 dark:text-slate-500">#{issue.id}</span>
                             {issue.isDirty && (
                                 <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-500 text-[10px] font-bold border border-yellow-100 dark:border-yellow-900/30">
-                                    <i data-lucide="circle-dot" className="w-2.5 h-2.5 fill-yellow-400 dark:fill-yellow-500"></i>
+                                    <CircleDot className="w-2.5 h-2.5 fill-yellow-400 dark:fill-yellow-500" />
                                     UNCOMMITTED CHANGES
                                 </span>
                             )}
@@ -1073,7 +1295,7 @@ const IssueView = () => {
                                     <div className="flex items-center gap-2">
                                         <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{comment.author}</span>
                                         {comment.isDirty && (
-                                            <i data-lucide="circle-dot" className="w-2.5 h-2.5 text-yellow-500 fill-yellow-500" title="Uncommitted changes"></i>
+                                            <CircleDot className="w-2.5 h-2.5 text-yellow-500 fill-yellow-500" title="Uncommitted changes" />
                                         )}
                                     </div>
                                     <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{new Date(comment.date).toLocaleString()}</span>
@@ -1086,7 +1308,7 @@ const IssueView = () => {
 
                 <div className="relative pl-12 mt-8">
                     <div className="absolute left-0 top-1 w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-100 flex items-center justify-center z-10 text-white dark:text-slate-900">
-                        <i data-lucide="message-square" className="h-4 w-4"></i>
+                        <MessageSquare className="h-4 w-4" />
                     </div>
                     <Card className="p-0 overflow-hidden border-slate-300 dark:border-slate-700 ring-1 ring-slate-200 dark:ring-slate-800">
                         <form onSubmit={handleAddComment}>

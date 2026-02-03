@@ -518,6 +518,7 @@ __metadata:
     ink: ^6.6.0
     ink-text-input: ^6.0.0
     js-yaml: ^4.1.1
+    lucide-react: ^0.563.0
     marked: ^15.0.12
     marked-terminal: ^7.3.0
     meow: ^14.0.0
@@ -532,7 +533,7 @@ __metadata:
     vite: ^7.3.1
     wrap-ansi: ^9.0.2
   bin:
-    dit: dist/src/cli.js
+    dit: dist/dit.js
   languageName: unknown
   linkType: soft
 
@@ -2453,6 +2454,15 @@ __metadata:
   dependencies:
     yallist: ^3.0.2
   checksum: c154ae1cbb0c2206d1501a0e94df349653c92c8cbb25236d7e85190bcaf4567a03ac6eb43166fabfa36fd35623694da7233e88d9601fbf411a9a481d85dbd2cb
+  languageName: node
+  linkType: hard
+
+"lucide-react@npm:^0.563.0":
+  version: 0.563.0
+  resolution: "lucide-react@npm:0.563.0"
+  peerDependencies:
+    react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 842fec302a57ae1e70eafe8b8b5020aef69c0f7969c3bd9af85cf3080f41c68ebedd6bf8bf041d83beb367b4e4febd5689f1e181560a602d0593c5bbfbe804bb
   languageName: node
   linkType: hard
 
