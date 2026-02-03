@@ -772,69 +772,293 @@ const Issues = () => {
 
                 
 
-                <Card className="overflow-hidden border-slate-200 dark:border-slate-800">
+                            <Card className="border-slate-200 dark:border-slate-800">
 
-                    <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                
 
-                        <div className="flex items-center gap-4">
+                                <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center rounded-t-xl">
 
-                            <button 
+                
 
-                                onClick={() => {
+                
 
-                                    // Replace is:closed or state:closed with is:open
+                                            <div className="flex items-center gap-4">
 
-                                    let newQuery = searchQuery.replace(/(is|state):closed/gi, 'is:open');
+                
 
-                                    if (!newQuery.match(/(is|state):open/i)) {
+                
 
-                                        newQuery = 'is:open ' + newQuery;
+                                                <button 
 
-                                    }
+                
 
-                                    setSearchQuery(newQuery);
+                
 
-                                }}
+                                                    onClick={() => {
 
-                                className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${searchQuery.match(/(is|state):open/i) || (!searchQuery.match(/(is|state):closed/i)) ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                
 
-                            >
+                
 
-                                <CircleDot className="w-4 h-4" />
+                                                        let newQuery = searchQuery.replace(/(is|state):[^\s]+/gi, '').trim();
 
-                                {counts.open} Open
+                
 
-                            </button>
+                
 
-                            <button 
+                                                        newQuery = 'is:open ' + newQuery;
 
-                                onClick={() => {
+                
 
-                                    // Replace is:open or state:open with is:closed
+                
 
-                                    let newQuery = searchQuery.replace(/(is|state):open/gi, 'is:closed');
+                                                        setSearchQuery(newQuery.trim() + ' ');
 
-                                    if (!newQuery.match(/(is|state):closed/i)) {
+                
 
-                                        newQuery = 'is:closed ' + newQuery;
+                
 
-                                    }
+                                                    }}
 
-                                    setSearchQuery(newQuery);
+                
 
-                                }}
+                
 
-                                className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${searchQuery.match(/(is|state):closed/i) ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                                                    className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${currentFilters.is === 'open' || currentFilters.state === 'open' ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
 
-                            >
+                
 
-                                <Check className="w-4 h-4" />
+                
 
-                                {counts.closed} Closed
+                                                >
 
-                            </button>
+                
 
-                        </div>
+                
+
+                                                    <CircleDot className="w-4 h-4" />
+
+                
+
+                
+
+                                                    {issues.filter(i => i.status === 'open').length} Open
+
+                
+
+                
+
+                                                </button>
+
+                
+
+                
+
+                                                <button 
+
+                
+
+                
+
+                                                    onClick={() => {
+
+                
+
+                
+
+                                                        let newQuery = searchQuery.replace(/(is|state):[^\s]+/gi, '').trim();
+
+                
+
+                
+
+                                                        newQuery = 'is:assigned ' + newQuery;
+
+                
+
+                
+
+                                                        setSearchQuery(newQuery.trim() + ' ');
+
+                
+
+                
+
+                                                    }}
+
+                
+
+                
+
+                                                    className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${currentFilters.is === 'assigned' || currentFilters.state === 'assigned' ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+
+                
+
+                
+
+                                                >
+
+                
+
+                
+
+                                                    <User className="w-4 h-4" />
+
+                
+
+                
+
+                                                    {issues.filter(i => i.status === 'assigned').length} Assigned
+
+                
+
+                
+
+                                                </button>
+
+                
+
+                
+
+                                                <button 
+
+                
+
+                
+
+                                                    onClick={() => {
+
+                
+
+                
+
+                                                        let newQuery = searchQuery.replace(/(is|state):[^\s]+/gi, '').trim();
+
+                
+
+                
+
+                                                        newQuery = 'is:in-progress ' + newQuery;
+
+                
+
+                
+
+                                                        setSearchQuery(newQuery.trim() + ' ');
+
+                
+
+                
+
+                                                    }}
+
+                
+
+                
+
+                                                    className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${currentFilters.is === 'in-progress' || currentFilters.state === 'in-progress' ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+
+                
+
+                
+
+                                                >
+
+                
+
+                
+
+                                                    <Clock className="w-4 h-4" />
+
+                
+
+                
+
+                                                    {issues.filter(i => i.status === 'in-progress').length} In Progress
+
+                
+
+                
+
+                                                </button>
+
+                
+
+                
+
+                                                <button 
+
+                
+
+                
+
+                                                    onClick={() => {
+
+                
+
+                
+
+                                                        let newQuery = searchQuery.replace(/(is|state):[^\s]+/gi, '').trim();
+
+                
+
+                
+
+                                                        newQuery = 'is:closed ' + newQuery;
+
+                
+
+                
+
+                                                        setSearchQuery(newQuery.trim() + ' ');
+
+                
+
+                
+
+                                                    }}
+
+                
+
+                
+
+                                                    className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${currentFilters.is === 'closed' || currentFilters.state === 'closed' ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+
+                
+
+                
+
+                                                >
+
+                
+
+                
+
+                                                    <Check className="w-4 h-4" />
+
+                
+
+                
+
+                                                    {issues.filter(i => i.status === 'closed').length} Closed
+
+                
+
+                
+
+                                                </button>
+
+                
+
+                
+
+                                            </div>
+
+                
+
+                
+
+                        
 
                         
 
@@ -924,17 +1148,31 @@ const Issues = () => {
 
     
 
-                    <div className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800">
+                                    <div className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800 rounded-b-xl overflow-hidden">
 
-                        {filteredIssues.length === 0 ? (
+    
 
-                            <div className="p-12 text-center text-slate-500">
+                                        {filteredIssues.length === 0 ? (
 
-                                {searchQuery ? "No issues match your search." : "No issues found."}
+    
 
-                            </div>
+                                            <div className="p-12 text-center text-slate-500 rounded-b-xl">
 
-                        ) : (
+    
+
+                                                {searchQuery ? "No issues match your search." : "No issues found."}
+
+    
+
+                                            </div>
+
+    
+
+                                        ) : (
+
+    
+
+                    
 
                             filteredIssues.map(issue => (
 
