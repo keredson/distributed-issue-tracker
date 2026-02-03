@@ -32,3 +32,38 @@ export const Badge: React.FC<BadgeProps> = ({ children, variant = "default" }) =
         </span>
     );
 };
+
+interface AvatarProps {
+    username: string;
+    size?: 'xs' | 'sm' | 'md' | 'lg';
+    className?: string;
+}
+
+export const Avatar: React.FC<AvatarProps> = ({ username, size = 'md', className = "" }) => {
+    const sizes = {
+        xs: "w-5 h-5 text-[10px]",
+        sm: "w-8 h-8 text-xs",
+        md: "w-10 h-10 text-sm",
+        lg: "w-12 h-12 text-base"
+    };
+
+    const [hasError, setHasError] = React.useState(false);
+    const avatarUrl = `/api/users/${username}/avatar`;
+
+    if (!username) return null;
+
+    return (
+        <div className={`relative flex-shrink-0 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex items-center justify-center font-medium text-slate-500 border border-slate-200 dark:border-slate-700 ${sizes[size]} ${className}`}>
+            {!hasError ? (
+                <img 
+                    src={avatarUrl} 
+                    alt={username} 
+                    className="w-full h-full object-cover"
+                    onError={() => setHasError(true)}
+                />
+            ) : (
+                <span>{username.slice(0, 2).toUpperCase()}</span>
+            )}
+        </div>
+    );
+};

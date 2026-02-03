@@ -4,16 +4,17 @@ import {Octokit} from '@octokit/rest';
 import {execa} from 'execa';
 import {generateUniqueId} from '../utils/id.js';
 import {saveIssue, saveComment, findIssueByExternalId, findCommentByExternalId, getCommentCountForIssue} from '../utils/issues.js';
-import {createUser, getLocalUsers} from '../utils/user.js';
+import {createUser, getLocalUsers, saveProfilePic} from '../utils/user.js';
 
 type Props = {
     url?: string;
     skipAdd?: boolean;
     verbose?: boolean;
     all?: boolean;
+    users?: boolean;
 };
 
-export default function Import({url: initialUrl, skipAdd, verbose, all}: Props) {
+export default function Import({url: initialUrl, skipAdd, verbose, all, users: usersOnly}: Props) {
     const [status, setStatus] = useState<string>('');
     const [logs, setLogs] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -66,7 +67,7 @@ export default function Import({url: initialUrl, skipAdd, verbose, all}: Props) 
         }
     };
 
-    const ensureUserExists = async (githubUser: any) => {
+    const syncUser = async (githubUser: any) => {
         if (!githubUser) return null;
         const localUsers = await getLocalUsers();
         const username = githubUser.login;
@@ -78,7 +79,11 @@ export default function Import({url: initialUrl, skipAdd, verbose, all}: Props) 
             await createUser(username, {
                 name: githubUser.name || githubUser.login,
                 email: `${githubUser.login}@users.noreply.github.com`
-            });
+            }, githubUser.avatar_url);
+        } else if (githubUser.avatar_url) {
+            // Update profile pic if it changed or if we are in usersOnly mode
+            if (verbose) addLog(`Syncing profile pic for ${username}...`);
+            await saveProfilePic(username, githubUser.avatar_url);
         }
         return username;
     };
@@ -121,7 +126,7 @@ export default function Import({url: initialUrl, skipAdd, verbose, all}: Props) 
                 per_page: 100,
             });
 
-            addLog(`Found ${issues.length} issues/PRs. Importing...`);
+            addLog(`Found ${issues.length} issues/PRs. ${usersOnly ? 'Syncing users...' : 'Importing...'}`);
 
             for (const issue of issues) {
                 // Skip PRs if they are returned (GitHub API returns PRs in issues list)
@@ -130,64 +135,81 @@ export default function Import({url: initialUrl, skipAdd, verbose, all}: Props) 
                     continue;
                 }
 
-                const externalId = `github:${owner}/${repo}#${issue.number}`;
-                
-                let issueDirPath = findIssueByExternalId(externalId);
-                
-                if (!issueDirPath) {
-                    addLog(`Processing issue #${issue.number}: ${issue.title}...`);
-                    const assignee = await ensureUserExists(issue.assignee);
-                    
-                    const issueData = {
-                        id: generateUniqueId(),
-                        external_id: externalId,
-                        title: issue.title,
-                        created: issue.created_at,
-                        status: issue.state === 'closed' ? 'closed' : 'open',
-                        severity: 'medium',
-                        author: issue.user?.login || 'unknown',
-                        assignee: assignee || '',
-                        body: issue.body || '',
-                        github_url: issue.html_url
-                    };
-                    
-                    // Also ensure the author exists
-                    await ensureUserExists(issue.user);
-                    
-                    issueDirPath = await saveIssue(issueData, skipAdd);
-                    if (verbose) addLog(`Saved issue #${issue.number} to ${issueDirPath}`);
+                if (usersOnly) {
+                    await syncUser(issue.assignee);
+                    await syncUser(issue.user);
                 } else {
-                    if (verbose) addLog(`Issue #${issue.number} already exists, checking for comments...`);
-                }
-
-                // Import comments
-                if (issue.comments > 0) {
-                    const localCommentCount = getCommentCountForIssue(issueDirPath!);
-                    if (localCommentCount >= issue.comments) {
-                        if (verbose) addLog(`  Issue #${issue.number} already has ${localCommentCount} comments locally. Skipping.`);
-                        continue;
+                    const externalId = `github:${owner}/${repo}#${issue.number}`;
+                    
+                    let issueDirPath = findIssueByExternalId(externalId);
+                    
+                    if (!issueDirPath) {
+                        addLog(`Processing issue #${issue.number}: ${issue.title}...`);
+                        const assignee = await syncUser(issue.assignee);
+                        
+                        const issueData = {
+                            id: generateUniqueId(),
+                            external_id: externalId,
+                            title: issue.title,
+                            created: issue.created_at,
+                            status: issue.state === 'closed' ? 'closed' : 'open',
+                            severity: 'medium',
+                            author: issue.user?.login || 'unknown',
+                            assignee: assignee || '',
+                            body: issue.body || '',
+                            github_url: issue.html_url
+                        };
+                        
+                        // Also ensure the author exists
+                        await syncUser(issue.user);
+                        
+                        issueDirPath = await saveIssue(issueData, skipAdd);
+                        if (verbose) addLog(`Saved issue #${issue.number} to ${issueDirPath}`);
+                    } else {
+                        if (verbose) addLog(`Issue #${issue.number} already exists, checking for comments...`);
                     }
 
-                    const comments = await octokit.paginate(octokit.issues.listComments, {
+                    // Import comments
+                    if (issue.comments > 0) {
+                        const localCommentCount = getCommentCountForIssue(issueDirPath!);
+                        if (localCommentCount >= issue.comments) {
+                            if (verbose) addLog(`  Issue #${issue.number} already has ${localCommentCount} comments locally. Skipping.`);
+                            continue;
+                        }
+
+                        const comments = await octokit.paginate(octokit.issues.listComments, {
+                            owner,
+                            repo,
+                            issue_number: issue.number,
+                            per_page: 100,
+                        });
+
+                        for (const comment of comments) {
+                            const commentExternalId = `github:comment:${comment.id}`;
+                            if (!findCommentByExternalId(issueDirPath!, commentExternalId)) {
+                                await syncUser(comment.user);
+                                await saveComment(issueDirPath!, {
+                                    id: generateUniqueId(),
+                                    external_id: commentExternalId,
+                                    author: comment.user?.login || 'unknown',
+                                    date: comment.created_at,
+                                    body: comment.body || ''
+                                }, skipAdd);
+                                if (verbose) addLog(`  Added comment ${comment.id}`);
+                            }
+                        }
+                    }
+                }
+
+                if (usersOnly && issue.comments > 0) {
+                     const comments = await octokit.paginate(octokit.issues.listComments, {
                         owner,
                         repo,
                         issue_number: issue.number,
                         per_page: 100,
                     });
-
                     for (const comment of comments) {
-                        const commentExternalId = `github:comment:${comment.id}`;
-                        if (!findCommentByExternalId(issueDirPath!, commentExternalId)) {
-                            await ensureUserExists(comment.user);
-                            await saveComment(issueDirPath!, {
-                                id: generateUniqueId(),
-                                external_id: commentExternalId,
-                                author: comment.user?.login || 'unknown',
-                                date: comment.created_at,
-                                body: comment.body || ''
-                            }, skipAdd);
-                            if (verbose) addLog(`  Added comment ${comment.id}`);
-                        }
+                        await syncUser(comment.user);
                     }
                 }
             }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
+import { Avatar } from './Common';
 
-export const FilterDropdown = ({ label, items, value, onChange }: { label: string, items: string[], value?: string, onChange: (val: string) => void }) => {
+export const FilterDropdown = ({ label, items, value, onChange, showAvatars }: { label: string, items: string[], value?: string, onChange: (val: string) => void, showAvatars?: boolean }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState("");
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -34,7 +35,13 @@ export const FilterDropdown = ({ label, items, value, onChange }: { label: strin
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors py-1 px-2"
             >
-                {label} {value && <span className="text-slate-900 dark:text-slate-200 font-bold ml-0.5">{value}</span>}
+                {label} 
+                {value && (
+                    <div className="flex items-center gap-1.5 ml-1">
+                        {showAvatars && value !== 'Unassigned' && <Avatar username={value} size="xs" />}
+                        <span className="text-slate-900 dark:text-slate-200 font-bold">{value}</span>
+                    </div>
+                )}
                 <ChevronDown className="w-3 h-3" />
             </button>
             {isOpen && (
@@ -77,8 +84,11 @@ export const FilterDropdown = ({ label, items, value, onChange }: { label: strin
                                     setIsOpen(false);
                                 }}
                             >
-                                <span className="truncate pr-2">{item}</span>
-                                {value === item && <Check className="w-3 h-3 text-blue-600" />}
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                    {showAvatars && item !== 'Unassigned' && <Avatar username={item} size="xs" />}
+                                    <span className="truncate pr-2">{item}</span>
+                                </div>
+                                {value === item && <Check className="w-3 h-3 text-blue-600 flex-shrink-0" />}
                             </div>
                         ))}
                         {filteredItems.length === 0 && (

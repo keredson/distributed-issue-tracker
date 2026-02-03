@@ -193,6 +193,32 @@ export default defineConfig({
             return;
           }
 
+          // GET /api/users/:username/avatar
+          const avatarMatch = req.url.match(/^\/api\/users\/([^\/]+)\/avatar$/);
+          if (req.method === 'GET' && avatarMatch) {
+            const [, username] = avatarMatch;
+            const userDir = path.join(process.cwd(), '.dit', 'users', username);
+            const possiblePics = ['avatar.png', 'avatar.jpg', 'avatar.jpeg', 'avatar.webp', 'avatar.gif'];
+            
+            let found = false;
+            for (const pic of possiblePics) {
+              const picPath = path.join(userDir, pic);
+              if (fs.existsSync(picPath)) {
+                const ext = path.extname(pic).toLowerCase().slice(1);
+                const contentType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+                res.setHeader('Content-Type', contentType);
+                res.end(fs.readFileSync(picPath));
+                found = true;
+                break;
+              }
+            }
+            if (!found) {
+              res.statusCode = 404;
+              res.end('Not found');
+            }
+            return;
+          }
+
           next();
         });
       }

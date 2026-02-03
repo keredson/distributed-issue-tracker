@@ -1,10 +1,19 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Layout, Sun, Moon } from 'lucide-react';
 import { useTheme } from './ThemeContext.js';
+import { Avatar } from './Common.js';
 
 export const Header = () => {
     const { isDark, toggleTheme } = useTheme();
+    const [me, setMe] = useState<any>(null);
+
+    useEffect(() => {
+        fetch('/api/me')
+            .then(res => res.json())
+            .then(data => setMe(data))
+            .catch(() => {});
+    }, []);
 
     return (
         <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
@@ -16,6 +25,7 @@ export const Header = () => {
                 <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">dit</h1>
                 </Link>
                 <div className="flex gap-4 items-center">
+                    {me && <Avatar username={me.username} size="sm" title={me.username} />}
                     {/* @ts-ignore */}
                     <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">repo:{window.repoName || 'REPO'}</span>
                     

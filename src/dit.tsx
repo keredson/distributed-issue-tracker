@@ -34,6 +34,10 @@ const cli = meow(`
 			type: 'boolean',
 			default: false,
 			shortFlag: 'v'
+		},
+		users: {
+			type: 'boolean',
+			default: false
 		}
 	},
 });

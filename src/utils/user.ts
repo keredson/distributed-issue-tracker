@@ -16,6 +16,7 @@ export interface LocalUser {
     username: string; // folder name
     name: string;
     email: string;
+    profilePic?: string;
     passkeys?: any[];
 }
 
@@ -60,10 +61,22 @@ export async function getLocalUsers(): Promise<LocalUser[]> {
                         // passkeys dir might not exist
                     }
 
+                    let profilePic: string | undefined;
+                    const possiblePics = ['avatar.png', 'avatar.jpg', 'avatar.jpeg', 'avatar.webp'];
+                    for (const pic of possiblePics) {
+                        try {
+                            const picPath = path.join(USERS_DIR, entry.name, pic);
+                            await fs.access(picPath);
+                            profilePic = picPath;
+                            break;
+                        } catch {}
+                    }
+
                     users.push({
                         username: entry.name,
                         name: parsed.name,
                         email: parsed.email,
+                        profilePic: profilePic,
                         passkeys: passkeys
                     });
                 }
@@ -94,7 +107,7 @@ export async function getCurrentLocalUser(): Promise<(LocalUser & { isVirtual?: 
     }
 }
 
-export async function createUser(username: string, gitUser: GitUser): Promise<void> {
+export async function createUser(username: string, gitUser: GitUser, profilePicUrl?: string): Promise<void> {
     const userDir = path.join(USERS_DIR, username);
     await fs.mkdir(userDir, { recursive: true });
     
@@ -110,6 +123,51 @@ export async function createUser(username: string, gitUser: GitUser): Promise<vo
         await execa('git', ['add', infoPath]);
     } catch (e) {
         // Ignore git add errors (e.g. if not in a git repo, though getGitConfig would have failed)
+    }
+
+    if (profilePicUrl) {
+        await saveProfilePic(username, profilePicUrl);
+    }
+}
+
+export async function saveProfilePic(username: string, url: string): Promise<void> {
+    const userDir = path.join(USERS_DIR, username);
+    await fs.mkdir(userDir, { recursive: true });
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Failed to fetch profile pic: ${response.statusText}`);
+        
+        const contentType = response.headers.get('content-type');
+        let ext = 'png';
+        if (contentType) {
+            if (contentType.includes('jpeg')) ext = 'jpg';
+            else if (contentType.includes('webp')) ext = 'webp';
+            else if (contentType.includes('png')) ext = 'png';
+            else if (contentType.includes('gif')) ext = 'gif';
+        }
+
+        const buffer = await response.arrayBuffer();
+        const filename = `avatar.${ext}`;
+        const filePath = path.join(userDir, filename);
+
+        // Remove old avatars
+        const possiblePics = ['avatar.png', 'avatar.jpg', 'avatar.jpeg', 'avatar.webp', 'avatar.gif'];
+        for (const pic of possiblePics) {
+            try {
+                await fs.unlink(path.join(userDir, pic));
+            } catch {}
+        }
+
+        await fs.writeFile(filePath, Buffer.from(buffer));
+        
+        try {
+            await execa('git', ['add', filePath]);
+        } catch (e) {
+            // Ignore
+        }
+    } catch (e) {
+        console.error(`Failed to save profile pic for ${username}:`, e);
     }
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, X, CircleDot, User, Clock, Check, CheckCircle2, MessageSquare } from 'lucide-react';
-import { Card, Badge } from '../components/Common.js';
+import { Card, Badge, Avatar } from '../components/Common.js';
 import { FilterDropdown } from '../components/FilterDropdown.js';
 
 export const Issues = () => {
@@ -250,6 +250,7 @@ export const Issues = () => {
                             label="Author" 
                             items={authors} 
                             value={currentFilters.author}
+                            showAvatars={true}
                             onChange={(val) => {
                                 let newQuery = searchQuery.replace(/author:("[^"]+"|[^\s]+)/gi, '').trim();
                                 if (val) {
@@ -263,6 +264,7 @@ export const Issues = () => {
                             label="Assignee" 
                             items={['Unassigned', ...assignees]} 
                             value={currentFilters.assignee === 'none' ? 'Unassigned' : currentFilters.assignee}
+                            showAvatars={true}
                             onChange={(val) => {
                                 let newQuery = searchQuery.replace(/assignee:("[^"]+"|[^\s]+)/gi, '').trim();
                                 if (val) {
@@ -319,7 +321,11 @@ export const Issues = () => {
                                         <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
                                             <span className="font-mono">#{issue.id}</span>
                                             <span>•</span>
-                                            <span>opened {new Date(issue.created).toLocaleDateString()} by {issue.author}</span>
+                                            <div className="flex items-center gap-1">
+                                                <span>opened {new Date(issue.created).toLocaleDateString()} by</span>
+                                                <Avatar username={issue.author} size="xs" />
+                                                <span className="font-medium">{issue.author}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -333,7 +339,7 @@ export const Issues = () => {
                                     </div>
                                     {issue.assignee && (
                                         <div className="flex items-center gap-1 text-xs text-slate-500">
-                                            <User className="w-3 h-3" />
+                                            <Avatar username={issue.assignee} size="xs" />
                                             <span className="font-medium">{issue.assignee}</span>
                                         </div>
                                     )}

@@ -130,7 +130,7 @@ export default function App({command, input, flags, showHelp}: Props) {
         if (command === 'import') {
             return (
                 <Text>
-                    {`Usage\n  $ dit import [url]\n\nImport issues from GitHub. If no URL is provided, it will attempt to detect it from the 'origin' remote. Defaults to open issues only.\n\nOptions\n  --all       Import both open and closed issues\n  --skip-add  Skip automatic 'git add' of the imported issue files\n  --verbose   Show detailed import progress`}
+                    {`Usage\n  $ dit import [url]\n\nImport issues from GitHub. If no URL is provided, it will attempt to detect it from the 'origin' remote. Defaults to open issues only.\n\nOptions\n  --all       Import both open and closed issues\n  --users     Import/update user info and profile pics only\n  --skip-add  Skip automatic 'git add' of the imported issue files\n  --verbose   Show detailed import progress`}
                 </Text>
             );
         }
@@ -185,7 +185,7 @@ export default function App({command, input, flags, showHelp}: Props) {
 
     if (command === 'import') {
         const url = input[1];
-        return <Import url={url} skipAdd={flags.skipAdd} verbose={flags.verbose} all={flags.all} />;
+        return <Import url={url} skipAdd={flags.skipAdd} verbose={flags.verbose} all={flags.all} users={flags.users} />;
     }
 
     if (command === 'web') {
