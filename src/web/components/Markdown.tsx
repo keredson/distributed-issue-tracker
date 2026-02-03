@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { marked } from 'marked';
+import { Paperclip } from 'lucide-react';
 
 export const Markdown = ({ content, issueId }: { content: string, issueId?: string }) => {
     const html = useMemo(() => {
@@ -58,41 +59,74 @@ export const MarkdownEditor = ({
         const files = e.clipboardData.files;
         if (files.length > 0) {
             e.preventDefault();
-            const links = await onUpload(files);
-            if (links.length > 0) {
-                const insertText = links.join('\n') + '\n';
-                const start = textAreaRef.current?.selectionStart || 0;
-                const end = textAreaRef.current?.selectionEnd || 0;
-                const newValue = value.substring(0, start) + insertText + value.substring(end);
-                onChange(newValue);
-                
-                // Set cursor after the inserted text in next tick
-                setTimeout(() => {
-                    if (textAreaRef.current) {
-                        textAreaRef.current.selectionStart = textAreaRef.current.selectionEnd = start + insertText.length;
-                    }
-                }, 0);
-            }
+            await processFiles(files);
         }
     };
 
+    const processFiles = async (files: FileList) => {
+        if (!onUpload || files.length === 0) return;
+        
+        const links = await onUpload(files);
+        if (links.length > 0) {
+            const insertText = links.join('\n') + '\n';
+            const start = textAreaRef.current?.selectionStart || 0;
+            const end = textAreaRef.current?.selectionEnd || 0;
+            const newValue = value.substring(0, start) + insertText + value.substring(end);
+            onChange(newValue);
+            
+            // Set cursor after the inserted text in next tick
+            setTimeout(() => {
+                if (textAreaRef.current) {
+                    textAreaRef.current.selectionStart = textAreaRef.current.selectionEnd = start + insertText.length;
+                    textAreaRef.current.focus();
+                }
+            }, 0);
+        }
+    }
+
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
     return (
         <div className={`overflow-hidden bg-white dark:bg-slate-900 focus-within:ring-2 focus-within:ring-slate-900 dark:focus-within:ring-slate-100 focus-within:border-transparent transition-all ${className}`}>
-            <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 border-b border-slate-200 dark:border-slate-800 flex gap-4">
-                <button 
-                    type="button" 
-                    onClick={() => setIsPreview(false)}
-                    className={`text-xs font-bold pb-1 transition-colors ${!isPreview ? 'text-slate-900 dark:text-white border-b-2 border-slate-900 dark:border-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-                >
-                    Write
-                </button>
-                <button 
-                    type="button" 
-                    onClick={() => setIsPreview(true)}
-                    className={`text-xs font-bold pb-1 transition-colors ${isPreview ? 'text-slate-900 dark:text-white border-b-2 border-slate-900 dark:border-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-                >
-                    Preview
-                </button>
+            <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <div className="flex gap-4">
+                    <button 
+                        type="button" 
+                        onClick={() => setIsPreview(false)}
+                        className={`text-xs font-bold pb-1 transition-colors ${!isPreview ? 'text-slate-900 dark:text-white border-b-2 border-slate-900 dark:border-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                    >
+                        Write
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={() => setIsPreview(true)}
+                        className={`text-xs font-bold pb-1 transition-colors ${isPreview ? 'text-slate-900 dark:text-white border-b-2 border-slate-900 dark:border-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                    >
+                        Preview
+                    </button>
+                </div>
+                {!isPreview && onUpload && (
+                    <div>
+                        <input 
+                            type="file" 
+                            multiple 
+                            className="hidden" 
+                            ref={fileInputRef} 
+                            onChange={(e) => {
+                                if (e.target.files) processFiles(e.target.files);
+                                e.target.value = ''; // Reset for same file selection
+                            }}
+                        />
+                        <button 
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            title="Attach files"
+                            className="text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700"
+                        >
+                            <Paperclip className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
             </div>
             {isPreview ? (
                 <div className="p-4 overflow-y-auto bg-white dark:bg-slate-900" style={{ minHeight }}>
