@@ -7,6 +7,7 @@ import { getLocalUsers, getCurrentLocalUser, saveProfilePicData, deleteProfilePi
 import { generateUniqueId } from '../utils/id.js';
 import { execSync } from 'child_process';
 import yaml from 'js-yaml';
+import { customAlphabet } from 'nanoid';
 
 // Helper to parse body (Connect middleware doesn't parse JSON by default)
 const bodyParser = async (req: any) => {
@@ -102,6 +103,97 @@ export default defineConfig({
             const id = generateUniqueId(issuesDir);
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ id }));
+            return;
+          }
+
+          // GET /api/rankings
+          if (req.method === 'GET' && req.url === '/api/rankings') {
+            try {
+              const rankingsRoot = path.join(process.cwd(), '.dit', 'rankings');
+              const files: string[] = [];
+              const walk = (dir: string) => {
+                if (!fs.existsSync(dir)) return;
+                const entries = fs.readdirSync(dir);
+                for (const entry of entries) {
+                  const fullPath = path.join(dir, entry);
+                  const stat = fs.statSync(fullPath);
+                  if (stat.isDirectory()) {
+                    walk(fullPath);
+                  } else if (entry.endsWith('.yaml')) {
+                    files.push(fullPath);
+                  }
+                }
+              };
+              walk(rankingsRoot);
+
+              const rankings = files.map(filePath => {
+                try {
+                  const content = yaml.load(fs.readFileSync(filePath, 'utf8')) as any;
+                  return {
+                    created: content?.created,
+                    username: content?.username,
+                    issues: Array.isArray(content?.issues) ? content.issues : [],
+                    path: path.relative(process.cwd(), filePath)
+                  };
+                } catch (e) {
+                  return null;
+                }
+              }).filter(Boolean);
+
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(rankings));
+            } catch (err: any) {
+              console.error(err);
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: 'Failed to load rankings: ' + err.message }));
+            }
+            return;
+          }
+
+          // POST /api/rankings
+          if (req.method === 'POST' && req.url === '/api/rankings') {
+            try {
+              const body = await bodyParser(req) as any;
+              const currentUser = await getCurrentLocalUser();
+              const username = (currentUser?.username || 'unknown').replace(/[^a-z0-9_-]/gi, '_');
+              const now = new Date();
+              const year = now.getFullYear().toString();
+              const month = String(now.getMonth() + 1).padStart(2, '0');
+              const day = String(now.getDate()).padStart(2, '0');
+              const rankingsDir = path.join(process.cwd(), '.dit', 'rankings', year, month, day);
+              fs.mkdirSync(rankingsDir, { recursive: true });
+
+              const issueList = Array.isArray(body.issues) ? body.issues : [];
+              const rankedIssueIds = issueList.map((issue: any) => issue.id);
+
+              const rankingId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 7)();
+              const filename = `${username}-${rankingId}.yaml`;
+              const targetPath = path.join(rankingsDir, filename);
+
+              const rankingDoc = {
+                version: 1,
+                created: now.toISOString(),
+                username: currentUser?.username || 'unknown',
+                query: body.query || '',
+                sort: body.sort || '',
+                page: body.page || 1,
+                itemsPerPage: body.itemsPerPage || issueList.length || 0,
+                issues: rankedIssueIds
+              };
+
+              fs.writeFileSync(targetPath, yaml.dump(rankingDoc, { lineWidth: -1, styles: { '!!str': 'literal' } }));
+
+              try {
+                execSync(`git add "${targetPath}"`, { stdio: 'ignore' });
+              } catch (e) {}
+
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ path: path.relative(process.cwd(), targetPath) }));
+            } catch (err: any) {
+              console.error(err);
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: 'Failed to save ranking: ' + err.message }));
+            }
             return;
           }
 

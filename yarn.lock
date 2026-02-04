@@ -524,6 +524,7 @@ __metadata:
     meow: ^14.0.0
     nanoid: ^5.1.6
     open: ^11.0.0
+    openskill: ^4.1.0
     react: ^19.2.4
     react-dom: ^19.2.4
     react-router-dom: 6
@@ -1045,6 +1046,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/gaussian@npm:1.2.2":
+  version: 1.2.2
+  resolution: "@types/gaussian@npm:1.2.2"
+  checksum: c40c1fc6ffd76b1e3bd35cbb903d2382f0579c7328913b38049e8939c752d4d4e61de735e945b6385c023fe4864442c56d627190f052a14fa194c29af7a16aa8
+  languageName: node
+  linkType: hard
+
 "@types/http-errors@npm:*":
   version: 2.0.5
   resolution: "@types/http-errors@npm:2.0.5"
@@ -1084,6 +1092,15 @@ __metadata:
   version: 6.14.0
   resolution: "@types/qs@npm:6.14.0"
   checksum: 1909205514d22b3cbc7c2314e2bd8056d5f05dfb21cf4377f0730ee5e338ea19957c41735d5e4806c746176563f50005bbab602d8358432e25d900bdf4970826
+  languageName: node
+  linkType: hard
+
+"@types/ramda@npm:0.30.2":
+  version: 0.30.2
+  resolution: "@types/ramda@npm:0.30.2"
+  dependencies:
+    types-ramda: ^0.30.1
+  checksum: 528e62da967adb38b7b6be3314ee11009f4e7312e4fbb9670f4556bb2f640754f08ae68ede87822ae255aba747e67296f40b37d53bfb427c58ab82f5b7a4989e
   languageName: node
   linkType: hard
 
@@ -2025,6 +2042,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"gaussian@npm:1.3.0":
+  version: 1.3.0
+  resolution: "gaussian@npm:1.3.0"
+  checksum: 0f5e45d5bc0694a39df0dd0d356e09e899bb6ebd4371aa0441a443461cbf8d41c6ea7301625d4e859e216f69085656d024f9ff61616798ef4a2fec6467d31715
+  languageName: node
+  linkType: hard
+
 "generator-function@npm:^2.0.0":
   version: 2.0.1
   resolution: "generator-function@npm:2.0.1"
@@ -2821,6 +2845,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"openskill@npm:^4.1.0":
+  version: 4.1.0
+  resolution: "openskill@npm:4.1.0"
+  dependencies:
+    "@types/gaussian": 1.2.2
+    "@types/ramda": 0.30.2
+    gaussian: 1.3.0
+    ramda: 0.30.1
+    sort-unwind: 3.1.0
+  checksum: 7da01179ce0e70ce8d2c5b2631ac3e0c845d7b8f6e2d401c37f2a41d7370191f10b89796ac87311f3143a258976a743a02eb807f76a540ccf8d9eb3d1725421b
+  languageName: node
+  linkType: hard
+
 "p-map@npm:^7.0.2":
   version: 7.0.4
   resolution: "p-map@npm:7.0.4"
@@ -2977,6 +3014,13 @@ __metadata:
   dependencies:
     side-channel: ^1.1.0
   checksum: 7fffab0344fd75bfb6b8c94b8ba17f3d3e823d25b615900f68b473c3a078e497de8eaa08f709eaaa170eedfcee50638a7159b98abef7d8c89c2ede79291522f2
+  languageName: node
+  linkType: hard
+
+"ramda@npm:0.30.1":
+  version: 0.30.1
+  resolution: "ramda@npm:0.30.1"
+  checksum: ce6f4b6b967a84a4e65c01ab1b1cdd73d46b8efe71aeccf5d1443c56c4e31a0ea82ece7df6510453dd3d83b92cabf8a6b4d50d189a1b35c08a6f44b281bebf79
   languageName: node
   linkType: hard
 
@@ -3402,6 +3446,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"sort-unwind@npm:3.1.0":
+  version: 3.1.0
+  resolution: "sort-unwind@npm:3.1.0"
+  checksum: e7751912e4b3867d82cd6c9e84d48d24086476e226166700149888faafa1c1842f26dabd87d2d0aa11fe628fbb01f9cf0e960cb8fbeaf85ab4b555e4df69700a
+  languageName: node
+  linkType: hard
+
 "source-map-js@npm:^1.2.1":
   version: 1.2.1
   resolution: "source-map-js@npm:1.2.1"
@@ -3596,6 +3647,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ts-toolbelt@npm:^9.6.0":
+  version: 9.6.0
+  resolution: "ts-toolbelt@npm:9.6.0"
+  checksum: 9f35fd95d895a5d32ea9fd2e532a695b0bae6cbff6832b77292efa188a0ed1ed6e54f63f74a8920390f3d909a7a3adb20a144686372a8e78b420246a9bd3d58a
+  languageName: node
+  linkType: hard
+
 "type-fest@npm:^4.18.2, type-fest@npm:^4.27.0":
   version: 4.41.0
   resolution: "type-fest@npm:4.41.0"
@@ -3611,6 +3669,15 @@ __metadata:
     media-typer: ^1.1.0
     mime-types: ^3.0.0
   checksum: 0266e7c782238128292e8c45e60037174d48c6366bb2d45e6bd6422b611c193f83409a8341518b6b5f33f8e4d5a959f38658cacfea77f0a3505b9f7ac1ddec8f
+  languageName: node
+  linkType: hard
+
+"types-ramda@npm:^0.30.1":
+  version: 0.30.1
+  resolution: "types-ramda@npm:0.30.1"
+  dependencies:
+    ts-toolbelt: ^9.6.0
+  checksum: 7af1b5b6dbb5878e5104013f7eca7feff999b538d98d59c91ce82e69908b31223b44a163271b0c13c9828c27f6cff39f78cff0f83d82b73ac47f74ffb3fe7ded
   languageName: node
   linkType: hard
 

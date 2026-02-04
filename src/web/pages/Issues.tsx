@@ -1,20 +1,29 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, X, CircleDot, User, Clock, Check, CheckCircle2, MessageSquare } from 'lucide-react';
+import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { Search, X, CircleDot, User, Clock, Check, CheckCircle2, MessageSquare, ListOrdered, ChevronDown, Check as CheckIcon } from 'lucide-react';
 import { Card, Badge, Avatar, Pagination } from '../components/Common.js';
 import { FilterDropdown } from '../components/FilterDropdown.js';
+import { calculateConfidence, computeRatings, RatingSummary } from '../utils/rankings.js';
 
 export const Issues = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const [issues, setIssues] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [rankings, setRankings] = useState<any[]>([]);
+    const [sortOpen, setSortOpen] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const sortRef = useRef<HTMLDivElement>(null);
     
     const searchQuery = searchParams.get('q') ?? "is:open ";
-    const sortBy = searchParams.get('sort') ?? "Newest";
+    const rawSort = searchParams.get('sort') ?? "Created";
+    const rawOrder = searchParams.get('order') ?? "Desc";
     const currentPage = parseInt(searchParams.get('page') ?? "1", 10);
     const itemsPerPage = 50;
+
+    const sortBy = ['Created', 'Comments', 'Priority', 'Contention'].includes(rawSort) ? rawSort : 'Created';
+    const sortOrder = (rawOrder === 'Asc' || rawOrder === 'Desc') ? rawOrder : 'Desc';
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -49,6 +58,61 @@ export const Issues = () => {
             });
     }, []);
 
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
+                setSortOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        fetch('/api/rankings')
+            .then(res => res.json())
+            .then(data => setRankings(Array.isArray(data) ? data : []))
+            .catch(err => {
+                console.error('Failed to fetch rankings', err);
+                setRankings([]);
+            });
+    }, []);
+
+    const ratingMap = useMemo(() => computeRatings(rankings), [rankings]);
+
+    const getConfidenceDescriptor = (score: number) => {
+        if (score === 0) return 'not confident yet';
+        const abs = Math.abs(score);
+        if (score > 0) {
+            if (abs >= 1.5) return 'highly confident';
+            if (abs >= 0.5) return 'confident';
+            return 'slightly confident';
+        }
+        if (abs >= 1.5) return 'highly contested';
+        if (abs >= 0.5) return 'contested';
+        return 'slightly contested';
+    };
+
+    const getPriorityDisplay = (rating?: RatingSummary) => {
+        if (!rating) return null;
+        const unranked = Math.abs(rating.mu - 25) < 0.001 && Math.abs(rating.sigma - (25 / 3)) < 0.001;
+        if (unranked) return null;
+        const ordinal = rating.ordinal;
+        let bucket = '💤';
+        let label = 'Very Low';
+        if (ordinal >= 10) { bucket = '🔥'; label = 'Urgent'; }
+        else if (ordinal >= 5) { bucket = '⚡'; label = 'High'; }
+        else if (ordinal >= 0) { bucket = '🟦'; label = 'Normal'; }
+        else if (ordinal >= -5) { bucket = '🧊'; label = 'Low'; }
+        const confidenceScore = calculateConfidence(rating.sigma, rating.appearanceCount);
+        if (confidenceScore === 0) return null;
+        const descriptor = getConfidenceDescriptor(confidenceScore);
+        const tooltip = `Priority: ${label} (${descriptor})`;
+        if (confidenceScore <= -0.5) return { text: '⚖️', tooltip };
+        if (confidenceScore > 0) return { text: bucket, tooltip };
+        return { text: '?', tooltip };
+    };
+
     const updateParams = (updates: Record<string, string | number | null>) => {
         const newParams = new URLSearchParams(searchParams);
         Object.entries(updates).forEach(([key, value]) => {
@@ -67,6 +131,10 @@ export const Issues = () => {
 
     const setSortBy = (sort: string) => {
         updateParams({ sort, page: 1 });
+    };
+
+    const setSortOrder = (order: string) => {
+        updateParams({ order, page: 1 });
     };
 
     const setCurrentPage = (page: number) => {
@@ -217,15 +285,30 @@ export const Issues = () => {
         });
 
         result.sort((a, b) => {
-            if (sortBy === 'Newest') return new Date(b.created).getTime() - new Date(a.created).getTime();
-            if (sortBy === 'Oldest') return new Date(a.created).getTime() - new Date(b.created).getTime();
-            if (sortBy === 'Most Commented') return (b.comments_count || 0) - (a.comments_count || 0);
-            if (sortBy === 'Least Commented') return (a.comments_count || 0) - (b.comments_count || 0);
+            const direction = sortOrder === 'Asc' ? 1 : -1;
+            if (sortBy === 'Created') {
+                return (new Date(a.created).getTime() - new Date(b.created).getTime()) * direction;
+            }
+            if (sortBy === 'Comments') {
+                return ((a.comments_count || 0) - (b.comments_count || 0)) * direction;
+            }
+            if (sortBy === 'Priority') {
+                const ratingA = ratingMap.get(a.id)?.ordinal ?? -Infinity;
+                const ratingB = ratingMap.get(b.id)?.ordinal ?? -Infinity;
+                return (ratingA - ratingB) * direction;
+            }
+            if (sortBy === 'Contention') {
+                const sigmaA = ratingMap.get(a.id)?.sigma;
+                const sigmaB = ratingMap.get(b.id)?.sigma;
+                const scoreA = sigmaA ? -sigmaA : -Infinity;
+                const scoreB = sigmaB ? -sigmaB : -Infinity;
+                return (scoreA - scoreB) * direction;
+            }
             return 0;
         });
 
         return result;
-    }, [issues, searchQuery, sortBy]);
+    }, [issues, searchQuery, sortBy, sortOrder, ratingMap]);
 
     const paginatedIssues = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
@@ -241,9 +324,18 @@ export const Issues = () => {
             <div className="flex flex-col gap-6 mb-8">
                 <div className="flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Issues</h2>
-                    <Link to="/new" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm no-underline">
-                        New Issue
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        <Link
+                            to={`/issues/rank${location.search}`}
+                            className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm no-underline inline-flex items-center gap-2"
+                        >
+                            <ListOrdered className="w-4 h-4" />
+                            Rank
+                        </Link>
+                        <Link to="/new" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm no-underline">
+                            New Issue
+                        </Link>
+                    </div>
                 </div>
                 <div className="relative w-full">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -361,12 +453,59 @@ export const Issues = () => {
                                 setSearchQuery(newQuery.trim() + ' ');
                             }} 
                         />
-                        <FilterDropdown 
-                            label="Sort" 
-                            items={['Newest', 'Oldest', 'Most Commented', 'Least Commented']} 
-                            value={sortBy}
-                            onChange={setSortBy} 
-                        />
+                        <div className="relative" ref={sortRef}>
+                            <button
+                                onClick={() => setSortOpen(prev => !prev)}
+                                className="flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors py-1 px-2"
+                            >
+                                Sort
+                                <div className="flex items-center gap-1.5 ml-1">
+                                    <span className="text-slate-900 dark:text-slate-200 font-bold">{sortBy}</span>
+                                    <span className="text-slate-400">/</span>
+                                    <span className="text-slate-700 dark:text-slate-300 font-semibold">{sortOrder}</span>
+                                </div>
+                                <ChevronDown className="w-3 h-3" />
+                            </button>
+                            {sortOpen && (
+                                <div className="absolute right-0 mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-20 overflow-hidden">
+                                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sort</span>
+                                    </div>
+                                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Attribute</div>
+                                    </div>
+                                    {['Created', 'Comments', 'Priority', 'Contention'].map(item => (
+                                        <div
+                                            key={item}
+                                            className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer flex justify-between items-center"
+                                            onClick={() => {
+                                                setSortBy(item);
+                                                setSortOpen(false);
+                                            }}
+                                        >
+                                            <span>{item}</span>
+                                            {sortBy === item && <CheckIcon className="w-3 h-3 text-blue-600" />}
+                                        </div>
+                                    ))}
+                                    <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-800">
+                                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Order</div>
+                                    </div>
+                                    {['Desc', 'Asc'].map(item => (
+                                        <div
+                                            key={item}
+                                            className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer flex justify-between items-center"
+                                            onClick={() => {
+                                                setSortOrder(item);
+                                                setSortOpen(false);
+                                            }}
+                                        >
+                                            <span>{item}</span>
+                                            {sortOrder === item && <CheckIcon className="w-3 h-3 text-blue-600" />}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -425,6 +564,18 @@ export const Issues = () => {
                                             <span className="text-xs font-bold">{issue.comments_count || 0}</span>
                                         </div>
                                     </div>
+                                    {(() => {
+                                        const display = getPriorityDisplay(ratingMap.get(issue.id));
+                                        if (!display) return null;
+                                        return (
+                                            <div
+                                                className="text-xs font-semibold text-slate-500 dark:text-slate-400"
+                                                title={display.tooltip}
+                                            >
+                                                {display.text}
+                                            </div>
+                                        );
+                                    })()}
                                     {issue.assignee && (
                                         <div className="flex items-center gap-1 text-xs text-slate-500">
                                             <Avatar username={issue.assignee} size="xs" />

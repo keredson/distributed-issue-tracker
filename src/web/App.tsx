@@ -3,6 +3,7 @@ import { ThemeProvider } from './components/ThemeContext.js';
 import { Header } from './components/Header.js';
 import { Dashboard } from './pages/Dashboard.js';
 import { Issues } from './pages/Issues.js';
+import { IssueRank } from './pages/IssueRank.js';
 import { NewIssue } from './pages/NewIssue.js';
 import { IssueView } from './pages/IssueView.js';
 import { Users } from './pages/Users.js';
@@ -18,6 +19,7 @@ export default function App() {
                         <Routes>
                             <Route path="/" element={<Dashboard />} />
                             <Route path="/issues" element={<Issues />} />
+                            <Route path="/issues/rank" element={<IssueRank />} />
                             <Route path="/new" element={<NewIssue />} />
                             <Route path="/issue/*" element={<IssueView />} />
                             <Route path="/users" element={<Users />} />

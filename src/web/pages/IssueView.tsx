@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, CircleDot, MessageSquare } from 'lucide-react';
 import { Card, Badge, Avatar, LabelInput } from '../components/Common.js';
 import { Markdown, MarkdownEditor } from '../components/Markdown.js';
 import { UserSelect, User } from '../components/UserSelect.js';
 import { HistoryView } from '../components/HistoryView.js';
+import { computeRatings } from '../utils/rankings.js';
 
 export const IssueView = () => {
     const params = useParams();
@@ -14,6 +15,7 @@ export const IssueView = () => {
     const [loading, setLoading] = useState(true);
     const [commentBody, setCommentBody] = useState("");
     const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [rankings, setRankings] = useState<any[]>([]);
     
     // Edit Mode State
     const [editMode, setEditMode] = useState(false);
@@ -53,7 +55,32 @@ export const IssueView = () => {
             .then(res => res.json())
             .then(data => setCurrentUser(data))
             .catch(() => setCurrentUser(null));
+        fetch("/api/rankings")
+            .then(res => res.json())
+            .then(data => setRankings(Array.isArray(data) ? data : []))
+            .catch(err => {
+                console.error('Failed to fetch rankings', err);
+                setRankings([]);
+            });
     }, [splat]);
+
+    const ratingMap = useMemo(() => computeRatings(rankings), [rankings]);
+    const rating = issue ? ratingMap.get(issue.id) : undefined;
+    const getPriorityDisplay = (value?: { mu: number; sigma: number; ordinal: number }) => {
+        if (!value) return null;
+        const unranked = Math.abs(value.mu - 25) < 0.001 && Math.abs(value.sigma - (25 / 3)) < 0.001;
+        if (unranked) return null;
+        const ordinal = value.ordinal;
+        let bucket = '💤';
+        let label = 'Very Low';
+        if (ordinal >= 10) { bucket = '🔥'; label = 'Urgent'; }
+        else if (ordinal >= 5) { bucket = '⚡'; label = 'High'; }
+        else if (ordinal >= 0) { bucket = '🟦'; label = 'Normal'; }
+        else if (ordinal >= -5) { bucket = '🧊'; label = 'Low'; }
+        const contention = value.sigma >= 9 ? ' ⚖️' : '';
+        const tooltip = `Priority: ${label}\nmu ${value.mu.toFixed(2)}, sigma ${value.sigma.toFixed(2)}, ordinal ${value.ordinal.toFixed(2)}${value.sigma >= 9 ? '\nHigh uncertainty' : ''}`;
+        return { text: `${bucket}${contention}`, tooltip };
+    };
 
     const handleAddComment = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -276,6 +303,18 @@ export const IssueView = () => {
                                 </span>
                             ))}
                             <span className="text-xs font-mono text-slate-400 dark:text-slate-500">#{issue.id}</span>
+                            {(() => {
+                                const display = getPriorityDisplay(rating);
+                                if (!display) return null;
+                                return (
+                                    <span
+                                        className="text-xs font-semibold text-slate-500 dark:text-slate-400"
+                                        title={display.tooltip}
+                                    >
+                                        {display.text}
+                                    </span>
+                                );
+                            })()}
                             {issue.hasHistory && (
                                 <HistoryView issueId={issue.id} />
                             )}
