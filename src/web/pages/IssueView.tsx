@@ -8,6 +8,7 @@ import { HistoryView } from '../components/HistoryView.js';
 import { computeRatings } from '../utils/rankings.js';
 import { getPriorityDisplay } from '../utils/priority.js';
 import { Button } from '../components/ui/button.js';
+import { Input } from '../components/ui/input.js';
 
 export const IssueView = () => {
     const params = useParams();
@@ -204,10 +205,11 @@ export const IssueView = () => {
                     <div className="space-y-6">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Title</label>
-                            <input 
+                            <Input
                                 type="text" 
                                 value={editTitle}
                                 onChange={e => setEditTitle(e.target.value)}
+                                variant="unstyled"
                                 className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-100 focus:border-transparent outline-none transition-all dark:text-slate-100"
                             />
                         </div>

@@ -6,6 +6,7 @@ import { FilterDropdown } from '../components/FilterDropdown.js';
 import { computeRatings } from '../utils/rankings.js';
 import { getPriorityDisplay } from '../utils/priority.js';
 import { Button } from '../components/ui/button.js';
+import { Input } from '../components/ui/input.js';
 
 export const Issues = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -318,12 +319,13 @@ export const Issues = () => {
                 </div>
                 <div className="relative w-full">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <input 
+                    <Input
                         ref={searchInputRef}
                         type="text" 
                         placeholder="Search all issues" 
                         value={searchQuery}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                        variant="unstyled"
                         className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg py-2.5 pl-9 pr-10 text-sm font-mono focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-100 focus:border-transparent outline-none transition-all shadow-sm dark:text-slate-200"
                     />
                     {searchQuery && (
