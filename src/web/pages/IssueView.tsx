@@ -6,6 +6,7 @@ import { Markdown, MarkdownEditor } from '../components/Markdown.js';
 import { UserSelect, User } from '../components/UserSelect.js';
 import { HistoryView } from '../components/HistoryView.js';
 import { computeRatings } from '../utils/rankings.js';
+import { getPriorityDisplay } from '../utils/priority.js';
 
 export const IssueView = () => {
     const params = useParams();
@@ -66,21 +67,6 @@ export const IssueView = () => {
 
     const ratingMap = useMemo(() => computeRatings(rankings), [rankings]);
     const rating = issue ? ratingMap.get(issue.id) : undefined;
-    const getPriorityDisplay = (value?: { mu: number; sigma: number; ordinal: number }) => {
-        if (!value) return null;
-        const unranked = Math.abs(value.mu - 25) < 0.001 && Math.abs(value.sigma - (25 / 3)) < 0.001;
-        if (unranked) return null;
-        const ordinal = value.ordinal;
-        let bucket = '💤';
-        let label = 'Very Low';
-        if (ordinal >= 10) { bucket = '🔥'; label = 'Urgent'; }
-        else if (ordinal >= 5) { bucket = '⚡'; label = 'High'; }
-        else if (ordinal >= 0) { bucket = '🟦'; label = 'Normal'; }
-        else if (ordinal >= -5) { bucket = '🧊'; label = 'Low'; }
-        const contention = value.sigma >= 9 ? ' ⚖️' : '';
-        const tooltip = `Priority: ${label}\nmu ${value.mu.toFixed(2)}, sigma ${value.sigma.toFixed(2)}, ordinal ${value.ordinal.toFixed(2)}${value.sigma >= 9 ? '\nHigh uncertainty' : ''}`;
-        return { text: `${bucket}${contention}`, tooltip };
-    };
 
     const handleAddComment = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
