@@ -729,7 +729,7 @@ export const IssueView = () => {
                             <div className="mb-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-3">
                                 <div className="grid grid-cols-1 gap-2 text-xs text-slate-600 dark:text-slate-300">
                                     {Object.entries(otherBranchDetails.grouped).map(([status, branches]) => (
-                                        <div key={status} className="flex items-start gap-2">
+                                        <div key={status} className="flex items-baseline gap-2">
                                             <Badge variant={status}>{status}</Badge>
                                             <span className="text-[11px] text-slate-500 dark:text-slate-400">
                                                 {branches.join(', ')}
@@ -737,7 +737,7 @@ export const IssueView = () => {
                                         </div>
                                     ))}
                                     {otherBranchDetails.missing.length > 0 && (
-                                        <div className="flex items-start gap-2">
+                                        <div className="flex items-baseline gap-2">
                                             <span className="text-[11px] text-slate-500 dark:text-slate-400">
                                                 Not in: {otherBranchDetails.missing.join(', ')}
                                             </span>
