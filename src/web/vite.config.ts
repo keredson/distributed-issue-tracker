@@ -2,12 +2,14 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { getAllIssues, getIssueById, saveComment, saveIssue, findIssueDirById, getAllIssueDirs, getFileHistory, getFileContentAtCommit, getDiff, getUserActivity } from '../utils/issues.js';
 import { getLocalUsers, getCurrentLocalUser, saveProfilePicData, deleteProfilePic } from '../utils/user.js';
 import { generateUniqueId } from '../utils/id.js';
 import { execSync } from 'child_process';
 import yaml from 'js-yaml';
 import { customAlphabet } from 'nanoid';
+import { execa } from 'execa';
 
 // Helper to parse body (Connect middleware doesn't parse JSON by default)
 const bodyParser = async (req: any) => {
@@ -23,6 +25,51 @@ const bodyParser = async (req: any) => {
         });
         req.on('error', reject);
     });
+};
+
+const listBranches = async (): Promise<string[]> => {
+  try {
+    const { stdout } = await execa('git', ['branch', '--format=%(refname:short)']);
+    return stdout
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
+  } catch (e) {
+    return [];
+  }
+};
+
+const listRemoteBranches = async (): Promise<string[]> => {
+  try {
+    const { stdout } = await execa('git', ['for-each-ref', '--format=%(refname:short)', 'refs/remotes']);
+    return stdout
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .filter(ref => !ref.endsWith('/HEAD'));
+  } catch (e) {
+    return [];
+  }
+};
+
+const branchExists = async (ref: string): Promise<boolean> => {
+  try {
+    await execa('git', ['show-ref', '--verify', '--quiet', ref]);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+const getCommitAuthorMeta = async (commitHash: string): Promise<{ name: string; email: string; date: string } | null> => {
+  try {
+    const { stdout } = await execa('git', ['show', '-s', '--format=%an|%ae|%ad', '--date=iso', commitHash]);
+    const [name, email, date] = stdout.split('|');
+    if (!name || !date) return null;
+    return { name: name.trim(), email: (email || '').trim(), date: date.trim() };
+  } catch (e) {
+    return null;
+  }
 };
 
 export default defineConfig({
@@ -95,6 +142,27 @@ export default defineConfig({
             const user = await getCurrentLocalUser();
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify(user));
+            return;
+          }
+
+          // GET /api/branches
+          const branchesMatch = req.url.match(/^\/api\/branches(\?.*)?$/);
+          if (req.method === 'GET' && branchesMatch) {
+            const url = new URL(req.url, 'http://localhost');
+            const refresh = url.searchParams.get('refresh') === '1';
+            if (refresh) {
+              try {
+                execSync('git fetch --all --prune', { stdio: 'ignore' });
+              } catch (e) {}
+            }
+            const branches = await listBranches();
+            const remoteBranches = await listRemoteBranches();
+            let currentBranch = '';
+            try {
+              currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+            } catch (e) {}
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ branches, remoteBranches, currentBranch }));
             return;
           }
 
@@ -395,6 +463,171 @@ export default defineConfig({
                   res.end(JSON.stringify({ error: 'Failed to update issue: ' + err.message }));
               }
               return;
+          }
+
+          // POST /api/issues/:id/copy
+          const copyMatch = req.url.match(/^\/api\/issues\/([^\/]+)\/copy$/);
+          if (req.method === 'POST' && copyMatch) {
+            const [, id] = copyMatch;
+            try {
+              const body = await bodyParser(req) as any;
+              const targetBranch = (body.targetBranch || '').trim();
+              const targetBranchesInput = Array.isArray(body.targetBranches) ? body.targetBranches : [];
+              const targetBranches = targetBranchesInput
+                .map((branch: any) => String(branch || '').trim())
+                .filter(Boolean);
+              const sourceBranch = (body.sourceBranch || '').trim();
+              const commitMessage = (body.commitMessage || '').trim();
+
+              const allTargets = targetBranches.length ? targetBranches : (targetBranch ? [targetBranch] : []);
+              if (allTargets.length === 0) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'targetBranch(s) is required' }));
+                return;
+              }
+
+              const issueDir = findIssueDirById(issuesDir, id);
+              if (!issueDir) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: 'Issue not found' }));
+                return;
+              }
+
+              const issuePath = path.join(issuesDir, issueDir, 'issue.yaml');
+              const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+              const relativeIssuePath = path.relative(repoRoot, issuePath);
+
+              const sourceLogArgs = ['log'];
+              if (sourceBranch) {
+                sourceLogArgs.push(sourceBranch);
+              }
+              sourceLogArgs.push('--diff-filter=A', '-n', '1', '--format=%H', '--', relativeIssuePath);
+              const { stdout: sourceHashStdout } = await execa('git', sourceLogArgs, { cwd: repoRoot });
+              const sourceCommit = (sourceHashStdout || '').trim();
+
+              if (!sourceCommit) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: 'Source commit not found for issue file' }));
+                return;
+              }
+
+              const authorMeta = await getCommitAuthorMeta(sourceCommit);
+              if (!authorMeta) {
+                res.statusCode = 500;
+                res.end(JSON.stringify({ error: 'Failed to read author metadata' }));
+                return;
+              }
+
+              const authorString = authorMeta.email
+                ? `${authorMeta.name} <${authorMeta.email}>`
+                : authorMeta.name;
+
+              const results: any[] = [];
+              const localBranches = await listBranches();
+              const localSet = new Set(localBranches);
+              const remoteBranches = await listRemoteBranches();
+              const remoteSet = new Set(remoteBranches);
+
+              for (const branch of allTargets) {
+                let localBranchName = branch;
+                let worktreeArgs: string[] = [];
+                let displayBranchName = branch;
+                let willCreateLocal = false;
+
+                if (remoteSet.has(branch)) {
+                  const shortName = branch.replace(/^[^/]+\//, '');
+                  localBranchName = shortName;
+                  displayBranchName = branch;
+                  if (!localSet.has(localBranchName)) {
+                    worktreeArgs = ['worktree', 'add', '-f', '-b', localBranchName, branch];
+                    willCreateLocal = true;
+                  } else {
+                    worktreeArgs = ['worktree', 'add', '-f', localBranchName];
+                  }
+                } else {
+                  const localRef = `refs/heads/${localBranchName}`;
+                  const exists = await branchExists(localRef);
+                  if (!exists) {
+                    results.push({ targetBranch: branch, skipped: true, reason: 'Local branch not found' });
+                    continue;
+                  }
+                  worktreeArgs = ['worktree', 'add', '-f', localBranchName];
+                }
+
+                const worktreeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dit-worktree-'));
+                let worktreeReady = false;
+                try {
+                  let finalArgs: string[] = [];
+                  if (worktreeArgs.includes('-b')) {
+                    // git worktree add -f -b <name> <path> <commit-ish>
+                    const nameIndex = worktreeArgs.indexOf('-b') + 1;
+                    const branchName = worktreeArgs[nameIndex];
+                    const commitish = worktreeArgs[nameIndex + 1];
+                    finalArgs = ['worktree', 'add', '-f', '-b', branchName, worktreeDir, commitish];
+                  } else {
+                    const branchName = worktreeArgs[worktreeArgs.length - 1];
+                    finalArgs = ['worktree', 'add', '-f', worktreeDir, branchName];
+                  }
+                  await execa('git', finalArgs, { cwd: repoRoot });
+                  worktreeReady = true;
+                  if (willCreateLocal) {
+                    localSet.add(localBranchName);
+                    try {
+                      await execa('git', ['branch', '--set-upstream-to', displayBranchName, localBranchName], { cwd: repoRoot });
+                    } catch (e) {}
+                  }
+
+                  await execa('git', ['checkout', sourceCommit, '--', relativeIssuePath], { cwd: worktreeDir });
+                  await execa('git', ['add', relativeIssuePath], { cwd: worktreeDir });
+
+                  const { stdout: staged } = await execa('git', ['diff', '--cached', '--name-only'], { cwd: worktreeDir });
+                  if (!staged.trim()) {
+                    results.push({ targetBranch: displayBranchName, skipped: true, reason: 'No changes to copy (issue already present?)' });
+                    continue;
+                  }
+
+                  const baseMessage = commitMessage || `Backport issue ${id} to ${localBranchName}`;
+                  const messageArgs = ['-m', baseMessage, '-m', `Cherry-picked-from: ${sourceCommit}`];
+                  if (sourceBranch) {
+                    messageArgs.push('-m', `Source-branch: ${sourceBranch}`);
+                  }
+
+                  await execa(
+                    'git',
+                    ['commit', `--author=${authorString}`, `--date=${authorMeta.date}`, ...messageArgs],
+                    { cwd: worktreeDir }
+                  );
+
+                  const { stdout: newCommit } = await execa('git', ['rev-parse', 'HEAD'], { cwd: worktreeDir });
+                  results.push({
+                    targetBranch: displayBranchName,
+                    sourceCommit,
+                    commit: newCommit.trim(),
+                    author: authorMeta
+                  });
+                } finally {
+                  if (worktreeReady) {
+                    try {
+                      await execa('git', ['worktree', 'remove', '-f', worktreeDir], { cwd: repoRoot });
+                    } catch (e) {}
+                  }
+                  try {
+                    fs.rmSync(worktreeDir, { recursive: true, force: true });
+                  } catch (e) {}
+                }
+              }
+
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({
+                success: true,
+                results
+              }));
+            } catch (err: any) {
+              console.error(err);
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message || 'Failed to copy issue' }));
+            }
+            return;
           }
 
           // POST /api/issues/:id/comments

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, CircleDot, MessageSquare } from 'lucide-react';
-import { Card, Badge, Avatar, LabelInput } from '../components/Common.js';
+import { ArrowLeft, Edit2, CircleDot, MessageSquare, GitBranch } from 'lucide-react';
+import { Card, Badge, Avatar, LabelInput, Modal } from '../components/Common.js';
 import { Markdown, MarkdownEditor } from '../components/Markdown.js';
 import { UserSelect, User } from '../components/UserSelect.js';
 import { HistoryView } from '../components/HistoryView.js';
@@ -29,6 +29,16 @@ export const IssueView = () => {
     const [editAssignee, setEditAssignee] = useState("");
     const [editLabels, setEditLabels] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
+
+    const [copyOpen, setCopyOpen] = useState(false);
+    const [branches, setBranches] = useState<{ name: string; kind: 'local' | 'remote' }[]>([]);
+    const [currentBranch, setCurrentBranch] = useState<string>("");
+    const [targetBranches, setTargetBranches] = useState<string[]>([]);
+    const [copyMessage, setCopyMessage] = useState<string>("");
+    const [copyBusy, setCopyBusy] = useState(false);
+    const [copyError, setCopyError] = useState<string>("");
+    const [copyResult, setCopyResult] = useState<any[]>([]);
+    const selectAllRef = useRef<HTMLInputElement | null>(null);
 
     const fetchIssue = () => {
         fetch("/api/issues/details/" + splat)
@@ -66,6 +76,44 @@ export const IssueView = () => {
                 setRankings([]);
             });
     }, [splat]);
+
+    useEffect(() => {
+        if (!copyOpen) return;
+        fetch("/api/branches")
+            .then(res => res.json())
+            .then(data => {
+                const local = Array.isArray(data?.branches) ? data.branches : [];
+                const remote = Array.isArray(data?.remoteBranches) ? data.remoteBranches : [];
+                const combined = [
+                    ...local.map((name: string) => ({ name, kind: 'local' as const })),
+                    ...remote.map((name: string) => ({ name, kind: 'remote' as const }))
+                ];
+                setBranches(combined);
+                setCurrentBranch(data?.currentBranch || "");
+                setTargetBranches([]);
+            })
+            .catch(err => {
+                console.error('Failed to fetch branches', err);
+                setBranches([]);
+            });
+    }, [copyOpen]);
+
+    const selectableBranches = useMemo(() => {
+        return branches
+            .filter(b => {
+                const isCurrent = b.name === currentBranch;
+                const remoteShort = b.name.replace(/^[^/]+\//, '');
+                const isRemoteCurrent = b.kind === 'remote' && remoteShort === currentBranch;
+                return !(isCurrent || isRemoteCurrent);
+            })
+            .map(b => b.name);
+    }, [branches, currentBranch]);
+
+    useEffect(() => {
+        if (!selectAllRef.current) return;
+        const selectedCount = selectableBranches.filter(name => targetBranches.includes(name)).length;
+        selectAllRef.current.indeterminate = selectedCount > 0 && selectedCount < selectableBranches.length;
+    }, [selectableBranches, targetBranches]);
 
     const ratingMap = useMemo(() => computeRatings(rankings), [rankings]);
     const rating = issue ? ratingMap.get(issue.id) : undefined;
@@ -145,6 +193,34 @@ export const IssueView = () => {
         }
     };
 
+    const handleCopyIssue = async () => {
+        if (!issue || targetBranches.length === 0 || copyBusy) return;
+        setCopyBusy(true);
+        setCopyError("");
+        setCopyResult([]);
+        try {
+            const res = await fetch(`/api/issues/${issue.id}/copy`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    targetBranches,
+                    sourceBranch: currentBranch || (window as any).repoRef || "",
+                    commitMessage: copyMessage
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data?.error || 'Failed to copy issue');
+            }
+            setCopyResult(Array.isArray(data?.results) ? data.results : []);
+        } catch (err: any) {
+            setCopyError(err.message || 'Failed to copy issue');
+        } finally {
+            setCopyBusy(false);
+        }
+    };
+
     useEffect(() => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
             if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
@@ -189,16 +265,148 @@ export const IssueView = () => {
                     <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> Back to issues
                 </Button>
                 {!editMode && (
-                    <Button
-                        type="button"
-                        variant="unstyled"
-                        onClick={() => setEditMode(true)}
-                        className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-2"
-                    >
-                        <Edit2 className="w-4 h-4" /> Edit Issue
-                    </Button>
+                    <div className="flex items-center gap-3">
+                        <Button
+                            type="button"
+                            variant="unstyled"
+                            onClick={() => setCopyOpen(true)}
+                            className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-2"
+                        >
+                            <GitBranch className="w-4 h-4" /> Copy to branch
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="unstyled"
+                            onClick={() => setEditMode(true)}
+                            className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-2"
+                        >
+                            <Edit2 className="w-4 h-4" /> Edit Issue
+                        </Button>
+                    </div>
                 )}
             </div>
+
+            <Modal
+                isOpen={copyOpen}
+                onClose={() => {
+                    setCopyOpen(false);
+                    setCopyError("");
+                    setCopyResult([]);
+                    setCopyMessage("");
+                }}
+                title="Copy Issue To Branch"
+                size="sm"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Target branches</label>
+                        <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                            {branches.length === 0 ? (
+                                <div className="text-sm text-slate-500 dark:text-slate-400 px-3 py-2">No branches found</div>
+                            ) : (
+                                <table className="w-full text-sm">
+                                    <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                                        <tr>
+                                            <th className="text-left font-semibold text-slate-600 dark:text-slate-300 px-3 py-2">
+                                                <label className="flex items-center gap-2">
+                                                    <input
+                                                        ref={selectAllRef}
+                                                        type="checkbox"
+                                                        checked={selectableBranches.length > 0 && selectableBranches.every(name => targetBranches.includes(name))}
+                                                        onChange={(e) => {
+                                                            setTargetBranches(e.target.checked ? selectableBranches : []);
+                                                        }}
+                                                    />
+                                                    <span>Branch</span>
+                                                    <span className="text-xs font-normal text-slate-400">{branches.length}</span>
+                                                </label>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {branches.map(branch => {
+                                            const isCurrent = branch.name === currentBranch;
+                                            const remoteShort = branch.name.replace(/^[^/]+\//, '');
+                                            const isRemoteCurrent = branch.kind === 'remote' && remoteShort === currentBranch;
+                                            const checked = targetBranches.includes(branch.name);
+                                const label = branch.kind === 'remote' ? `${branch.name} ↗` : branch.name;
+                                            return (
+                                                <tr key={`${branch.kind}:${branch.name}`}>
+                                                    <td className={`px-3 py-2 ${isCurrent ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                        <label className="flex items-center gap-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                disabled={isCurrent || isRemoteCurrent}
+                                                                checked={checked}
+                                                                onChange={(e) => {
+                                                                    const next = e.target.checked
+                                                                        ? [...targetBranches, branch.name]
+                                                                        : targetBranches.filter(b => b !== branch.name);
+                                                                    setTargetBranches(next);
+                                                                }}
+                                                            />
+                                                            <span>{label}{isCurrent ? ' (current)' : ''}</span>
+                                                        </label>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Commit message (optional)</label>
+                        <Input
+                            type="text"
+                            value={copyMessage}
+                            onChange={e => setCopyMessage(e.target.value)}
+                            variant="unstyled"
+                            placeholder={`Backport issue ${issue?.id} to ${targetBranches.length ? targetBranches.join(', ') : 'branch'}`}
+                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-100 focus:border-transparent outline-none transition-all dark:text-slate-100"
+                        />
+                    </div>
+                    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-3 text-xs text-slate-600 dark:text-slate-400">
+                        The new commit will preserve the original author and date from the source branch, while you become the committer.
+                        A `Cherry-picked-from` trailer is added for traceability.
+                    </div>
+                    {copyError && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                            {copyError}
+                        </div>
+                    )}
+                    {copyResult.length > 0 && (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
+                            {copyResult.map(result => (
+                                <div key={result.targetBranch}>
+                                    {result.skipped
+                                        ? `Skipped ${result.targetBranch}: ${result.reason || 'No changes.'}`
+                                        : `Copied to ${result.targetBranch}. New commit ${result.commit?.slice(0, 8)}.`}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="unstyled"
+                            onClick={() => setCopyOpen(false)}
+                            className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white px-3 py-2"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleCopyIssue}
+                            disabled={copyBusy || targetBranches.length === 0}
+                            className="text-sm font-semibold"
+                        >
+                            {copyBusy ? 'Copying...' : 'Copy'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
 
             {editMode ? (
                 <Card className="p-8 mb-8">
