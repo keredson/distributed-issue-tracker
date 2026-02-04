@@ -1,28 +1,8 @@
 import React from 'react';
 import { X } from 'lucide-react';
 export { Card } from './ui/card.js';
-
-interface BadgeProps {
-    children: React.ReactNode;
-    variant?: string;
-}
-
-export const Badge: React.FC<BadgeProps> = ({ children, variant = "default" }) => {
-    const variants: {[key: string]: string} = {
-        default: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200",
-        open: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-        closed: "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400",
-        bug: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-        feature: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-        assigned: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
-        'in-progress': "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-    };
-    return (
-        <span className={"px-2.5 py-0.5 rounded-full text-xs font-semibold " + (variants[variant] || variants.default)}>
-            {typeof children === 'string' ? children.toUpperCase() : children}
-        </span>
-    );
-};
+export { Badge } from './ui/badge.js';
+import { Avatar as UiAvatar, AvatarImage, AvatarFallback } from './ui/avatar.js';
 
 interface AvatarProps {
     username: string;
@@ -44,18 +24,21 @@ export const Avatar: React.FC<AvatarProps> = ({ username, size = 'md', className
     if (!username) return null;
 
     return (
-        <div className={`relative flex-shrink-0 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex items-center justify-center font-medium text-slate-500 border border-slate-200 dark:border-slate-700 ${sizes[size]} ${className}`}>
+        <UiAvatar
+            className={`flex-shrink-0 bg-slate-100 dark:bg-slate-800 font-medium text-slate-500 border border-slate-200 dark:border-slate-700 ${sizes[size]} ${className}`}
+        >
             {!hasError ? (
-                <img 
-                    src={avatarUrl} 
-                    alt={username} 
-                    className="w-full h-full object-cover"
+                <AvatarImage
+                    src={avatarUrl}
+                    alt={username}
                     onError={() => setHasError(true)}
                 />
             ) : (
-                <span>{username.slice(0, 2).toUpperCase()}</span>
+                <AvatarFallback className="text-inherit">
+                    {username.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
             )}
-        </div>
+        </UiAvatar>
     );
 };
 
