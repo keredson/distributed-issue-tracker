@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { User, Mail, ChevronRight, Search, X } from 'lucide-react';
 import { Card, Avatar, Pagination } from '../components/Common.js';
+import { Button } from '../components/ui/button.js';
 
 export const Users = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -112,12 +113,14 @@ export const Users = () => {
                         className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg py-2.5 pl-9 pr-10 text-sm focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-100 focus:border-transparent outline-none transition-all shadow-sm dark:text-slate-200"
                     />
                     {searchQuery && (
-                        <button 
+                        <Button
+                            type="button"
+                            variant="unstyled"
                             onClick={() => setSearchQuery("")}
                             className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
                         >
                             <X className="h-4 w-4" />
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>

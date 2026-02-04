@@ -7,6 +7,7 @@ import { UserSelect, User } from '../components/UserSelect.js';
 import { HistoryView } from '../components/HistoryView.js';
 import { computeRatings } from '../utils/rankings.js';
 import { getPriorityDisplay } from '../utils/priority.js';
+import { Button } from '../components/ui/button.js';
 
 export const IssueView = () => {
     const params = useParams();
@@ -164,31 +165,37 @@ export const IssueView = () => {
     if (!issue) return (
         <div className="max-w-4xl mx-auto p-8 text-center">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Issue not found</h2>
-            <button 
+            <Button
+                type="button"
+                variant="unstyled"
                 onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/issues')}
                 className="text-blue-600 dark:text-blue-400 hover:underline bg-transparent border-none cursor-pointer"
             >
                 Back to issues
-            </button>
+            </Button>
         </div>
     );
 
     return (
         <div className="max-w-4xl mx-auto p-8">
             <div className="flex justify-between items-center mb-8">
-                <button 
+                <Button
+                    type="button"
+                    variant="unstyled"
                     onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/issues')}
                     className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white no-underline group bg-transparent border-none cursor-pointer p-0"
                 >
                     <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> Back to issues
-                </button>
+                </Button>
                 {!editMode && (
-                    <button 
+                    <Button
+                        type="button"
+                        variant="unstyled"
                         onClick={() => setEditMode(true)}
                         className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-2"
                     >
                         <Edit2 className="w-4 h-4" /> Edit Issue
-                    </button>
+                    </Button>
                 )}
             </div>
 
@@ -262,19 +269,23 @@ export const IssueView = () => {
                             />
                         </div>
                         <div className="flex justify-end gap-3 pt-4">
-                            <button 
+                            <Button
+                                type="button"
+                                variant="unstyled"
                                 onClick={() => setEditMode(false)}
                                 className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                             >
                                 Cancel
-                            </button>
-                            <button 
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="unstyled"
                                 onClick={handleSave}
                                 disabled={saving}
                                 className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-2 rounded-lg text-sm font-bold hover:bg-slate-800 dark:hover:bg-white disabled:opacity-50 transition-all"
                             >
                                 {saving ? 'Saving...' : 'Save Changes'}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </Card>
@@ -391,13 +402,14 @@ export const IssueView = () => {
                             />
                             <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
                                 <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Styling with Markdown is supported</span>
-                                <button 
-                                    type="submit" 
+                                <Button
+                                    type="submit"
+                                    variant="unstyled"
                                     disabled={!commentBody.trim()}
                                     className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-800 dark:hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 >
                                     Comment
-                                </button>
+                                </Button>
                             </div>
                         </form>
                     </Card>

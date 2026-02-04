@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Card, LabelInput } from '../components/Common.js';
 import { MarkdownEditor } from '../components/Markdown.js';
 import { UserSelect } from '../components/UserSelect.js';
+import { Button } from '../components/ui/button.js';
 
 export const NewIssue = () => {
     const [id, setId] = useState<string | null>(null);
@@ -161,13 +162,13 @@ export const NewIssue = () => {
                     </div>
 
                     <div className="flex justify-end pt-4">
-                        <button 
+                        <Button
                             type="submit" 
                             disabled={loading || !title.trim()}
                             className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-800 dark:hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                             {loading ? 'Creating...' : 'Create Issue'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </Card>

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Mail, Github, MapPin, Camera, Trash2, ArrowLeft, Activity } from 'lucide-react';
 import { Card, Avatar } from '../components/Common.js';
 import { ActivityGrid } from '../components/ActivityGrid.js';
+import { Button } from '../components/ui/button.js';
 
 export const UserDetail = () => {
     const { username } = useParams();
@@ -117,22 +118,26 @@ export const UserDetail = () => {
                         <Avatar username={user.username} size="lg" className="w-32 h-32 text-4xl ring-8 ring-white dark:ring-slate-900" />
                         {isMe && (
                             <div className="absolute bottom-0 right-0 flex gap-2">
-                                <button 
+                                <Button
+                                    type="button"
+                                    variant="unstyled"
                                     onClick={() => fileInputRef.current?.click()}
                                     className="p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
                                     title="Upload new avatar"
                                     disabled={uploading}
                                 >
                                     <Camera className="w-5 h-5" />
-                                </button>
+                                </Button>
                                 {user.profilePic && (
-                                    <button 
+                                    <Button
+                                        type="button"
+                                        variant="unstyled"
                                         onClick={handleRemoveAvatar}
                                         className="p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 transition-all"
                                         title="Remove avatar"
                                     >
                                         <Trash2 className="w-5 h-5" />
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         )}
