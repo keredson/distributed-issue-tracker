@@ -7,7 +7,7 @@ An issue tracker that lives directly in your Git repository.
 Traditional issue trackers often suffer from two major deficiencies:
 
 1.  **Online Dependence:** Most issue trackers are centralized and require an internet connection. `dit` is distributed and offline-first, just like Git. You can manage your issues while on a plane, a train, or in a remote cabin.
-2.  **State Mismatch:** Issue state is often disconnected from the code state. An issue might be "closed" in `main` but still "open" in a feature branch. `dit` stores issue state directly in your repository, meaning issue changes are tied to your commits and branches. When you merge a branch, you merge the fixes *and* the issue updates.
+2.  **State Mismatch:** Issue state is often disconnected from the code state. An issue might be "closed" in `main` but still "open" in a release branch. `dit` stores issue state directly in your repository, meaning issue changes are tied to your commits and branches. When you merge a branch, you merge the fixes *and* the issue updates.
 
 ## Key Features
 
