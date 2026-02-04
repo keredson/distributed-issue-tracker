@@ -4,6 +4,15 @@ export { Card } from './ui/card.js';
 export { Badge } from './ui/badge.js';
 import { Avatar as UiAvatar, AvatarImage, AvatarFallback } from './ui/avatar.js';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog.js';
+import {
+    Pagination as UiPagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationPrevious,
+    PaginationNext,
+    PaginationEllipsis
+} from './ui/pagination.js';
 
 interface AvatarProps {
     username: string;
@@ -68,61 +77,88 @@ export const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages,
     }
 
     return (
-        <div className={"flex items-center justify-center gap-1 mt-6 " + className}>
-            <button
-                onClick={() => onPageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-300"
-            >
-                Previous
-            </button>
-            
-            {start > 1 && (
-                <>
-                    <button
-                        onClick={() => onPageChange(1)}
-                        className="w-9 py-1.5 rounded-md text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-300"
-                    >
-                        1
-                    </button>
-                    {start > 2 && <span className="text-slate-400">...</span>}
-                </>
-            )}
+        <UiPagination className={`mt-6 ${className}`}>
+            <PaginationContent>
+                <PaginationItem>
+                    <PaginationPrevious
+                        href="#"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            if (currentPage > 1) onPageChange(currentPage - 1);
+                        }}
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : undefined}
+                    />
+                </PaginationItem>
 
-            {pages.map(page => (
-                <button
-                    key={page}
-                    onClick={() => onPageChange(page)}
-                    className={`w-9 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                        currentPage === page
-                            ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900"
-                            : "hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
-                    }`}
-                >
-                    {page}
-                </button>
-            ))}
+                {start > 1 && (
+                    <>
+                        <PaginationItem>
+                            <PaginationLink
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    onPageChange(1);
+                                }}
+                            >
+                                1
+                            </PaginationLink>
+                        </PaginationItem>
+                        {start > 2 && (
+                            <PaginationItem>
+                                <PaginationEllipsis />
+                            </PaginationItem>
+                        )}
+                    </>
+                )}
 
-            {end < totalPages && (
-                <>
-                    {end < totalPages - 1 && <span className="text-slate-400">...</span>}
-                    <button
-                        onClick={() => onPageChange(totalPages)}
-                        className="w-9 py-1.5 rounded-md text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-300"
-                    >
-                        {totalPages}
-                    </button>
-                </>
-            )}
+                {pages.map(page => (
+                    <PaginationItem key={page}>
+                        <PaginationLink
+                            href="#"
+                            isActive={currentPage === page}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                onPageChange(page);
+                            }}
+                        >
+                            {page}
+                        </PaginationLink>
+                    </PaginationItem>
+                ))}
 
-            <button
-                onClick={() => onPageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-300"
-            >
-                Next
-            </button>
-        </div>
+                {end < totalPages && (
+                    <>
+                        {end < totalPages - 1 && (
+                            <PaginationItem>
+                                <PaginationEllipsis />
+                            </PaginationItem>
+                        )}
+                        <PaginationItem>
+                            <PaginationLink
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    onPageChange(totalPages);
+                                }}
+                            >
+                                {totalPages}
+                            </PaginationLink>
+                        </PaginationItem>
+                    </>
+                )}
+
+                <PaginationItem>
+                    <PaginationNext
+                        href="#"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            if (currentPage < totalPages) onPageChange(currentPage + 1);
+                        }}
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : undefined}
+                    />
+                </PaginationItem>
+            </PaginationContent>
+        </UiPagination>
     );
 };
 
