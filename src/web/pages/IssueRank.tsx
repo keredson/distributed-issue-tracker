@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { GripVertical, Save, X } from 'lucide-react';
-import { toast } from 'sonner';
 import { Badge, Card, Avatar, Modal } from '../components/Common.js';
 import { Markdown } from '../components/Markdown.js';
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert.js';
 
 export const IssueRank = () => {
     const navigate = useNavigate();
@@ -18,6 +18,8 @@ export const IssueRank = () => {
     const [previewIssue, setPreviewIssue] = useState<any | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewError, setPreviewError] = useState<string | null>(null);
+    const [message, setMessage] = useState<string | null>(null);
+    const [messageTone, setMessageTone] = useState<'success' | 'error'>('success');
     const [fallbackIssues, setFallbackIssues] = useState<any[]>([]);
     const [fallbackLoading, setFallbackLoading] = useState(false);
     const [fallbackError, setFallbackError] = useState<string | null>(null);
@@ -158,11 +160,13 @@ export const IssueRank = () => {
     const handleSave = async () => {
         if (saving || rankedIssues.length < 2) {
             if (rankedIssues.length < 2) {
-                toast.error('Add at least two ranked issues before saving.');
+                setMessageTone('error');
+                setMessage('Add at least two ranked issues before saving.');
             }
             return;
         }
         setSaving(true);
+        setMessage(null);
         try {
             const payload = {
                 query: rankState?.query ?? '',
@@ -191,9 +195,11 @@ export const IssueRank = () => {
             const data = await res.json();
             setHasLocalOrder(false);
             setIsSaved(true);
-            toast.success(`Added your rankings!`);
+            setMessageTone('success');
+            setMessage('The roadmap has been re-aligned.');
         } catch (err: any) {
-            toast.error(err.message || 'Failed to save ranking.');
+            setMessageTone('error');
+            setMessage(err.message || 'Failed to save ranking.');
         } finally {
             setSaving(false);
         }
@@ -271,6 +277,26 @@ export const IssueRank = () => {
             ) : null}
 
             <div className="grid grid-cols-1 gap-6">
+                {message && (
+                    <Alert
+                        variant={messageTone === 'error' ? 'destructive' : 'default'}
+                        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <div>
+                            <AlertTitle>
+                                {messageTone === 'error' ? 'Could not save ranking' : 'Added your rankings!'}
+                            </AlertTitle>
+                            <AlertDescription>{message}</AlertDescription>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/issues')}
+                            className="inline-flex items-center justify-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors"
+                        >
+                            Rank more issues
+                        </button>
+                    </Alert>
+                )}
                 <Card className="border-slate-200 dark:border-slate-800">
                     <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-t-xl">
                         <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -297,9 +323,11 @@ export const IssueRank = () => {
                                     onDragEnd={isSaved ? undefined : handleDragEnd}
                                     className={`p-4 flex items-center gap-3 bg-white dark:bg-slate-900/40 ${dragInfo?.list === 'ranked' && dragInfo.index === index ? 'opacity-70' : ''} ${isSaved ? 'cursor-default' : ''}`}
                                 >
-                                    <div className="text-slate-400 cursor-grab">
-                                        <GripVertical className="w-5 h-5" />
-                                    </div>
+                                    {!isSaved && (
+                                        <div className="text-slate-400 cursor-grab">
+                                            <GripVertical className="w-5 h-5" />
+                                        </div>
+                                    )}
                                     <div className="flex-1 flex items-start justify-between gap-6">
                                         <div>
                                             <div className="flex items-center gap-2">
