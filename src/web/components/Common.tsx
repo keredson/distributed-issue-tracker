@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 export { Card } from './ui/card.js';
 export { Badge } from './ui/badge.js';
 import { Avatar as UiAvatar, AvatarImage, AvatarFallback } from './ui/avatar.js';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog.js';
 
 interface AvatarProps {
     username: string;
@@ -186,8 +187,6 @@ interface ModalProps {
 }
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
-    if (!isOpen) return null;
-
     const sizes = {
         sm: 'max-w-md',
         md: 'max-w-2xl',
@@ -197,25 +196,25 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div 
-                className={`bg-white dark:bg-slate-900 w-full ${sizes[size]} rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200`}
-                onClick={e => e.stopPropagation()}
+        <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+            <DialogContent
+                className={`w-full ${sizes[size]} max-h-[90vh] rounded-2xl p-0 overflow-hidden`}
             >
-                <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800">
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white leading-none">{title}</h3>
-                    <button 
+                <DialogHeader className="flex-row items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+                    <DialogTitle className="text-xl font-bold text-slate-900 dark:text-white">
+                        {title}
+                    </DialogTitle>
+                    <button
                         onClick={onClose}
-                        className="p-2 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                        className="rounded-lg p-2 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="h-5 w-5" />
                     </button>
-                </div>
+                </DialogHeader>
                 <div className="flex-1 overflow-y-auto p-6">
                     {children}
                 </div>
-            </div>
-            <div className="fixed inset-0 -z-10" onClick={onClose} />
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };
