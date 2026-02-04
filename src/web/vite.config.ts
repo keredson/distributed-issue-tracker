@@ -662,6 +662,85 @@ export default defineConfig({
             return;
           }
 
+          // POST /api/issues/:id/backports
+          const backportsMatch = req.url.match(/^\/api\/issues\/([^\/]+)\/backports$/);
+          if (req.method === 'POST' && backportsMatch) {
+            const [, id] = backportsMatch;
+            try {
+              const body = await bodyParser(req) as any;
+              const sourceBranch = (body.sourceBranch || '').trim();
+              const branchesInput = Array.isArray(body.branches) ? body.branches : [];
+              const branches = branchesInput.map((b: any) => String(b || '').trim()).filter(Boolean);
+
+              const issueDir = findIssueDirById(issuesDir, id);
+              if (!issueDir) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: 'Issue not found' }));
+                return;
+              }
+
+              const issuePath = path.join(issuesDir, issueDir, 'issue.yaml');
+              const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+              const relativeIssuePath = path.relative(repoRoot, issuePath);
+
+              let sourceCommit = '';
+              if (sourceBranch) {
+                const sourceLogArgs = ['log', sourceBranch, '--diff-filter=A', '-n', '1', '--format=%H', '--', relativeIssuePath];
+                const { stdout: sourceHashStdout } = await execa('git', sourceLogArgs, { cwd: repoRoot });
+                sourceCommit = (sourceHashStdout || '').trim();
+              }
+
+              const results: Record<string, { present: boolean; backported: boolean }> = {};
+              for (const branch of branches) {
+                let present = false;
+                let backported = false;
+                try {
+                  const { stdout: presentStdout } = await execa('git', [
+                    'log',
+                    branch,
+                    '--diff-filter=A',
+                    '-n',
+                    '1',
+                    '--format=%H',
+                    '--',
+                    relativeIssuePath
+                  ], { cwd: repoRoot });
+                  present = !!presentStdout.trim();
+                } catch (e) {
+                  present = false;
+                }
+
+                if (sourceCommit) {
+                  try {
+                    const { stdout: backportStdout } = await execa('git', [
+                      'log',
+                      branch,
+                      `--grep=Cherry-picked-from: ${sourceCommit}`,
+                      '-n',
+                      '1',
+                      '--format=%H',
+                      '--',
+                      relativeIssuePath
+                    ], { cwd: repoRoot });
+                    backported = !!backportStdout.trim();
+                  } catch (e) {
+                    backported = false;
+                  }
+                }
+
+                results[branch] = { present, backported };
+              }
+
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ sourceCommit, results }));
+            } catch (err: any) {
+              console.error(err);
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message || 'Failed to check backports' }));
+            }
+            return;
+          }
+
           // GET /api/issues/:id/history
           const historyMatch = req.url.match(/^\/api\/issues\/([^\/]+)\/history(\?.*)?$/);
           if (req.method === 'GET' && historyMatch) {

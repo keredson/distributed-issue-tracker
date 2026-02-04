@@ -38,6 +38,8 @@ export const IssueView = () => {
     const [copyBusy, setCopyBusy] = useState(false);
     const [copyError, setCopyError] = useState<string>("");
     const [copyResult, setCopyResult] = useState<any[]>([]);
+    const [backportInfo, setBackportInfo] = useState<Record<string, { present?: boolean; backported?: boolean }>>({});
+    const [backportLoading, setBackportLoading] = useState(false);
     const selectAllRef = useRef<HTMLInputElement | null>(null);
 
     const fetchIssue = () => {
@@ -97,6 +99,26 @@ export const IssueView = () => {
                 setBranches([]);
             });
     }, [copyOpen]);
+
+    useEffect(() => {
+        if (!copyOpen || branches.length === 0 || !issue) return;
+        setBackportLoading(true);
+        fetch(`/api/issues/${issue.id}/backports`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sourceBranch: currentBranch || (window as any).repoRef || "",
+                branches: branches.map(b => b.name)
+            })
+        })
+            .then(res => res.json())
+            .then(data => setBackportInfo(data?.results || {}))
+            .catch(err => {
+                console.error('Failed to fetch backport info', err);
+                setBackportInfo({});
+            })
+            .finally(() => setBackportLoading(false));
+    }, [copyOpen, branches, issue, currentBranch]);
 
     const selectableBranches = useMemo(() => {
         return branches
@@ -272,7 +294,7 @@ export const IssueView = () => {
                             onClick={() => setCopyOpen(true)}
                             className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-2"
                         >
-                            <GitBranch className="w-4 h-4" /> Copy to branch
+                            <GitBranch className="w-4 h-4" /> Backport
                         </Button>
                         <Button
                             type="button"
@@ -294,12 +316,11 @@ export const IssueView = () => {
                     setCopyResult([]);
                     setCopyMessage("");
                 }}
-                title="Copy Issue To Branch"
+                title="Backport Issue"
                 size="sm"
             >
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Target branches</label>
                         <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                             {branches.length === 0 ? (
                                 <div className="text-sm text-slate-500 dark:text-slate-400 px-3 py-2">No branches found</div>
@@ -317,8 +338,11 @@ export const IssueView = () => {
                                                             setTargetBranches(e.target.checked ? selectableBranches : []);
                                                         }}
                                                     />
-                                                    <span>Branch</span>
-                                                    <span className="text-xs font-normal text-slate-400">{branches.length}</span>
+                                                    <span>Target Branches</span>
+                                                    <span className="text-xs font-normal text-slate-400">({branches.length} possible)</span>
+                                                    {backportLoading && (
+                                                        <span className="text-xs font-normal text-slate-400">Checking...</span>
+                                                    )}
                                                 </label>
                                             </th>
                                         </tr>
@@ -329,7 +353,13 @@ export const IssueView = () => {
                                             const remoteShort = branch.name.replace(/^[^/]+\//, '');
                                             const isRemoteCurrent = branch.kind === 'remote' && remoteShort === currentBranch;
                                             const checked = targetBranches.includes(branch.name);
-                                const label = branch.kind === 'remote' ? `${branch.name} ↗` : branch.name;
+                                            const label = branch.kind === 'remote' ? `${branch.name} ↗` : branch.name;
+                                            const info = backportInfo[branch.name];
+                                            const status = info?.backported
+                                                ? 'Backported'
+                                                : info?.present
+                                                    ? 'Present'
+                                                    : '';
                                             return (
                                                 <tr key={`${branch.kind}:${branch.name}`}>
                                                     <td className={`px-3 py-2 ${isCurrent ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
@@ -346,6 +376,9 @@ export const IssueView = () => {
                                                                 }}
                                                             />
                                                             <span>{label}{isCurrent ? ' (current)' : ''}</span>
+                                                            {status && (
+                                                                <span className="ml-auto text-[11px] text-slate-400">{status}</span>
+                                                            )}
                                                         </label>
                                                     </td>
                                                 </tr>
@@ -402,7 +435,7 @@ export const IssueView = () => {
                             disabled={copyBusy || targetBranches.length === 0}
                             className="text-sm font-semibold"
                         >
-                            {copyBusy ? 'Copying...' : 'Copy'}
+                            {copyBusy ? 'Backporting...' : 'Backport'}
                         </Button>
                     </div>
                 </div>
