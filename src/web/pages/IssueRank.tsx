@@ -202,9 +202,7 @@ export const IssueRank = () => {
                     </button>
                 </div>
                 <div className="text-sm text-slate-500 dark:text-slate-400">
-                    {isSaved
-                        ? 'Saved. Ranking is now locked.'
-                        : `Drag issues from Unranked to Ranked. Only ranked issues are saved. ${hasLocalOrder ? 'Unsaved changes.' : 'No changes yet.'}`}
+                    Your rankings (past and present) are combined with everyone else’s to calculate priority (± confidence) and globally rank all issues.
                 </div>
                 {message && (
                     <div className="text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2">
