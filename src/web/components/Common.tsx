@@ -1,16 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
-
-interface CardProps {
-    children: React.ReactNode;
-    className?: string;
-}
-
-export const Card: React.FC<CardProps> = ({ children, className = "" }) => (
-    <div className={"bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm " + className}>
-        {children}
-    </div>
-);
+export { Card } from './ui/card.js';
 
 interface BadgeProps {
     children: React.ReactNode;
@@ -246,5 +236,3 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         </div>
     );
 };
-
-
