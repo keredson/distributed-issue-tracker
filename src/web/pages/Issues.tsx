@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, X, CircleDot, User, Clock, Check, CheckCircle2, MessageSquare, ListOrdered, ChevronDown, Check as CheckIcon } from 'lucide-react';
 import { Card, Badge, Avatar, Pagination } from '../components/Common.js';
 import { FilterDropdown } from '../components/FilterDropdown.js';
@@ -9,7 +9,6 @@ import { getPriorityDisplay } from '../utils/priority.js';
 export const Issues = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
-    const location = useLocation();
     const [issues, setIssues] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [rankings, setRankings] = useState<any[]>([]);
@@ -294,7 +293,15 @@ export const Issues = () => {
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Issues</h2>
                     <div className="flex items-center gap-2">
                         <Link
-                            to={`/issues/rank${location.search}`}
+                            to="/issues/rank"
+                            state={{
+                                issues: paginatedIssues,
+                                query: searchQuery,
+                                sort: sortBy,
+                                order: sortOrder,
+                                page: currentPage,
+                                itemsPerPage
+                            }}
                             className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm no-underline inline-flex items-center gap-2"
                         >
                             <ListOrdered className="w-4 h-4" />

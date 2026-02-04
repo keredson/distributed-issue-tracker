@@ -1,193 +1,113 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, GripVertical, Save, X, Undo2 } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft, GripVertical, Save, X } from 'lucide-react';
 import { Badge, Card, Avatar } from '../components/Common.js';
 import { Markdown } from '../components/Markdown.js';
 
 export const IssueRank = () => {
-    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const [issues, setIssues] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [orderedIssues, setOrderedIssues] = useState<any[]>([]);
-    const [dragIndex, setDragIndex] = useState<number | null>(null);
+    const location = useLocation();
+    const [unrankedIssues, setUnrankedIssues] = useState<any[]>([]);
+    const [rankedIssues, setRankedIssues] = useState<any[]>([]);
+    const [dragInfo, setDragInfo] = useState<{ list: 'unranked' | 'ranked'; index: number } | null>(null);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [hasLocalOrder, setHasLocalOrder] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
     const [previewIssue, setPreviewIssue] = useState<any | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewError, setPreviewError] = useState<string | null>(null);
-    const [removedIssues, setRemovedIssues] = useState<Array<{ issue: any; index: number }>>([]);
 
-    const searchQuery = searchParams.get('q') ?? 'is:open ';
-    const sortBy = searchParams.get('sort') ?? 'Newest';
-    const currentPage = parseInt(searchParams.get('page') ?? '1', 10);
-    const itemsPerPage = 50;
+    const rankState = location.state as {
+        issues?: any[];
+        query?: string;
+        sort?: string;
+        order?: string;
+        page?: number;
+        itemsPerPage?: number;
+    } | null;
 
-    useEffect(() => {
-        fetch('/api/issues')
-            .then(res => res.json())
-            .then(data => {
-                setIssues(Array.isArray(data) ? data : []);
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error('Failed to fetch issues', err);
-                setIssues([]);
-                setLoading(false);
-            });
-    }, []);
+    const baseIssues = useMemo(() => {
+        return Array.isArray(rankState?.issues) ? rankState?.issues ?? [] : [];
+    }, [rankState?.issues]);
 
-    const filteredIssues = useMemo(() => {
-        let result = [...issues];
-        const filters: { [key: string]: string[] } = {};
-        const textTerms: string[] = [];
-        const regex = /([a-zA-Z]+):("[^"]+"|[^\s]+)|("[^"]+"|[^\s]+)/gi;
-        let match;
-        while ((match = regex.exec(searchQuery)) !== null) {
-            if (match[1]) {
-                const key = match[1].toLowerCase();
-                let value = match[2];
-                if (value.startsWith('"') && value.endsWith('"')) {
-                    value = value.substring(1, value.length - 1);
-                }
-                if (!filters[key]) filters[key] = [];
-                filters[key].push(value.toLowerCase());
-            } else if (match[3]) {
-                let term = match[3];
-                if (term.startsWith('"') && term.endsWith('"')) {
-                    term = term.substring(1, term.length - 1);
-                }
-                textTerms.push(term.toLowerCase());
-            }
+    const shuffleIssues = (items: any[]) => {
+        const shuffled = [...items];
+        for (let i = shuffled.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
-
-        result = result.filter(issue => {
-            if (textTerms.length > 0) {
-                const content = (
-                    (issue.title || '') + ' ' +
-                    (issue.author || '') + ' ' +
-                    (issue.id || '') + ' ' +
-                    (issue.body || '') + ' ' +
-                    (issue.assignee || '')
-                ).toLowerCase();
-                if (!textTerms.every(term => content.includes(term))) return false;
-            }
-            for (const [key, values] of Object.entries(filters)) {
-                if (key === 'state' || key === 'is') {
-                    if (!values.some(v => {
-                        if (v === 'open') return issue.status === 'open' || issue.status === 'assigned' || issue.status === 'in-progress';
-                        if (v === 'closed') return issue.status === 'closed';
-                        return (issue.status || '').toLowerCase() === v;
-                    })) return false;
-                } else if (key === 'severity') {
-                    if (!values.includes((issue.severity || '').toLowerCase())) return false;
-                } else if (key === 'assignee') {
-                    if (!values.some(v => {
-                        if (v === 'none' || v === 'unassigned') return !issue.assignee;
-                        return (issue.assignee || '').toLowerCase() === v;
-                    })) return false;
-                } else if (key === 'author') {
-                    if (!values.some(v => (issue.author || '').toLowerCase() === v)) return false;
-                } else if (key === 'label') {
-                    if (!values.every(v => (issue.labels || []).some((l: string) => l.toLowerCase() === v))) return false;
-                } else if (key === 'id') {
-                    if (!values.includes((issue.id || '').toLowerCase())) return false;
-                }
-            }
-            return true;
-        });
-
-        result.sort((a, b) => {
-            if (sortBy === 'Newest') return new Date(b.created).getTime() - new Date(a.created).getTime();
-            if (sortBy === 'Oldest') return new Date(a.created).getTime() - new Date(b.created).getTime();
-            if (sortBy === 'Most Commented') return (b.comments_count || 0) - (a.comments_count || 0);
-            if (sortBy === 'Least Commented') return (a.comments_count || 0) - (b.comments_count || 0);
-            return 0;
-        });
-
-        return result;
-    }, [issues, searchQuery, sortBy]);
-
-    const paginatedIssues = useMemo(() => {
-        const start = (currentPage - 1) * itemsPerPage;
-        return filteredIssues.slice(start, start + itemsPerPage);
-    }, [filteredIssues, currentPage]);
-
-    useEffect(() => {
-        setOrderedIssues(paginatedIssues);
-        setRemovedIssues([]);
-        setHasLocalOrder(false);
-    }, [paginatedIssues]);
-
-    const moveIssue = (from: number, to: number) => {
-        setOrderedIssues(prev => {
-            const next = [...prev];
-            const [moved] = next.splice(from, 1);
-            next.splice(to, 0, moved);
-            return next;
-        });
+        return shuffled;
     };
 
-    const handleDragStart = (index: number) => (event: React.DragEvent<HTMLDivElement>) => {
-        setDragIndex(index);
+    useEffect(() => {
+        setUnrankedIssues(shuffleIssues(baseIssues));
+        setRankedIssues([]);
+        setHasLocalOrder(false);
+        setIsSaved(false);
+    }, [baseIssues]);
+
+    const moveBetweenLists = (
+        fromList: 'unranked' | 'ranked',
+        toList: 'unranked' | 'ranked',
+        fromIndex: number,
+        toIndex: number
+    ) => {
+        const fromArray = fromList === 'unranked' ? unrankedIssues : rankedIssues;
+        const toArray = toList === 'unranked' ? unrankedIssues : rankedIssues;
+        if (fromIndex < 0 || fromIndex >= fromArray.length) return;
+        const nextFrom = [...fromArray];
+        const [moved] = nextFrom.splice(fromIndex, 1);
+        if (!moved) return;
+
+        const nextTo = fromList === toList ? nextFrom : [...toArray];
+        const insertAt = Math.min(Math.max(toIndex, 0), nextTo.length);
+        nextTo.splice(insertAt, 0, moved);
+
+        if (fromList === 'unranked') {
+            setUnrankedIssues(nextFrom);
+        } else {
+            setRankedIssues(nextFrom);
+        }
+        if (toList === 'unranked') {
+            setUnrankedIssues(nextTo);
+        } else {
+            setRankedIssues(nextTo);
+        }
+    };
+
+    const handleDragStart = (list: 'unranked' | 'ranked', index: number) => (event: React.DragEvent<HTMLDivElement>) => {
+        setDragInfo({ list, index });
         setHasLocalOrder(true);
         event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', String(index));
+        event.dataTransfer.setData('text/plain', `${list}:${index}`);
     };
 
-    const handleDragOver = (index: number) => (event: React.DragEvent<HTMLDivElement>) => {
+    const handleDragOverItem = (list: 'unranked' | 'ranked', index: number) => (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
-        if (dragIndex === null || dragIndex === index) return;
-        moveIssue(dragIndex, index);
-        setDragIndex(index);
+        if (!dragInfo) return;
+        if (dragInfo.list === list && dragInfo.index === index) return;
+        moveBetweenLists(dragInfo.list, list, dragInfo.index, index);
+        setDragInfo({ list, index });
+        setHasLocalOrder(true);
+    };
+
+    const handleDragOverList = (list: 'unranked' | 'ranked') => (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleDropOnList = (list: 'unranked' | 'ranked') => (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        if (!dragInfo) return;
+        const targetIndex = list === 'unranked' ? unrankedIssues.length : rankedIssues.length;
+        moveBetweenLists(dragInfo.list, list, dragInfo.index, targetIndex);
+        setDragInfo({ list, index: targetIndex });
+        setHasLocalOrder(true);
     };
 
     const handleDragEnd = () => {
-        setDragIndex(null);
-    };
-
-    const removeIssue = (index: number) => {
-        if (index < 0 || index >= orderedIssues.length) return;
-        const next = [...orderedIssues];
-        const [removed] = next.splice(index, 1);
-        if (!removed) return;
-        setOrderedIssues(next);
-        setRemovedIssues(current => [{ issue: removed, index }, ...current]);
-        setHasLocalOrder(true);
-    };
-
-    const undoRemove = (index: number) => {
-        setRemovedIssues(prev => {
-            if (index < 0 || index >= prev.length) return prev;
-            const next = [...prev];
-            const [restored] = next.splice(index, 1);
-            if (restored) {
-                setOrderedIssues(current => {
-                    const updated = [...current];
-                    const insertAt = Math.min(restored.index, updated.length);
-                    updated.splice(insertAt, 0, restored.issue);
-                    return updated;
-                });
-            }
-            return next;
-        });
-        setHasLocalOrder(true);
-    };
-
-    const undoAllRemovals = () => {
-        if (removedIssues.length === 0) return;
-        const toRestore = [...removedIssues].sort((a, b) => a.index - b.index);
-        setOrderedIssues(current => {
-            const updated = [...current];
-            toRestore.forEach(entry => {
-                const insertAt = Math.min(entry.index, updated.length);
-                updated.splice(insertAt, 0, entry.issue);
-            });
-            return updated;
-        });
-        setRemovedIssues([]);
-        setHasLocalOrder(true);
+        setDragInfo(null);
     };
 
     const handleSave = async () => {
@@ -196,11 +116,11 @@ export const IssueRank = () => {
         setMessage(null);
         try {
             const payload = {
-                query: searchQuery,
-                sort: sortBy,
-                page: currentPage,
-                itemsPerPage,
-                issues: orderedIssues.map((issue, index) => ({
+                query: rankState?.query ?? '',
+                sort: rankState?.sort ?? '',
+                page: rankState?.page ?? 1,
+                itemsPerPage: rankState?.itemsPerPage ?? rankedIssues.length,
+                issues: rankedIssues.map((issue, index) => ({
                     id: issue.id,
                     title: issue.title,
                     dir: issue.dir,
@@ -221,6 +141,7 @@ export const IssueRank = () => {
 
             const data = await res.json();
             setHasLocalOrder(false);
+            setIsSaved(true);
             setMessage(`Saved to ${data.path || 'ranking file'}.`);
         } catch (err: any) {
             setMessage(err.message || 'Failed to save ranking.');
@@ -254,8 +175,6 @@ export const IssueRank = () => {
         setPreviewLoading(false);
     };
 
-    if (loading) return <div className="flex justify-center p-12"><div className="animate-spin h-8 w-8 border-4 border-slate-900 border-t-transparent rounded-full"></div></div>;
-
     return (
         <div className="max-w-5xl mx-auto p-8">
             <div className="flex flex-col gap-4 mb-8">
@@ -263,8 +182,7 @@ export const IssueRank = () => {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => {
-                                const backParams = searchParams.toString();
-                                navigate(backParams ? `/issues?${backParams}` : '/issues');
+                                navigate('/issues');
                             }}
                             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                         >
@@ -276,15 +194,17 @@ export const IssueRank = () => {
                     </div>
                     <button
                         onClick={handleSave}
-                        disabled={saving || orderedIssues.length === 0}
+                        disabled={saving || rankedIssues.length === 0 || isSaved}
                         className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm inline-flex items-center gap-2"
                     >
                         <Save className="w-4 h-4" />
-                        {saving ? 'Saving...' : 'Save Ranking'}
+                        {saving ? 'Saving...' : (isSaved ? 'Saved' : 'Save Ranking')}
                     </button>
                 </div>
                 <div className="text-sm text-slate-500 dark:text-slate-400">
-                    Drag issues to reorder the current page ({orderedIssues.length} items). {removedIssues.length > 0 ? `${removedIssues.length} removed.` : ''} {hasLocalOrder ? 'Unsaved changes.' : 'Order matches current sort.'}
+                    {isSaved
+                        ? 'Saved. Ranking is now locked.'
+                        : `Drag issues from Unranked to Ranked. Only ranked issues are saved. ${hasLocalOrder ? 'Unsaved changes.' : 'No changes yet.'}`}
                 </div>
                 {message && (
                     <div className="text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2">
@@ -293,106 +213,150 @@ export const IssueRank = () => {
                 )}
             </div>
 
-            {removedIssues.length > 0 && (
-                <Card className="border-slate-200 dark:border-slate-800 mb-6">
-                    <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-t-xl">
-                        <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                            Removed from ranking
-                        </div>
-                        <button
-                            type="button"
-                            onClick={undoAllRemovals}
-                            className="text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                        >
-                            Undo all
-                        </button>
-                    </div>
-                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {removedIssues.map((entry, index) => (
-                            <div key={`${entry.issue.id}-removed`} className="px-4 py-3 flex items-center justify-between">
-                                <div className="text-sm text-slate-700 dark:text-slate-300">
-                                    {entry.issue.title}
-                                    <span className="ml-2 text-xs text-slate-400 font-mono">#{entry.issue.id}</span>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => undoRemove(index)}
-                                    className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                                >
-                                    <Undo2 className="w-3 h-3" />
-                                    Undo
-                                </button>
-                            </div>
-                        ))}
+            {baseIssues.length === 0 ? (
+                <Card className="border-slate-200 dark:border-slate-800">
+                    <div className="p-8 text-center text-slate-500">
+                        No issues were provided for ranking. Go back and click Rank from the issues list.
                     </div>
                 </Card>
-            )}
+            ) : null}
 
-            <Card className="border-slate-200 dark:border-slate-800">
-                <div className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800 rounded-xl overflow-hidden">
-                    {orderedIssues.length === 0 ? (
-                        <div className="p-12 text-center text-slate-500 rounded-b-xl">
-                            No issues match your search.
+            <div className="grid grid-cols-1 gap-6">
+                <Card className="border-slate-200 dark:border-slate-800">
+                    <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-t-xl">
+                        <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            Ranked ({rankedIssues.length})
                         </div>
-                    ) : (
-                        orderedIssues.map((issue, index) => (
-                            <div
-                                key={issue.id}
-                                draggable
-                                onDragStart={handleDragStart(index)}
-                                onDragOver={handleDragOver(index)}
-                                onDragEnd={handleDragEnd}
-                                className={`p-4 flex items-center gap-3 bg-white dark:bg-slate-900/40 ${dragIndex === index ? 'opacity-70' : ''}`}
-                            >
-                                <div className="text-slate-400 cursor-grab">
-                                    <GripVertical className="w-5 h-5" />
-                                </div>
-                                <div className="flex-1 flex items-start justify-between gap-6">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs font-bold text-slate-400">#{index + 1}</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => openPreview(issue)}
-                                                className="font-bold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 text-left"
-                                            >
-                                                {issue.title}
-                                            </button>
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            <span className="font-mono">#{issue.id}</span>
-                                            <span>•</span>
-                                            <div className="flex items-center gap-1">
-                                                <span>opened {new Date(issue.created).toLocaleDateString()} by</span>
-                                                <Avatar username={issue.author} size="xs" />
-                                                <span className="font-medium">{issue.author}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <Badge variant={issue.status}>{issue.status}</Badge>
-                                        {issue.assignee && (
-                                            <div className="flex items-center gap-1 text-xs text-slate-500">
-                                                <Avatar username={issue.assignee} size="xs" />
-                                                <span className="font-medium">{issue.assignee}</span>
-                                            </div>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={() => removeIssue(index)}
-                                            title="Remove from ranking (undo available above)"
-                                            aria-label="Remove from ranking"
-                                            className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 transition-colors"
-                                        >
-                                            <X className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
-                                </div>
+                        <span className="text-xs text-slate-500">Top = highest priority</span>
+                    </div>
+                    <div
+                        className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800 rounded-b-xl overflow-hidden min-h-[96px]"
+                        onDragOver={isSaved ? undefined : handleDragOverList('ranked')}
+                        onDrop={isSaved ? undefined : handleDropOnList('ranked')}
+                    >
+                        {rankedIssues.length === 0 ? (
+                            <div className="p-10 text-center text-slate-500 rounded-b-xl">
+                                Drag issues here to rank them.
                             </div>
-                        ))
-                    )}
-                </div>
-            </Card>
+                        ) : (
+                            rankedIssues.map((issue, index) => (
+                                <div
+                                    key={`ranked-${issue.id}`}
+                                    draggable={!isSaved}
+                                    onDragStart={isSaved ? undefined : handleDragStart('ranked', index)}
+                                    onDragOver={isSaved ? undefined : handleDragOverItem('ranked', index)}
+                                    onDragEnd={isSaved ? undefined : handleDragEnd}
+                                    className={`p-4 flex items-center gap-3 bg-white dark:bg-slate-900/40 ${dragInfo?.list === 'ranked' && dragInfo.index === index ? 'opacity-70' : ''} ${isSaved ? 'cursor-default' : ''}`}
+                                >
+                                    <div className="text-slate-400 cursor-grab">
+                                        <GripVertical className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1 flex items-start justify-between gap-6">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-slate-400">#{index + 1}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openPreview(issue)}
+                                                    className="font-bold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 text-left"
+                                                >
+                                                    {issue.title}
+                                                </button>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                <span className="font-mono">#{issue.id}</span>
+                                                <span>•</span>
+                                                <div className="flex items-center gap-1">
+                                                    <span>opened {new Date(issue.created).toLocaleDateString()} by</span>
+                                                    <Avatar username={issue.author} size="xs" />
+                                                    <span className="font-medium">{issue.author}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <Badge variant={issue.status}>{issue.status}</Badge>
+                                            {issue.assignee && (
+                                                <div className="flex items-center gap-1 text-xs text-slate-500">
+                                                    <Avatar username={issue.assignee} size="xs" />
+                                                    <span className="font-medium">{issue.assignee}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </Card>
+
+                {!isSaved && (
+                    <Card className="border-slate-200 dark:border-slate-800">
+                        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-t-xl">
+                            <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                Unranked ({unrankedIssues.length})
+                            </div>
+                            <span className="text-xs text-slate-500">Drag into Ranked</span>
+                        </div>
+                        <div
+                            className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800 rounded-b-xl overflow-hidden min-h-[200px]"
+                            onDragOver={handleDragOverList('unranked')}
+                            onDrop={handleDropOnList('unranked')}
+                        >
+                            {unrankedIssues.length === 0 ? (
+                                <div className="p-10 text-center text-slate-500 rounded-b-xl">
+                                    All issues have been ranked.
+                                </div>
+                            ) : (
+                                unrankedIssues.map((issue, index) => (
+                                    <div
+                                        key={`unranked-${issue.id}`}
+                                        draggable
+                                        onDragStart={handleDragStart('unranked', index)}
+                                        onDragOver={handleDragOverItem('unranked', index)}
+                                        onDragEnd={handleDragEnd}
+                                        className={`p-4 flex items-center gap-3 bg-white dark:bg-slate-900/40 ${dragInfo?.list === 'unranked' && dragInfo.index === index ? 'opacity-70' : ''}`}
+                                    >
+                                        <div className="text-slate-400 cursor-grab">
+                                            <GripVertical className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex-1 flex items-start justify-between gap-6">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openPreview(issue)}
+                                                        className="font-bold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 text-left"
+                                                    >
+                                                        {issue.title}
+                                                    </button>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                    <span className="font-mono">#{issue.id}</span>
+                                                    <span>•</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <span>opened {new Date(issue.created).toLocaleDateString()} by</span>
+                                                        <Avatar username={issue.author} size="xs" />
+                                                        <span className="font-medium">{issue.author}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <Badge variant={issue.status}>{issue.status}</Badge>
+                                                {issue.assignee && (
+                                                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                                                        <Avatar username={issue.assignee} size="xs" />
+                                                        <span className="font-medium">{issue.assignee}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </Card>
+                )}
+            </div>
 
             {previewIssue !== null || previewLoading || previewError ? (
                 <div className="fixed inset-0 z-50">
