@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, GripVertical, Save, X } from 'lucide-react';
+import { GripVertical, Save, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge, Card, Avatar, Modal } from '../components/Common.js';
 import { Markdown } from '../components/Markdown.js';
 
@@ -11,13 +12,15 @@ export const IssueRank = () => {
     const [rankedIssues, setRankedIssues] = useState<any[]>([]);
     const [dragInfo, setDragInfo] = useState<{ list: 'unranked' | 'ranked'; index: number } | null>(null);
     const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState<string | null>(null);
     const [hasLocalOrder, setHasLocalOrder] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [showHowItWorks, setShowHowItWorks] = useState(false);
     const [previewIssue, setPreviewIssue] = useState<any | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewError, setPreviewError] = useState<string | null>(null);
+    const [fallbackIssues, setFallbackIssues] = useState<any[]>([]);
+    const [fallbackLoading, setFallbackLoading] = useState(false);
+    const [fallbackError, setFallbackError] = useState<string | null>(null);
 
     const rankState = location.state as {
         issues?: any[];
@@ -28,18 +31,59 @@ export const IssueRank = () => {
         itemsPerPage?: number;
     } | null;
 
-    const baseIssues = useMemo(() => {
-        return Array.isArray(rankState?.issues) ? rankState?.issues ?? [] : [];
-    }, [rankState?.issues]);
-
-    const shuffleIssues = (items: any[]) => {
+    const shuffleIssues = useCallback((items: any[]) => {
         const shuffled = [...items];
         for (let i = shuffled.length - 1; i > 0; i -= 1) {
             const j = Math.floor(Math.random() * (i + 1));
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
         return shuffled;
-    };
+    }, []);
+
+    const hasProvidedIssues = Array.isArray(rankState?.issues) && rankState?.issues.length > 0;
+
+    const baseIssues = useMemo(() => {
+        return hasProvidedIssues ? rankState?.issues ?? [] : fallbackIssues;
+    }, [hasProvidedIssues, rankState?.issues, fallbackIssues]);
+
+    useEffect(() => {
+        if (hasProvidedIssues) {
+            setFallbackIssues([]);
+            setFallbackLoading(false);
+            setFallbackError(null);
+            return;
+        }
+
+        let cancelled = false;
+        setFallbackLoading(true);
+        setFallbackError(null);
+
+        fetch('/api/issues')
+            .then(res => res.json())
+            .then(data => {
+                if (cancelled) return;
+                const issues = Array.isArray(data) ? data : [];
+                const openIssues = issues.filter(issue => {
+                    const status = (issue.status || '').toLowerCase();
+                    return status === 'open' || status === 'assigned' || status === 'in-progress';
+                });
+                const selection = shuffleIssues(openIssues).slice(0, 10);
+                setFallbackIssues(selection);
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setFallbackIssues([]);
+                setFallbackError('Failed to load issues for ranking.');
+            })
+            .finally(() => {
+                if (cancelled) return;
+                setFallbackLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [hasProvidedIssues, shuffleIssues]);
 
     useEffect(() => {
         setUnrankedIssues(shuffleIssues(baseIssues));
@@ -112,9 +156,13 @@ export const IssueRank = () => {
     };
 
     const handleSave = async () => {
-        if (saving) return;
+        if (saving || rankedIssues.length < 2) {
+            if (rankedIssues.length < 2) {
+                toast.error('Add at least two ranked issues before saving.');
+            }
+            return;
+        }
         setSaving(true);
-        setMessage(null);
         try {
             const payload = {
                 query: rankState?.query ?? '',
@@ -143,9 +191,9 @@ export const IssueRank = () => {
             const data = await res.json();
             setHasLocalOrder(false);
             setIsSaved(true);
-            setMessage(`Saved to ${data.path || 'ranking file'}.`);
+            toast.success(`Added your rankings!`);
         } catch (err: any) {
-            setMessage(err.message || 'Failed to save ranking.');
+            toast.error(err.message || 'Failed to save ranking.');
         } finally {
             setSaving(false);
         }
@@ -181,21 +229,11 @@ export const IssueRank = () => {
             <div className="flex flex-col gap-4 mb-8">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => {
-                                navigate('/issues');
-                            }}
-                            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                        >
-                            <ArrowLeft className="w-4 h-4" />
-                            Back to Issues
-                        </button>
-                        <span className="text-slate-300 dark:text-slate-600">/</span>
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Rank Issues</h2>
                     </div>
                     <button
                         onClick={handleSave}
-                        disabled={saving || rankedIssues.length === 0 || isSaved}
+                        disabled={saving || rankedIssues.length < 2 || isSaved}
                         className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm inline-flex items-center gap-2"
                     >
                         <Save className="w-4 h-4" />
@@ -216,17 +254,18 @@ export const IssueRank = () => {
                         How does this work?
                     </a>
                 </div>
-                {message && (
-                    <div className="text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2">
-                        {message}
-                    </div>
-                )}
             </div>
 
             {baseIssues.length === 0 ? (
                 <Card className="border-slate-200 dark:border-slate-800">
                     <div className="p-8 text-center text-slate-500">
-                        No issues were provided for ranking. Go back and click Rank from the issues list.
+                        {fallbackLoading
+                            ? 'Loading issues for ranking...'
+                            : fallbackError
+                                ? fallbackError
+                                : hasProvidedIssues
+                                    ? 'No issues were provided for ranking. Go back and click Rank from the issues list.'
+                                    : 'No open issues found to rank.'}
                     </div>
                 </Card>
             ) : null}

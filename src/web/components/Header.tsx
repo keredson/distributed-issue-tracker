@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Layout, Sun, Moon, Users, LayoutDashboard } from 'lucide-react';
+import { Layout, Sun, Moon, Users, LayoutDashboard, ListOrdered } from 'lucide-react';
 import { useTheme } from './ThemeContext.js';
 import { Avatar } from './Common.js';
 
@@ -42,6 +42,14 @@ export const Header = () => {
                 </div>
 
                 <div className="flex gap-4 items-center">
+                    <Link
+                        to="/issues/rank"
+                        className="inline-flex items-center gap-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+                    >
+                        <ListOrdered className="w-4 h-4" />
+                        Rank Issues
+                    </Link>
+
                     {/* @ts-ignore */}
                     <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">repo:{window.repoName || 'REPO'}</span>
                     

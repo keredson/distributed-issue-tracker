@@ -37,6 +37,7 @@
     "react-dom": "^19.2.4",
     "react-router-dom": "6",
     "slugify": "^1.6.6",
+    "sonner": "^1.7.4",
     "vite": "^7.3.1",
     "wrap-ansi": "^9.0.2"
   },

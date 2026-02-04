@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { Toaster } from './components/ui/sonner.js';
 import { ThemeProvider } from './components/ThemeContext.js';
 import { Header } from './components/Header.js';
 import { Dashboard } from './pages/Dashboard.js';
@@ -33,6 +34,7 @@ export default function App() {
                         </Routes>
                     </main>
                 </div>
+                <Toaster position="top-right" richColors />
             </BrowserRouter>
         </ThemeProvider>
     );
