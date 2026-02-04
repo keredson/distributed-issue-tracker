@@ -743,6 +743,49 @@ export default defineConfig({
             return;
           }
 
+          // POST /api/issues/:id/branch-statuses
+          const branchStatusesMatch = req.url.match(/^\/api\/issues\/([^\/]+)\/branch-statuses$/);
+          if (req.method === 'POST' && branchStatusesMatch) {
+            const [, id] = branchStatusesMatch;
+            try {
+              const body = await bodyParser(req) as any;
+              const branchesInput = Array.isArray(body.branches) ? body.branches : [];
+              const branches = branchesInput.map((b: any) => String(b || '').trim()).filter(Boolean);
+
+              const issueDir = findIssueDirById(issuesDir, id);
+              if (!issueDir) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: 'Issue not found' }));
+                return;
+              }
+
+              const issuePath = path.join(issuesDir, issueDir, 'issue.yaml');
+              const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+              const relativeIssuePath = path.relative(repoRoot, issuePath);
+
+              const results: Record<string, { present: boolean; status?: string }> = {};
+
+              for (const branch of branches) {
+                try {
+                  const { stdout } = await execa('git', ['show', `${branch}:${relativeIssuePath}`], { cwd: repoRoot });
+                  const data: any = yaml.load(stdout || '');
+                  const statusRaw = typeof data?.status === 'string' ? data.status.trim() : '';
+                  results[branch] = { present: true, status: statusRaw || 'open' };
+                } catch (e) {
+                  results[branch] = { present: false };
+                }
+              }
+
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ results }));
+            } catch (err: any) {
+              console.error(err);
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message || 'Failed to load branch statuses' }));
+            }
+            return;
+          }
+
           // GET /api/issues/:id/history
           const historyMatch = req.url.match(/^\/api\/issues\/([^\/]+)\/history(\?.*)?$/);
           if (req.method === 'GET' && historyMatch) {

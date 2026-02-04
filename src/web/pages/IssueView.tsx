@@ -41,6 +41,9 @@ export const IssueView = () => {
     const [copyResult, setCopyResult] = useState<any[]>([]);
     const [backportInfo, setBackportInfo] = useState<Record<string, { present?: boolean; backported?: boolean }>>({});
     const [backportLoading, setBackportLoading] = useState(false);
+    const [branchStatuses, setBranchStatuses] = useState<Record<string, { present?: boolean; status?: string }>>({});
+    const [branchStatusLoading, setBranchStatusLoading] = useState(false);
+    const [branchStatusError, setBranchStatusError] = useState("");
     const selectAllRef = useRef<HTMLInputElement | null>(null);
 
     const fetchIssue = () => {
@@ -81,7 +84,7 @@ export const IssueView = () => {
     }, [splat]);
 
     useEffect(() => {
-        if (!copyOpen) return;
+        if (!issue) return;
         fetch("/api/branches")
             .then(res => res.json())
             .then(data => {
@@ -93,12 +96,16 @@ export const IssueView = () => {
                 ];
                 setBranches(combined);
                 setCurrentBranch(data?.currentBranch || "");
-                setTargetBranches([]);
             })
             .catch(err => {
                 console.error('Failed to fetch branches', err);
                 setBranches([]);
             });
+    }, [issue?.id]);
+
+    useEffect(() => {
+        if (!copyOpen) return;
+        setTargetBranches([]);
     }, [copyOpen]);
 
     useEffect(() => {
@@ -121,6 +128,36 @@ export const IssueView = () => {
             .finally(() => setBackportLoading(false));
     }, [copyOpen, branches, issue, currentBranch]);
 
+    useEffect(() => {
+        if (!issue || branches.length === 0) return;
+        let cancelled = false;
+        setBranchStatusLoading(true);
+        setBranchStatusError("");
+        fetch(`/api/issues/${issue.id}/branch-statuses`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ branches: branches.map(b => b.name) })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (cancelled) return;
+                setBranchStatuses(data?.results || {});
+            })
+            .catch(err => {
+                if (cancelled) return;
+                console.error('Failed to fetch branch statuses', err);
+                setBranchStatusError('Unable to load branch statuses');
+                setBranchStatuses({});
+            })
+            .finally(() => {
+                if (cancelled) return;
+                setBranchStatusLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [issue?.id, branches]);
+
     const selectableBranches = useMemo(() => {
         const localSet = new Set(
             branches.filter(b => b.kind === 'local').map(b => b.name)
@@ -136,6 +173,47 @@ export const IssueView = () => {
             })
             .map(b => b.name);
     }, [branches, currentBranch, backportInfo]);
+
+    const otherBranchNames = useMemo(() => {
+        if (branches.length === 0) return [];
+        const localSet = new Set(
+            branches.filter(b => b.kind === 'local').map(b => b.name)
+        );
+        return branches
+            .filter(b => {
+                const isCurrent = b.name === currentBranch;
+                const remoteShort = b.name.replace(/^[^/]+\//, '');
+                const isRemoteCurrent = b.kind === 'remote' && remoteShort === currentBranch;
+                const remoteHasLocal = b.kind === 'remote' && localSet.has(remoteShort);
+                return !(isCurrent || isRemoteCurrent || remoteHasLocal);
+            })
+            .map(b => b.name);
+    }, [branches, currentBranch]);
+
+    const otherBranchSummary = useMemo(() => {
+        if (otherBranchNames.length === 0) return null;
+        const counts: Record<string, number> = {};
+        let missing = 0;
+        for (const name of otherBranchNames) {
+            const info = branchStatuses[name];
+            if (!info || !info.present) {
+                missing += 1;
+                continue;
+            }
+            const status = (info.status || 'open').trim() || 'open';
+            counts[status] = (counts[status] || 0) + 1;
+        }
+        const statusOrder = ['open', 'assigned', 'in-progress', 'closed'];
+        const ordered = [
+            ...statusOrder.filter(status => counts[status]),
+            ...Object.keys(counts).filter(status => !statusOrder.includes(status)).sort()
+        ];
+        const statuses = ordered.map(status => ({ status, count: counts[status] }));
+        return {
+            statuses,
+            missing
+        };
+    }, [otherBranchNames, branchStatuses]);
 
     const hasCopied = useMemo(() => {
         return copyResult.some(result => !result.skipped);
@@ -594,6 +672,38 @@ export const IssueView = () => {
                                 </span>
                             )}
                         </div>
+                        {(branchStatusLoading || branchStatusError || otherBranchSummary) && (
+                            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-3 flex-wrap">
+                                <GitBranch className="w-3.5 h-3.5" />
+                                {branchStatusLoading && <span>Checking other branches...</span>}
+                                {!branchStatusLoading && branchStatusError && <span>{branchStatusError}</span>}
+                                {!branchStatusLoading && !branchStatusError && otherBranchSummary && (
+                                    <>
+                                        <span className="font-medium">Other branches:</span>
+                                        {otherBranchSummary.statuses.map(({ status, count }) => (
+                                            <React.Fragment key={status}>
+                                                <span className="inline-flex items-center">
+                                                    <Badge variant={status} className="rounded-r-none">
+                                                        {status}
+                                                    </Badge>
+                                                    <Badge
+                                                        variant="default"
+                                                        className="rounded-l-none border-l border-slate-200 dark:border-slate-700 px-2"
+                                                    >
+                                                        {count}
+                                                    </Badge>
+                                                </span>
+                                            </React.Fragment>
+                                        ))}
+                                        {otherBranchSummary.missing > 0 && (
+                                            <span className="text-slate-400 dark:text-slate-500">
+                                                (not present in {otherBranchSummary.missing} branches)
+                                            </span>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
                         <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">{issue.title}</h2>
                         <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-6">
                             <Link to={`/user/${issue.author}`} className="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
