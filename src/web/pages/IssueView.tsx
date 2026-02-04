@@ -44,6 +44,7 @@ export const IssueView = () => {
     const [branchStatuses, setBranchStatuses] = useState<Record<string, { present?: boolean; status?: string }>>({});
     const [branchStatusLoading, setBranchStatusLoading] = useState(false);
     const [branchStatusError, setBranchStatusError] = useState("");
+    const [branchDetailsOpen, setBranchDetailsOpen] = useState(false);
     const selectAllRef = useRef<HTMLInputElement | null>(null);
 
     const fetchIssue = () => {
@@ -213,6 +214,26 @@ export const IssueView = () => {
             statuses,
             missing
         };
+    }, [otherBranchNames, branchStatuses]);
+
+    const otherBranchDetails = useMemo(() => {
+        const present: { branch: string; status: string }[] = [];
+        const missing: string[] = [];
+        if (otherBranchNames.length === 0) return { present, missing };
+        for (const name of otherBranchNames) {
+            const info = branchStatuses[name];
+            if (!info || !info.present) {
+                missing.push(name);
+                continue;
+            }
+            const status = (info.status || 'open').trim() || 'open';
+            present.push({ branch: name, status });
+        }
+        const grouped = present.reduce((acc, item) => {
+            (acc[item.status] ||= []).push(item.branch);
+            return acc;
+        }, {} as Record<string, string[]>);
+        return { grouped, missing };
     }, [otherBranchNames, branchStatuses]);
 
     const hasCopied = useMemo(() => {
@@ -680,18 +701,10 @@ export const IssueView = () => {
                                 {!branchStatusLoading && !branchStatusError && otherBranchSummary && (
                                     <>
                                         <span className="font-medium">Other branches:</span>
-                                        {otherBranchSummary.statuses.map(({ status, count }) => (
+                                        {otherBranchSummary.statuses.map(({ status }) => (
                                             <React.Fragment key={status}>
                                                 <span className="inline-flex items-center">
-                                                    <Badge variant={status} className="rounded-r-none">
-                                                        {status}
-                                                    </Badge>
-                                                    <Badge
-                                                        variant="default"
-                                                        className="rounded-l-none border-l border-slate-200 dark:border-slate-700 px-2"
-                                                    >
-                                                        {count}
-                                                    </Badge>
+                                                    <Badge variant={status}>{status}</Badge>
                                                 </span>
                                             </React.Fragment>
                                         ))}
@@ -700,8 +713,37 @@ export const IssueView = () => {
                                                 (not present in {otherBranchSummary.missing} branches)
                                             </span>
                                         )}
+                                        <Button
+                                            type="button"
+                                            variant="unstyled"
+                                            onClick={() => setBranchDetailsOpen(prev => !prev)}
+                                            className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                                        >
+                                            {branchDetailsOpen ? 'Hide details' : 'Details'}
+                                        </Button>
                                     </>
                                 )}
+                            </div>
+                        )}
+                        {branchDetailsOpen && !branchStatusLoading && !branchStatusError && (Object.keys(otherBranchDetails.grouped).length > 0 || otherBranchDetails.missing.length > 0) && (
+                            <div className="mb-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-3">
+                                <div className="grid grid-cols-1 gap-2 text-xs text-slate-600 dark:text-slate-300">
+                                    {Object.entries(otherBranchDetails.grouped).map(([status, branches]) => (
+                                        <div key={status} className="flex items-start gap-2">
+                                            <Badge variant={status}>{status}</Badge>
+                                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                                                {branches.join(', ')}
+                                            </span>
+                                        </div>
+                                    ))}
+                                    {otherBranchDetails.missing.length > 0 && (
+                                        <div className="flex items-start gap-2">
+                                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                                                Not in: {otherBranchDetails.missing.join(', ')}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                         <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">{issue.title}</h2>
