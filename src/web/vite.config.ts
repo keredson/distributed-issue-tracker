@@ -709,13 +709,20 @@ export default defineConfig({
         name: 'repo-name-injector',
         transformIndexHtml(html) {
             let repoName = 'LOCAL REPO';
+            let repoRef = '';
             try {
                 const gitRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
                 repoName = path.basename(gitRoot);
+                const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+                if (branch && branch !== 'HEAD') {
+                    repoRef = branch;
+                } else {
+                    repoRef = execSync('git rev-parse --short HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+                }
             } catch (e) {
                 repoName = path.basename(process.cwd());
             }
-            return html.replace('<!-- REPO_NAME_SCRIPT -->', `<script>window.repoName = "${repoName}";</script>`);
+            return html.replace('<!-- REPO_NAME_SCRIPT -->', `<script>window.repoName = "${repoName}"; window.repoRef = "${repoRef}";</script>`);
         }
     }
   ]

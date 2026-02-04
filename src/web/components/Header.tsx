@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Layout, Sun, Moon, Users, LayoutDashboard, ListOrdered } from 'lucide-react';
+import { Layout, Sun, Moon, Users, LayoutDashboard, ListOrdered, Bug } from 'lucide-react';
 import { useTheme } from './ThemeContext.js';
 import { Avatar } from './Common.js';
 
@@ -31,7 +31,8 @@ export const Header = () => {
                             <LayoutDashboard className="w-4 h-4" />
                             Dashboard
                         </Link>
-                        <Link to="/issues" className="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white no-underline rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                        <Link to="/issues" className="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white no-underline rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5">
+                            <Bug className="w-4 h-4" />
                             Issues
                         </Link>
                         <Link to="/users" className="px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white no-underline rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5">
@@ -39,6 +40,12 @@ export const Header = () => {
                             Community
                         </Link>
                     </nav>
+
+                    {/* @ts-ignore */}
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded whitespace-nowrap">
+                        {window.repoName || 'REPO'}
+                        {window.repoRef ? `@${window.repoRef}` : ''}
+                    </span>
                 </div>
 
                 <div className="flex gap-4 items-center">
@@ -50,9 +57,6 @@ export const Header = () => {
                         Rank Issues
                     </Link>
 
-                    {/* @ts-ignore */}
-                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">repo:{window.repoName || 'REPO'}</span>
-                    
                     <button 
                         onClick={toggleTheme}
                         className="p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
