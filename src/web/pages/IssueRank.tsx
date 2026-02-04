@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, GripVertical, Save, X } from 'lucide-react';
-import { Badge, Card, Avatar } from '../components/Common.js';
+import { Badge, Card, Avatar, Modal } from '../components/Common.js';
 import { Markdown } from '../components/Markdown.js';
 
 export const IssueRank = () => {
@@ -14,6 +14,7 @@ export const IssueRank = () => {
     const [message, setMessage] = useState<string | null>(null);
     const [hasLocalOrder, setHasLocalOrder] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
+    const [showHowItWorks, setShowHowItWorks] = useState(false);
     const [previewIssue, setPreviewIssue] = useState<any | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewError, setPreviewError] = useState<string | null>(null);
@@ -202,7 +203,18 @@ export const IssueRank = () => {
                     </button>
                 </div>
                 <div className="text-sm text-slate-500 dark:text-slate-400">
-                    Your rankings (past and present) are combined with everyone else’s to calculate priority (± confidence) and globally rank all issues.
+                    Your rankings (past and present) are combined with everyone else’s to calculate priorities and globally rank all issues.
+                <br/>
+                    <a
+                        href="#"
+                        onClick={(event) => {
+                            event.preventDefault();
+                            setShowHowItWorks(true);
+                        }}
+                        className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white underline underline-offset-2"
+                    >
+                        How does this work?
+                    </a>
                 </div>
                 {message && (
                     <div className="text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2">
@@ -459,6 +471,29 @@ export const IssueRank = () => {
                     </div>
                 </div>
             ) : null}
+
+            <Modal
+                isOpen={showHowItWorks}
+                onClose={() => setShowHowItWorks(false)}
+                title="How This Works"
+                size="md"
+            >
+                <div className="text-sm text-slate-600 dark:text-slate-300 space-y-3">
+                    <p>
+                        Each ranking is treated as a multiplayer match where issues compete for priority. The model estimates a
+                        latent “skill” for every issue and updates those estimates from the relative order you provide.
+                    </p>
+                    <p>
+                        The engine is a factor-graph-based Bayesian inference system. It combines all users’ rankings and
+                        propagates uncertainty through the graph, yielding both a priority estimate and a confidence interval.
+                        More agreement across rankings increases confidence; conflicting rankings widen it.
+                    </p>
+                    <p>
+                        This lets the system converge on a consistent, crowd-calibrated ordering without requiring everyone to
+                        rank every issue.
+                    </p>
+                </div>
+            </Modal>
         </div>
     );
 };
