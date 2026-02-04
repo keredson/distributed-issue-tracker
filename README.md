@@ -4,11 +4,11 @@ An issue tracker that lives directly in your Git repository.
 
 ## Why `dit`?
 
-Traditional issue trackers often suffer from two major deficiencies:
+Traditional issue trackers often suffer from major deficiencies:
 
 1.  **Online Dependence:** Most issue trackers are centralized and require an internet connection. `dit` is distributed and offline-first, just like Git. You can manage your issues while on a plane, a train, or in a remote cabin.
 2.  **State Mismatch:** Issue state is often disconnected from the code state. An issue might be "closed" in `main` but still "open" in a release branch. `dit` stores issue state directly in your repository, meaning issue changes are tied to your commits and branches. When you merge a branch, you merge the fixes *and* the issue updates.
-
+3.  **Subjective Prioritization:** Traditional trackers rely on static labels (High/Med/Low) that are subjective and prone to inflation - eventually, everything becomes "High Priority." `dit` replaces these rigid buckets with a **Bayesian consensus engine**. Instead of a single manager deciding what matters, the engine aggregates rankings from every contributor to calculate a dynamic "True Priority." It weighs every opinion to produce a confidence-adjusted score, mathematically distinguishing between *true consensus* (everyone agrees) and *contention* (high disagreement). This ensures your backlog reflects the collective intelligence of the team, not just the loudest voice.
 ## Key Features
 
 -   🚀 **Distributed & Offline-First:** Your issue database is embedded in your repo.
