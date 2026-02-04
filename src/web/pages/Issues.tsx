@@ -63,6 +63,9 @@ export const Issues = () => {
             if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
                 setSortOpen(false);
             }
+            if (rankMenuRef.current && !rankMenuRef.current.contains(event.target as Node)) {
+                setRankMenuOpen(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -305,7 +308,7 @@ export const Issues = () => {
                             className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm no-underline inline-flex items-center gap-2"
                         >
                             <ListOrdered className="w-4 h-4" />
-                            Rank
+                            Rank These Issues
                         </Link>
                         <Link to="/new" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm no-underline">
                             New Issue

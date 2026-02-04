@@ -14,6 +14,7 @@ Traditional issue trackers often suffer from two major deficiencies:
 -   🚀 **Distributed & Offline-First:** Your issue database is embedded in your repo.
 -   🌿 **Branch-Aware:** Issue status evolves with your code across branches and merges.
 -   💻 **Dual Interface:** Use the high-performance CLI for quick tasks or the interactive Web Dashboard for a richer experience.
+-   📊 **Collaborative Ranking:** Drag-to-rank issues and let the system combine everyone’s votes into a global priority list with confidence estimates.
 -   📜 **Issue History:** Track every change to an issue or comment with integrated version history.
 -   📎 **Rich Media Support:** Attach files and paste images directly into issues and comments via the web dashboard.
 -   ⌨️ **Keyboard Shortcuts:** Efficiently navigate and manage issues with intuitive keyboard commands (e.g., `/` to search, `c` for new).
@@ -63,6 +64,9 @@ yarn global add @kered/dit
     ```
     Visit `http://localhost:1337` to browse and manage issues in your browser.
 
+4.  **Rank issues (web):**
+    Open the Issues page, click **Rank**, and drag items from Unranked to Ranked. Saved rankings are aggregated with others to compute a consistent priority ordering and confidence estimates.
+
 ## CLI Commands
 
 -   `dit new [issue|template]` - Create a new issue or a new issue template.
@@ -92,6 +96,10 @@ yarn global add @kered/dit
 ```
 
 Because these files are part of your repository, they are versioned alongside your code. When you run `dit new` or `dit comment`, the files are automatically staged (`git add`) so they can be included in your next commit.
+
+## Ranking Model
+
+The ranking UI is built for collaborative prioritization. Each saved ranking is treated as a multiplayer “match” where issues compete for priority. A factor-graph-based Bayesian inference model aggregates all rankings to estimate a global priority (the ordering) and confidence (how stable that ordering is). Agreement across rankings raises confidence; disagreement lowers it.
 
 ## Development
 
