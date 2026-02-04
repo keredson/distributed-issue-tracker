@@ -9,6 +9,7 @@ import { computeRatings } from '../utils/rankings.js';
 import { getPriorityDisplay } from '../utils/priority.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
+import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert.js';
 
 export const IssueView = () => {
     const params = useParams();
@@ -121,15 +122,24 @@ export const IssueView = () => {
     }, [copyOpen, branches, issue, currentBranch]);
 
     const selectableBranches = useMemo(() => {
+        const localSet = new Set(
+            branches.filter(b => b.kind === 'local').map(b => b.name)
+        );
         return branches
             .filter(b => {
                 const isCurrent = b.name === currentBranch;
                 const remoteShort = b.name.replace(/^[^/]+\//, '');
                 const isRemoteCurrent = b.kind === 'remote' && remoteShort === currentBranch;
-                return !(isCurrent || isRemoteCurrent);
+                const remoteHasLocal = b.kind === 'remote' && localSet.has(remoteShort);
+                const isBackported = !!backportInfo[b.name]?.backported;
+                return !(isCurrent || isRemoteCurrent || remoteHasLocal || isBackported);
             })
             .map(b => b.name);
-    }, [branches, currentBranch]);
+    }, [branches, currentBranch, backportInfo]);
+
+    const hasCopied = useMemo(() => {
+        return copyResult.some(result => !result.skipped);
+    }, [copyResult]);
 
     useEffect(() => {
         if (!selectAllRef.current) return;
@@ -321,11 +331,14 @@ export const IssueView = () => {
             >
                 <div className="space-y-4">
                     <div>
+                        <div className="text-sm text-slate-600 dark:text-slate-300 mb-2">
+                            Which branches does this issue affect?
+                        </div>
                         <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                             {branches.length === 0 ? (
                                 <div className="text-sm text-slate-500 dark:text-slate-400 px-3 py-2">No branches found</div>
                             ) : (
-                                <table className="w-full text-sm">
+                                <table className="w-full text-sm table-fixed">
                                     <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                                         <tr>
                                             <th className="text-left font-semibold text-slate-600 dark:text-slate-300 px-3 py-2">
@@ -334,11 +347,12 @@ export const IssueView = () => {
                                                         ref={selectAllRef}
                                                         type="checkbox"
                                                         checked={selectableBranches.length > 0 && selectableBranches.every(name => targetBranches.includes(name))}
+                                                        disabled={hasCopied}
                                                         onChange={(e) => {
                                                             setTargetBranches(e.target.checked ? selectableBranches : []);
                                                         }}
                                                     />
-                                                    <span>Target Branches</span>
+                                                    <span>Branches</span>
                                                     <span className="text-xs font-normal text-slate-400">({branches.length} possible)</span>
                                                     {backportLoading && (
                                                         <span className="text-xs font-normal text-slate-400">Checking...</span>
@@ -352,9 +366,11 @@ export const IssueView = () => {
                                             const isCurrent = branch.name === currentBranch;
                                             const remoteShort = branch.name.replace(/^[^/]+\//, '');
                                             const isRemoteCurrent = branch.kind === 'remote' && remoteShort === currentBranch;
+                                            const remoteHasLocal = branch.kind === 'remote' && branches.some(b => b.kind === 'local' && b.name === remoteShort);
                                             const checked = targetBranches.includes(branch.name);
                                             const label = branch.kind === 'remote' ? `${branch.name} ↗` : branch.name;
                                             const info = backportInfo[branch.name];
+                                            const isBackported = !!info?.backported;
                                             const status = info?.backported
                                                 ? 'Backported'
                                                 : info?.present
@@ -366,7 +382,7 @@ export const IssueView = () => {
                                                         <label className="flex items-center gap-2">
                                                             <input
                                                                 type="checkbox"
-                                                                disabled={isCurrent || isRemoteCurrent}
+                                                                disabled={isCurrent || isRemoteCurrent || remoteHasLocal || isBackported || hasCopied}
                                                                 checked={checked}
                                                                 onChange={(e) => {
                                                                     const next = e.target.checked
@@ -375,7 +391,14 @@ export const IssueView = () => {
                                                                     setTargetBranches(next);
                                                                 }}
                                                             />
-                                                            <span>{label}{isCurrent ? ' (current)' : ''}</span>
+                                                            <span className="flex-1 min-w-0">
+                                                                <span
+                                                                    className="block truncate whitespace-nowrap"
+                                                                    title={`${label}${isCurrent ? ' (current)' : ''}`}
+                                                                >
+                                                                    {label}{isCurrent ? ' (current)' : ''}
+                                                                </span>
+                                                            </span>
                                                             {status && (
                                                                 <span className="ml-auto text-[11px] text-slate-400">{status}</span>
                                                             )}
@@ -396,6 +419,7 @@ export const IssueView = () => {
                             value={copyMessage}
                             onChange={e => setCopyMessage(e.target.value)}
                             variant="unstyled"
+                            disabled={hasCopied}
                             placeholder={`Backport issue ${issue?.id} to ${targetBranches.length ? targetBranches.join(', ') : 'branch'}`}
                             className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-100 focus:border-transparent outline-none transition-all dark:text-slate-100"
                         />
@@ -410,34 +434,39 @@ export const IssueView = () => {
                         </div>
                     )}
                     {copyResult.length > 0 && (
-                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
-                            {copyResult.map(result => (
-                                <div key={result.targetBranch}>
-                                    {result.skipped
-                                        ? `Skipped ${result.targetBranch}: ${result.reason || 'No changes.'}`
-                                        : `Copied to ${result.targetBranch}. New commit ${result.commit?.slice(0, 8)}.`}
-                                </div>
-                            ))}
+                        <Alert>
+                            <AlertTitle>Backport Results</AlertTitle>
+                            <AlertDescription>
+                                {copyResult.map(result => (
+                                    <div key={result.targetBranch}>
+                                        {result.skipped
+                                            ? `Skipped ${result.targetBranch}: ${result.reason || 'No changes.'}`
+                                            : `Copied to ${result.targetBranch}. New commit ${result.commit?.slice(0, 8)}.`}
+                                    </div>
+                                ))}
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                    {!hasCopied && (
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="unstyled"
+                                onClick={() => setCopyOpen(false)}
+                                className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white px-3 py-2"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={handleCopyIssue}
+                                disabled={copyBusy || targetBranches.length === 0}
+                                className="text-sm font-semibold"
+                            >
+                                {copyBusy ? 'Backporting...' : 'Backport'}
+                            </Button>
                         </div>
                     )}
-                    <div className="flex justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="unstyled"
-                            onClick={() => setCopyOpen(false)}
-                            className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white px-3 py-2"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="button"
-                            onClick={handleCopyIssue}
-                            disabled={copyBusy || targetBranches.length === 0}
-                            className="text-sm font-semibold"
-                        >
-                            {copyBusy ? 'Backporting...' : 'Backport'}
-                        </Button>
-                    </div>
                 </div>
             </Modal>
 

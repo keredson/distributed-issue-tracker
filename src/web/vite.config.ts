@@ -538,7 +538,9 @@ export default defineConfig({
                   const shortName = branch.replace(/^[^/]+\//, '');
                   localBranchName = shortName;
                   displayBranchName = branch;
-                  if (!localSet.has(localBranchName)) {
+                  const localRef = `refs/heads/${localBranchName}`;
+                  const exists = localSet.has(localBranchName) || await branchExists(localRef);
+                  if (!exists) {
                     worktreeArgs = ['worktree', 'add', '-f', '-b', localBranchName, branch];
                     willCreateLocal = true;
                   } else {
