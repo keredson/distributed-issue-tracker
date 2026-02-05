@@ -43,7 +43,8 @@ async function runTests() {
         await saveExternalMetadata(testUsername, {
             src: 'github.com',
             at: '2026-02-05T12:00:00Z',
-            dit_version: '0.1.0'
+            dit_version: '0.1.0',
+            external_id: testUsername
         });
 
         const metaContent = await fs.readFile(path.join(userDir, 'meta.yaml'), 'utf8');
@@ -51,6 +52,7 @@ async function runTests() {
         assert(meta.import?.src === 'github.com', 'Import src should match');
         assert(meta.import?.at === '2026-02-05T12:00:00Z', 'Import at should match');
         assert(meta.import?.dit_version === '0.1.0', 'Import dit_version should match');
+        assert(meta.external_id === testUsername, 'External ID should match');
 
         // Test getLocalUsers loads user metadata
         const users = await getLocalUsers();

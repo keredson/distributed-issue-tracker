@@ -132,7 +132,7 @@ export async function createUser(username: string, gitUser: GitUser, profilePicU
 
 export async function saveExternalMetadata(
     username: string,
-    importInfo: { src: string; at: string; dit_version: string }
+    importInfo: { src: string; at: string; dit_version: string; external_id?: string }
 ): Promise<void> {
     const userDir = path.join(USERS_DIR, username);
     await fs.mkdir(userDir, { recursive: true });
@@ -147,6 +147,9 @@ export async function saveExternalMetadata(
     }
 
     meta.import = importInfo;
+    if (importInfo.external_id) {
+        meta.external_id = importInfo.external_id;
+    }
 
     await fs.writeFile(metaPath, yaml.dump(meta));
 

@@ -108,7 +108,8 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
         await saveExternalMetadata(username, {
             src: 'github.com',
             at: new Date().toISOString(),
-            dit_version: ditVersion
+            dit_version: ditVersion,
+            external_id: username
         });
         
         return username;
@@ -165,7 +166,7 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
                     await syncUser(issue.assignee);
                     await syncUser(issue.user);
                 } else {
-                    const externalId = `github:${owner}/${repo}#${issue.number}`;
+                    const externalId = `${owner}/${repo}#${issue.number}`;
                     const importedAt = new Date().toISOString();
                     
                     let issueDirPath = findIssueByExternalId(externalId);
@@ -189,7 +190,8 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
                             import: {
                                 src: 'github.com',
                                 at: importedAt,
-                                dit_version: ditVersion
+                                dit_version: ditVersion,
+                                external_id: externalId
                             }
                         };
                         
