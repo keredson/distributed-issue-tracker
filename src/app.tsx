@@ -11,6 +11,7 @@ import InteractiveDashboard from './commands/InteractiveDashboard.js';
 import Import from './commands/Import.js';
 import Web from './commands/Web.js';
 import WebPasskey from './commands/WebPasskey.js';
+import WebAuth from './commands/WebAuth.js';
 import Init from './commands/Init.js';
 import { getGitConfig, getLocalUsers, createUser, GitUser } from './utils/user.js';
 
@@ -138,7 +139,7 @@ export default function App({command, input, flags, showHelp}: Props) {
         if (command === 'web') {
             return (
                 <Text>
-                    {`Usage\n  $ dit web [passkey]\n\nLaunch the web interface or create a passkey.`}
+                    {`Usage\n  $ dit web [passkey|auth]\n\nLaunch the web interface, create a passkey, or configure OAuth.`}
                 </Text>
             );
         }
@@ -203,6 +204,9 @@ export default function App({command, input, flags, showHelp}: Props) {
     if (command === 'web') {
         if (input[1] === 'passkey') {
             return <WebPasskey />;
+        }
+        if (input[1] === 'auth') {
+            return <WebAuth />;
         }
         return <Web />;
     }

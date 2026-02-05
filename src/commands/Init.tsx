@@ -6,6 +6,8 @@ import path from 'node:path';
 
 const DEFAULT_WORKFLOW_NAME = 'issue.mmd';
 const WORKFLOWS_DIR = path.join('.dit', 'workflows');
+const GITIGNORE_PATH = '.gitignore';
+const GITIGNORE_ENTRY = '.dit/secrets/';
 
 const DEFAULT_CONTENT = `stateDiagram-v2
     [*] --> open
@@ -44,9 +46,34 @@ export default function Init({onBack}: {onBack?: () => void}) {
         fs.writeFileSync(filePath, DEFAULT_CONTENT, 'utf8');
     };
 
+    const ensureGitignore = () => {
+        let gitignoreContent = '';
+        if (fs.existsSync(GITIGNORE_PATH)) {
+            gitignoreContent = fs.readFileSync(GITIGNORE_PATH, 'utf8');
+        }
+
+        const lines = gitignoreContent.split(/\r?\n/);
+        const hasEntry = lines.some((line) => {
+            const trimmed = line.trim();
+            return trimmed === GITIGNORE_ENTRY || trimmed === GITIGNORE_ENTRY.replace(/\/$/, '');
+        });
+        if (!hasEntry) {
+            const needsLeadingNewline = gitignoreContent.length > 0 && !gitignoreContent.endsWith('\n');
+            const prefix = needsLeadingNewline ? '\n' : '';
+            fs.appendFileSync(GITIGNORE_PATH, `${prefix}${GITIGNORE_ENTRY}\n`, 'utf8');
+        }
+    };
+
     const initDefaultWorkflow = () => {
         const nextPath = path.join(WORKFLOWS_DIR, DEFAULT_WORKFLOW_NAME);
         setTargetPath(nextPath);
+
+        try {
+            ensureGitignore();
+        } catch (err: any) {
+            setError(`Failed to update .gitignore: ${err.message}`);
+            return;
+        }
 
         if (fs.existsSync(nextPath)) {
             setOverwriteInput('');

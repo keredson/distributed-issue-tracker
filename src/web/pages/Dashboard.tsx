@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { 
     CircleDot, 
@@ -21,6 +21,10 @@ export const Dashboard = () => {
     const [me, setMe] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [workflow, setWorkflow] = useState<IssueWorkflow>(getDefaultWorkflow());
+    const [githubAuth, setGithubAuth] = useState<{ configured: boolean; connected: boolean; user?: any } | null>(null);
+    const [deviceFlow, setDeviceFlow] = useState<any>(null);
+    const [deviceError, setDeviceError] = useState<string | null>(null);
+    const pollTimer = useRef<number | null>(null);
     const openStates = useMemo(() => new Set(getOpenStates(workflow)), [workflow]);
     const closedStates = useMemo(() => new Set(getClosedStates(workflow)), [workflow]);
 
@@ -56,6 +60,92 @@ export const Dashboard = () => {
             .then(data => setWorkflow(data))
             .catch(() => setWorkflow(getDefaultWorkflow()));
     }, []);
+
+    useEffect(() => {
+        fetch('/api/auth/github')
+            .then(res => res.json())
+            .then(data => setGithubAuth(data))
+            .catch(() => setGithubAuth(null));
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (pollTimer.current) {
+                window.clearTimeout(pollTimer.current);
+                pollTimer.current = null;
+            }
+        };
+    }, []);
+
+    const schedulePoll = (delaySeconds: number) => {
+        if (pollTimer.current) {
+            window.clearTimeout(pollTimer.current);
+        }
+        pollTimer.current = window.setTimeout(() => {
+            void pollDeviceStatus();
+        }, Math.max(1, delaySeconds) * 1000);
+    };
+
+    const pollDeviceStatus = async () => {
+        if (!deviceFlow?.device_id) return;
+        try {
+            const res = await fetch(`/api/auth/github/device/status?device_id=${deviceFlow.device_id}`);
+            const data = await res.json();
+            if (data.status === 'pending') {
+                schedulePoll(data.retry_in || deviceFlow.interval || 5);
+                return;
+            }
+            if (data.status === 'approved') {
+                setGithubAuth((prev) => prev ? { ...prev, connected: true, user: data.user } : { configured: true, connected: true, user: data.user });
+                setDeviceFlow({ status: 'approved', user: data.user });
+                return;
+            }
+            if (data.status === 'expired') {
+                setDeviceFlow({ status: 'expired' });
+                return;
+            }
+            if (data.status === 'error') {
+                setDeviceError(data.error || 'Device flow failed.');
+                setDeviceFlow(null);
+                return;
+            }
+        } catch (err) {
+            setDeviceError('Device flow failed.');
+            setDeviceFlow(null);
+        }
+    };
+
+    const startDeviceFlow = async () => {
+        setDeviceError(null);
+        try {
+            const res = await fetch('/api/auth/github/device/start', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) {
+                setDeviceError(data?.error || 'Failed to start GitHub device flow.');
+                return;
+            }
+            setDeviceFlow({
+                status: 'pending',
+                device_id: data.device_id,
+                user_code: data.user_code,
+                verification_uri: data.verification_uri,
+                verification_uri_complete: data.verification_uri_complete,
+                interval: data.interval || 5,
+                expires_in: data.expires_in
+            });
+            schedulePoll(data.interval || 5);
+        } catch (err) {
+            setDeviceError('Failed to start GitHub device flow.');
+        }
+    };
+
+    const logoutGitHub = async () => {
+        try {
+            await fetch('/api/auth/github/logout', { method: 'POST' });
+        } finally {
+            window.location.reload();
+        }
+    };
 
     const stats = useMemo(() => {
         if (!me) return null;
@@ -95,6 +185,87 @@ export const Dashboard = () => {
                     <p className="text-slate-500 dark:text-slate-400">Welcome back, {me.name}</p>
                 </div>
             </div>
+
+            <Card className="p-6 mb-8 border border-slate-200 dark:border-slate-800">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">GitHub Connection</h3>
+                        {githubAuth?.connected ? (
+                            <p className="text-slate-600 dark:text-slate-300 mt-2">
+                                Connected as <span className="font-semibold">{githubAuth.user?.login || githubAuth.user?.name || 'GitHub user'}</span>.
+                            </p>
+                        ) : (
+                            <p className="text-slate-600 dark:text-slate-300 mt-2">
+                                Connect GitHub to sync profile data.
+                            </p>
+                        )}
+                        {!githubAuth?.configured && (
+                            <p className="text-xs text-slate-500 mt-2">
+                                Run <code>dit web auth</code> to set your GitHub client ID.
+                            </p>
+                        )}
+                        {githubAuth?.configured && !githubAuth?.local_user && (
+                            <p className="text-xs text-slate-500 mt-2">
+                                No local user detected. Configure git user.name and user.email first.
+                            </p>
+                        )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        {!githubAuth?.connected && (
+                            <button
+                                onClick={startDeviceFlow}
+                                disabled={!githubAuth?.configured || !githubAuth?.local_user || deviceFlow?.status === 'pending'}
+                                className="inline-flex items-center justify-center rounded-md bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Log in with GitHub
+                            </button>
+                        )}
+                        {githubAuth?.connected && (
+                            <>
+                                <span className="inline-flex items-center justify-center rounded-md bg-emerald-100 text-emerald-900 px-4 py-2 text-sm font-semibold">
+                                    Connected
+                                </span>
+                                <button
+                                    onClick={logoutGitHub}
+                                    className="inline-flex items-center justify-center rounded-md border border-slate-300 text-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                                >
+                                    Log out
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+                {deviceError && (
+                    <p className="text-sm text-red-600 mt-3">{deviceError}</p>
+                )}
+                {deviceFlow?.status === 'pending' && (
+                    <div className="mt-4 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+                        <p className="text-sm text-slate-700 dark:text-slate-200">
+                            Enter this code on GitHub to finish signing in:
+                        </p>
+                        <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-3">
+                            <span className="text-lg font-mono tracking-wider text-slate-900 dark:text-white bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-1">
+                                {deviceFlow.user_code}
+                            </span>
+                            <a
+                                href={deviceFlow.verification_uri_complete || deviceFlow.verification_uri}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-semibold text-blue-600 hover:underline"
+                            >
+                                Open GitHub to enter code
+                            </a>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2">Waiting for approval…</p>
+                    </div>
+                )}
+                {deviceFlow?.status === 'approved' && (
+                    <p className="text-sm text-emerald-700 mt-3">GitHub connected successfully.</p>
+                )}
+                {deviceFlow?.status === 'expired' && (
+                    <p className="text-sm text-amber-700 mt-3">Device code expired. Please try again.</p>
+                )}
+            </Card>
 
             <Card className="p-6 mb-8 overflow-hidden">
                 <div className="flex items-center gap-2 mb-6">

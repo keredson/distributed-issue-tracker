@@ -3,13 +3,17 @@ import {Text, Box} from 'ink';
 import { spawn, ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import open from 'open';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, '../../');
+const appRoot = path.resolve(__dirname, '../../');
+const repoRoot = process.cwd();
+const OAUTH_DIR = path.join(repoRoot, '.dit', 'oauth');
+const SECRETS_DIR = path.join(repoRoot, '.dit', 'secrets');
+const GITHUB_OAUTH_PATH = path.join(OAUTH_DIR, 'github.yaml');
 
 export default function Web() {
     const [status, setStatus] = useState('Starting Vite server...');
@@ -32,22 +36,33 @@ export default function Web() {
         };
 
         const startVite = () => {
-            const webPath = path.join(projectRoot, 'src/web');
+            const webPath = path.join(appRoot, 'src/web');
             
             if (!fs.existsSync(webPath)) {
                 setStatus(`Error: Web directory not found at ${webPath}`);
                 return;
             }
 
+            if (fs.existsSync(SECRETS_DIR)) {
+                const stat = fs.statSync(SECRETS_DIR);
+                if (!stat.isDirectory()) {
+                    setStatus(`Error: ${SECRETS_DIR} exists and is not a directory.`);
+                    return;
+                }
+            }
+
             const args = [webPath, '--port', '1337'];
             const webToken = crypto.randomBytes(24).toString('hex');
             
             const env = { ...process.env };
-            const localBin = path.join(projectRoot, 'node_modules/.bin');
+            const localBin = path.join(appRoot, 'node_modules/.bin');
             env.PATH = `${localBin}${path.delimiter}${env.PATH}`;
             env.DIT_WEB_TOKEN = env.DIT_WEB_TOKEN || webToken;
-            const tokenUrl = `http://localhost:1337/?token=${env.DIT_WEB_TOKEN}`;
-            setServerLogs(prev => [...prev.slice(-15), `[Auth] Token URL: ${tokenUrl}`]);
+            const authConfigured = fs.existsSync(GITHUB_OAUTH_PATH);
+            if (!authConfigured) {
+                const tokenUrl = `http://localhost:1337/?token=${env.DIT_WEB_TOKEN}`;
+                setServerLogs(prev => [...prev.slice(-15), `[Auth] Token URL: ${tokenUrl}`]);
+            }
 
             viteProcess = spawn('vite', args, {
                 stdio: ['ignore', 'pipe', 'pipe'],
@@ -69,7 +84,10 @@ export default function Web() {
                     if (line.includes('Local:') || line.includes('http://localhost:1337')) {
                         setStatus('Server running at http://localhost:1337');
                         if (env.DIT_WEB_TOKEN && !env.DIT_WEB_TOKEN.startsWith('$')) {
-                            void openBrowser(`http://localhost:1337/?token=${env.DIT_WEB_TOKEN}`);
+                            const openUrl = authConfigured
+                                ? 'http://localhost:1337'
+                                : `http://localhost:1337/?token=${env.DIT_WEB_TOKEN}`;
+                            void openBrowser(openUrl);
                         }
                     }
                 }

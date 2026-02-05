@@ -16,7 +16,7 @@ const cli = meow(`
 	  comment   Add a comment to an issue
 	  import    Import issues from GitHub
 	  init      Initialize dit defaults
-	  web       Launch the web interface (subcommand: passkey)
+	  web       Launch the web interface (subcommands: passkey, auth)
 
 	For more details on a specific command, run:
 	  $ dit <command> --help

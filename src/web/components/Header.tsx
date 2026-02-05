@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Layout, Sun, Moon, Users, LayoutDashboard, ListOrdered, Bug } from 'lucide-react';
 import { useTheme } from './ThemeContext.js';
@@ -7,6 +7,8 @@ import { Avatar } from './Common.js';
 export const Header = () => {
     const { isDark, toggleTheme } = useTheme();
     const [me, setMe] = useState<any>(null);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
         fetch('/api/me')
@@ -14,6 +16,33 @@ export const Header = () => {
             .then(data => setMe(data))
             .catch(() => {});
     }, []);
+
+    useEffect(() => {
+        if (!menuOpen) return;
+        const handleClick = (event: MouseEvent) => {
+            if (!menuRef.current) return;
+            if (!menuRef.current.contains(event.target as Node)) {
+                setMenuOpen(false);
+            }
+        };
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setMenuOpen(false);
+        };
+        document.addEventListener('mousedown', handleClick);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('mousedown', handleClick);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [menuOpen]);
+
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/auth/github/logout', { method: 'POST' });
+        } finally {
+            window.location.reload();
+        }
+    };
 
     return (
         <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
@@ -70,11 +99,34 @@ export const Header = () => {
                     </button>
 
                     {me && (
-                        <Link to={`/user/${me.username}`} className="no-underline hover:opacity-80 transition-opacity">
-                            <div title={`Logged in as ${me.username}`}>
+                        <div className="relative" ref={menuRef}>
+                            <button
+                                type="button"
+                                onClick={() => setMenuOpen((open) => !open)}
+                                className="no-underline hover:opacity-80 transition-opacity"
+                                title={`Logged in as ${me.username}`}
+                            >
                                 <Avatar username={me.username} size="sm" />
-                            </div>
-                        </Link>
+                            </button>
+                            {menuOpen && (
+                                <div className="absolute right-0 mt-2 w-48 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg z-20">
+                                    <Link
+                                        to={`/user/${me.username}`}
+                                        className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-200 no-underline hover:bg-slate-50 dark:hover:bg-slate-800 rounded-t-lg"
+                                        onClick={() => setMenuOpen(false)}
+                                    >
+                                        View Profile
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={handleLogout}
+                                        className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-b-lg"
+                                    >
+                                        Log out
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>

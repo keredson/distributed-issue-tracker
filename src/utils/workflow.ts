@@ -66,7 +66,7 @@ export const loadIssueWorkflow = (): IssueWorkflow => {
             if (classDefMatch) {
                 const [, className, rawDefs] = classDefMatch;
                 const defs = rawDefs.split(',').map(part => part.trim());
-                const entry: { fill?: string; stroke?: string; color?: string } = {};
+                const entry: { fill?: string; stroke?: string; color?: string; icon?: string } = {};
                 for (const def of defs) {
                     const [key, value] = def.split(':').map(part => part.trim());
                     if (!key || !value) continue;
