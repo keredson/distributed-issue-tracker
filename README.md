@@ -22,6 +22,7 @@ Traditional issue trackers often suffer from major deficiencies:
 -   📥 **GitHub Import:** Easily migrate your existing GitHub issues, comments, and user metadata.
 -   📄 **Human-Readable:** Data is stored in YAML, making it easy to inspect, search, and version control.
 -   🔑 **Passkey Support:** Securely authenticate with the web interface using modern WebAuthn passkeys.
+-   🔐 **GitHub Device Login (Web):** Optional GitHub device-flow login for the web UI.
 -   🟡 **Change Tracking:** Instantly see uncommitted changes to issues with visual "dirty" indicators in both CLI and Web.
 
 ## Installation
@@ -64,6 +65,12 @@ yarn global add @kered/dit
     ```
     Visit `http://localhost:1337` to browse and manage issues in your browser.
 
+4.  **(Optional) Enable GitHub login for the web UI:**
+    ```bash
+    dit web auth
+    ```
+    This stores your GitHub OAuth app client ID in `.dit/oauth/github.yaml`. The client ID is **not secret** and does not grant access by itself; it simply enables the device-flow login button in the web UI. It is safe to commit this file, even in a public repo.
+
 4.  **Rank issues (web):**
     Open the Issues page, click **Rank**, and drag items from Unranked to Ranked. Saved rankings are aggregated with others to compute a consistent priority ordering and confidence estimates.
 
@@ -77,6 +84,7 @@ yarn global add @kered/dit
 -   `dit import [github-url] [--all] [--users] [--verbose]` - Import issues and comments from GitHub. Use `--all` for closed issues, and `--users` to only sync user metadata/avatars.
 -   `dit web` - Launch the interactive local web dashboard.
 -   `dit web passkey` - Create a passkey for secure browser authentication.
+-   `dit web auth` - Store GitHub OAuth client ID for web device-flow login.
 
 ## How it Works
 
@@ -96,6 +104,19 @@ yarn global add @kered/dit
 └── templates/
     └── <template-name>.md
 ```
+
+Optional GitHub web auth configuration and tokens:
+
+```text
+.dit/
+├── oauth/
+│   └── github.yaml        # GitHub OAuth app client_id (not secret)
+└── secrets/
+    └── github/
+        └── <username>.yaml # Per-user GitHub access tokens
+```
+
+Important: `.dit/secrets/` is **local-only** and ignored by Git. It is not meant to be committed or shared.
 
 Because these files are part of your repository, they are versioned alongside your code. When you run `dit new` or `dit comment`, the files are automatically staged (`git add`) so they can be included in your next commit.
 
