@@ -315,7 +315,11 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
             addLog('Import completed successfully!');
             setTimeout(() => exit(), 1000);
         } catch (err: any) {
-            setError(`Failed to import issues: ${err.message}`);
+            setError(
+                `Failed to import issues: ${err.message}. ` +
+                `If you rerun the import, it will prioritize issues that haven't been fetched yet, ` +
+                `then those not fetched in a while.`
+            );
         }
     };
 
