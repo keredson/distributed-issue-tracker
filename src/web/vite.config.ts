@@ -435,7 +435,8 @@ export default defineConfig({
                       return;
                   }
 
-                  const issuePath = path.join(issuesDir, issue.dir, 'issue.yaml');
+                  const issuePath = path.join(issuesDir, issue.dir, 'meta.yaml');
+                  const descriptionPath = path.join(issuesDir, issue.dir, 'description.md');
                   
                   // Merge existing issue with updates
                   // We exclude fields that shouldn't be changed via simple update if any, but mostly we trust the client here
@@ -453,7 +454,9 @@ export default defineConfig({
                   delete updatedIssue.dir;
                   delete updatedIssue.author; // Author logic is git-based, not in yaml usually, or if in yaml preserve it
 
-                  fs.writeFileSync(issuePath, yaml.dump(updatedIssue, {lineWidth: -1, styles: {'!!str': 'literal'}}));
+                  const { body: description, ...metaOnly } = updatedIssue;
+                  fs.writeFileSync(issuePath, yaml.dump(metaOnly, {lineWidth: -1, styles: {'!!str': 'literal'}}));
+                  fs.writeFileSync(descriptionPath, (description || '').trim() + '\n');
 
                   res.setHeader('Content-Type', 'application/json');
                   res.end(JSON.stringify(updatedIssue));
@@ -493,7 +496,7 @@ export default defineConfig({
                 return;
               }
 
-              const issuePath = path.join(issuesDir, issueDir, 'issue.yaml');
+              const issuePath = path.join(issuesDir, issueDir, 'meta.yaml');
               const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
               const relativeIssuePath = path.relative(repoRoot, issuePath);
 
@@ -681,7 +684,7 @@ export default defineConfig({
                 return;
               }
 
-              const issuePath = path.join(issuesDir, issueDir, 'issue.yaml');
+              const issuePath = path.join(issuesDir, issueDir, 'meta.yaml');
               const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
               const relativeIssuePath = path.relative(repoRoot, issuePath);
 
@@ -759,7 +762,7 @@ export default defineConfig({
                 return;
               }
 
-              const issuePath = path.join(issuesDir, issueDir, 'issue.yaml');
+              const issuePath = path.join(issuesDir, issueDir, 'meta.yaml');
               const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
               const relativeIssuePath = path.relative(repoRoot, issuePath);
 
@@ -836,7 +839,7 @@ export default defineConfig({
                 }
                 filePath = foundPath;
             } else {
-                filePath = path.join(issuePath, 'issue.yaml');
+                filePath = path.join(issuePath, 'description.md');
             }
 
             const history = await getFileHistory(filePath);
@@ -895,7 +898,7 @@ export default defineConfig({
                 }
                 filePath = foundPath;
             } else {
-                filePath = path.join(issuePath, 'issue.yaml');
+                filePath = path.join(issuePath, 'description.md');
             }
 
             const content = await getFileContentAtCommit(filePath, commit);
@@ -955,7 +958,7 @@ export default defineConfig({
                 }
                 filePath = foundPath;
             } else {
-                filePath = path.join(issuePath, 'issue.yaml');
+                filePath = path.join(issuePath, 'description.md');
             }
 
             const diff = await getDiff(filePath, commit1, commit2);

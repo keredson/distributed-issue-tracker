@@ -79,7 +79,8 @@ export default function NewIssue({skipAdd, onBack}: {skipAdd?: boolean; onBack?:
             if (!fs.existsSync(tp)) {
                 fs.mkdirSync(tp, {recursive: true});
                 // Initialize empty issue files
-                fs.writeFileSync(path.join(tp, 'issue.yaml'), yaml.dump({
+                const descriptionPath = path.join(tp, 'description.md');
+                fs.writeFileSync(path.join(tp, 'meta.yaml'), yaml.dump({
                     id: issueId,
                     title: 'New Issue',
                     created: new Date().toISOString(),
@@ -87,9 +88,9 @@ export default function NewIssue({skipAdd, onBack}: {skipAdd?: boolean; onBack?:
                     severity: 'medium',
                     assignee: '',
                     author: currentUser?.username || '',
-                    body: templateContent,
                     labels: []
                 }, {lineWidth: -1, styles: {'!!str': 'literal'}}));
+                fs.writeFileSync(descriptionPath, templateContent || '\n');
             }
             setTempPath(tp);
             setShowTemplatePicker(false);
@@ -147,8 +148,10 @@ export default function NewIssue({skipAdd, onBack}: {skipAdd?: boolean; onBack?:
             
             const finalPath = path.join(targetDir, finalDirName);
             
-            // Update issue.yaml in temp path before moving
-            fs.writeFileSync(path.join(tempPath, 'issue.yaml'), yaml.dump(updatedMeta, {lineWidth: -1, styles: {'!!str': 'literal'}}));
+            // Update meta.yaml and description.md in temp path before moving
+            const { body, ...metaOnly } = updatedMeta;
+            fs.writeFileSync(path.join(tempPath, 'meta.yaml'), yaml.dump(metaOnly, {lineWidth: -1, styles: {'!!str': 'literal'}}));
+            fs.writeFileSync(path.join(tempPath, 'description.md'), body || '\n');
             
             // Rename temp to final
             if (fs.existsSync(finalPath)) {

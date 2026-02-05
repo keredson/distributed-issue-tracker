@@ -21,7 +21,7 @@ async function runTest() {
     }
 
     const testIssueDir = path.join(testNestedDir, 'test-issue-1234567');
-    const issueYamlPath = path.join(testIssueDir, 'issue.yaml');
+    const issueYamlPath = path.join(testIssueDir, 'meta.yaml');
     const commentYamlPath = path.join(testIssueDir, 'comment-test-abcdefg.yaml');
 
     try {
@@ -48,7 +48,7 @@ body: Test Comment`);
         
         const testIssueDir2 = path.join(testNestedDir2, 'test-issue-7654321');
         if (!fs.existsSync(testIssueDir2)) fs.mkdirSync(testIssueDir2, { recursive: true });
-        fs.writeFileSync(path.join(testIssueDir2, 'issue.yaml'), 'id: "7654321"\ntitle: Another');
+        fs.writeFileSync(path.join(testIssueDir2, 'meta.yaml'), 'id: "7654321"\ntitle: Another');
         fs.writeFileSync(path.join(testIssueDir2, 'comment-x-y123456.yaml'), 'id: "y123456"\nbody: Hi');
 
         const existing2 = getAllExistingIds(testIssuesDir);

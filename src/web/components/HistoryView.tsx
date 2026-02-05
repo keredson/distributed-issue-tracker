@@ -203,17 +203,20 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ issueId, commentId, cl
                         ) : (
                             <div className="p-8 bg-white dark:bg-slate-900 min-h-[40vh]">
                                 {(() => {
-                                    try {
-                                        const parsed = yaml.load(modalContent) as any;
-                                        if (parsed && typeof parsed.body === 'string') {
-                                            return <Markdown content={parsed.body} issueId={issueId} />;
-                                        }
-                                    } catch (e) {}
-                                    return (
-                                        <pre className="text-xs font-mono text-slate-700 dark:text-slate-300 overflow-auto whitespace-pre-wrap">
-                                            {modalContent}
-                                        </pre>
-                                    );
+                                    if (commentId) {
+                                        try {
+                                            const parsed = yaml.load(modalContent) as any;
+                                            if (parsed && typeof parsed.body === 'string') {
+                                                return <Markdown content={parsed.body} issueId={issueId} />;
+                                            }
+                                        } catch (e) {}
+                                        return (
+                                            <pre className="text-xs font-mono text-slate-700 dark:text-slate-300 overflow-auto whitespace-pre-wrap">
+                                                {modalContent}
+                                            </pre>
+                                        );
+                                    }
+                                    return <Markdown content={modalContent} issueId={issueId} />;
                                 })()}
                             </div>
                         )}

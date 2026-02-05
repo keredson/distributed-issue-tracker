@@ -21,8 +21,8 @@ export function getAllExistingIds(issuesDirOverride?: string): Set<string> {
         for (const issueDir of issueDirs) {
             const issueDirPath = path.join(issuesDir, issueDir);
             
-            // Try to get ID from issue.yaml
-            const issueYamlPath = path.join(issueDirPath, 'issue.yaml');
+            // Try to get ID from meta.yaml
+            const issueYamlPath = path.join(issueDirPath, 'meta.yaml');
             if (fs.existsSync(issueYamlPath)) {
                 try {
                     const content = fs.readFileSync(issueYamlPath, 'utf8');

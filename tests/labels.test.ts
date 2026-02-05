@@ -60,8 +60,9 @@ async function runTests() {
             labels: ['bug', 'fixed']
         };
         
-        const issuePath = path.join(testIssuesDir, issues[0].dir, 'issue.yaml');
-        fs.writeFileSync(issuePath, yaml.dump(updatedData));
+        const issuePath = path.join(testIssuesDir, issues[0].dir, 'meta.yaml');
+        const { body: _body, ...metaOnly } = updatedData;
+        fs.writeFileSync(issuePath, yaml.dump(metaOnly));
         
         const updatedIssue = await getIssueById(testIssuesDir, 'labeltest1');
         assert(updatedIssue.labels.length === 2, 'Should have 2 labels after update');

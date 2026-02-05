@@ -5,6 +5,8 @@ import { execa } from 'execa';
 import { generateSlug } from './slug.js';
 
 const THRESHOLD = 128;
+const ISSUE_META_FILENAME = 'meta.yaml';
+const ISSUE_DESCRIPTION_FILENAME = 'description.md';
 
 export function getTargetDir(baseDir: string, dateStr: string): string {
     const date = new Date(dateStr);
@@ -48,7 +50,11 @@ export function getTargetDir(baseDir: string, dateStr: string): string {
 }
 
 export function getIssueTargetDir(issuesDir: string, createdDate: string): string {
-    return getTargetDir(issuesDir, createdDate);
+    const date = new Date(createdDate);
+    const year = date.getUTCFullYear().toString();
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const day = date.getUTCDate().toString().padStart(2, '0');
+    return path.join(issuesDir, year, month, day);
 }
 
 export function findIssueDirById(issuesDir: string, id: string): string | null {
@@ -60,10 +66,10 @@ export function findIssueDirById(issuesDir: string, id: string): string | null {
         const items = fs.readdirSync(issuesDir, { recursive: true });
         for (const item of items) {
             const itemStr = item.toString();
-            // Look for directories that end with -ID and contain an issue.yaml
+            // Look for directories that end with -ID and contain a meta.yaml
             if (itemStr.endsWith(`-${id}`)) {
                 const fullPath = path.join(issuesDir, itemStr);
-                if (fs.statSync(fullPath).isDirectory() && fs.existsSync(path.join(fullPath, 'issue.yaml'))) {
+                if (fs.statSync(fullPath).isDirectory() && fs.existsSync(path.join(fullPath, ISSUE_META_FILENAME))) {
                     return itemStr;
                 }
             }
@@ -85,8 +91,8 @@ export function getAllIssueDirs(issuesDir: string): string[] {
     for (const item of items) {
         const itemStr = item.toString();
         const fullPath = path.join(issuesDir, itemStr);
-        // Ensure it's a directory and contains issue.yaml
-        if (fs.statSync(fullPath).isDirectory() && fs.existsSync(path.join(fullPath, 'issue.yaml'))) {
+        // Ensure it's a directory and contains meta.yaml
+        if (fs.statSync(fullPath).isDirectory() && fs.existsSync(path.join(fullPath, ISSUE_META_FILENAME))) {
             issueDirs.push(itemStr);
         }
     }
@@ -117,7 +123,9 @@ export async function saveIssue(meta: any, skipAdd: boolean = false, issuesDir: 
     }
 
     fs.mkdirSync(finalPath, {recursive: true});
-    fs.writeFileSync(path.join(finalPath, 'issue.yaml'), yaml.dump(updatedMeta, {lineWidth: -1, styles: {'!!str': 'literal'}}));
+    const { body, ...metaOnly } = updatedMeta;
+    fs.writeFileSync(path.join(finalPath, ISSUE_META_FILENAME), yaml.dump(metaOnly, {lineWidth: -1, styles: {'!!str': 'literal'}}));
+    fs.writeFileSync(path.join(finalPath, ISSUE_DESCRIPTION_FILENAME), body || '\n');
     
     if (!skipAdd) {
         try {
@@ -135,7 +143,7 @@ export function findIssueByExternalId(externalId: string, issuesDir: string = pa
 
     const dirs = getAllIssueDirs(issuesDir);
     for (const dir of dirs) {
-        const issuePath = path.join(issuesDir, dir, 'issue.yaml');
+        const issuePath = path.join(issuesDir, dir, ISSUE_META_FILENAME);
         if (fs.existsSync(issuePath)) {
             try {
                 const content = yaml.load(fs.readFileSync(issuePath, 'utf8')) as any;
@@ -305,7 +313,7 @@ export async function getIssueById(issuesDir: string, id: string): Promise<any |
     const actualDir = findIssueDirById(issuesDir, id);
     if (!actualDir) return null;
 
-    const issuePath = path.join(issuesDir, actualDir, 'issue.yaml');
+    const issuePath = path.join(issuesDir, actualDir, ISSUE_META_FILENAME);
     if (!fs.existsSync(issuePath)) return null;
 
     try {
@@ -314,6 +322,8 @@ export async function getIssueById(issuesDir: string, id: string): Promise<any |
         const historyPaths = await getFilesWithHistory(absoluteIssueDir);
 
         const content = yaml.load(fs.readFileSync(issuePath, 'utf8')) as any;
+        const descriptionPath = path.join(issuesDir, actualDir, ISSUE_DESCRIPTION_FILENAME);
+        const description = fs.existsSync(descriptionPath) ? fs.readFileSync(descriptionPath, 'utf8') : '';
         
         // Normalize tags to labels for backward compatibility
         if (content.tags && !content.labels) {
@@ -343,9 +353,9 @@ export async function getIssueById(issuesDir: string, id: string): Promise<any |
             }
         }
 
-        const hasHistory = historyPaths.has(path.resolve(issuePath));
+        const hasHistory = historyPaths.has(path.resolve(descriptionPath));
 
-        return { ...content, comments, dir: actualDir, author, isDirty, hasHistory };
+        return { ...content, body: description, comments, dir: actualDir, author, isDirty, hasHistory };
     } catch (e) {
         return null;
     }
@@ -471,9 +481,11 @@ export async function getAllIssues(issuesDir: string): Promise<any[]> {
 
     for (const dir of dirs) {
         const fullIssuePath = path.join(issuesDir, dir);
-        const issuePath = path.join(fullIssuePath, 'issue.yaml');
+        const issuePath = path.join(fullIssuePath, ISSUE_META_FILENAME);
+        const descriptionPath = path.join(fullIssuePath, ISSUE_DESCRIPTION_FILENAME);
         try {
             const content = yaml.load(fs.readFileSync(issuePath, 'utf8')) as any;
+            const description = fs.existsSync(descriptionPath) ? fs.readFileSync(descriptionPath, 'utf8') : '';
             
             // Normalize tags to labels for backward compatibility
             if (content.tags && !content.labels) {
@@ -504,7 +516,7 @@ export async function getAllIssues(issuesDir: string): Promise<any[]> {
                 }
             }
 
-            issues.push({ ...content, dir, comments_count, author, isDirty });
+            issues.push({ ...content, body: description, dir, comments_count, author, isDirty });
         } catch (e) {
             // Ignore
         }

@@ -87,8 +87,10 @@ yarn global add @kered/dit
 ├── issues/
 │   └── YYYY/
 │       └── MM/
-│           └── <slug>-<id>/
-│               ├── issue.yaml
+│           └── DD/
+│               └── <slug>-<id>/
+│               ├── meta.yaml
+│               ├── description.md
 │               └── comments/
 │                   └── <comment-id>.yaml
 └── templates/

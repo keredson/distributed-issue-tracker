@@ -61,7 +61,7 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
         const issueDir = path.join(issuesDir, slug);
         if (!fs.existsSync(issueDir)) return;
 
-        const issueYamlPath = path.join(issueDir, 'issue.yaml');
+        const issueYamlPath = path.join(issueDir, 'meta.yaml');
         if (!fs.existsSync(issueYamlPath)) return;
 
         try {
@@ -128,12 +128,12 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
             const parts = relative.split(path.sep);
             
             // Find which part of the path is the issue directory
-            // We assume issue directory contains issue.yaml
+            // We assume issue directory contains meta.yaml
             let currentPath = '';
             let slug = '';
             for (const part of parts) {
                 currentPath = path.join(currentPath, part);
-                if (fs.existsSync(path.join(issuesDir, currentPath, 'issue.yaml'))) {
+                if (fs.existsSync(path.join(issuesDir, currentPath, 'meta.yaml'))) {
                     slug = currentPath;
                     break;
                 }
@@ -262,7 +262,7 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
             const loadedIssues: Issue[] = [];
 
             for (const dir of dirs) {
-                const issueYamlPath = path.join(issuesDir, dir, 'issue.yaml');
+                const issueYamlPath = path.join(issuesDir, dir, 'meta.yaml');
                 await indexIssue(dir);
                 const content = fs.readFileSync(issueYamlPath, 'utf8');
                 const meta = yaml.load(content) as any;

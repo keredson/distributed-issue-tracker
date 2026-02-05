@@ -30,7 +30,8 @@ async function runTests() {
 
         const issuePath = await saveIssue(issueData, true, testDir);
         assert(fs.existsSync(issuePath), 'Issue directory should be created');
-        assert(fs.existsSync(path.join(issuePath, 'issue.yaml')), 'issue.yaml should be created');
+        assert(fs.existsSync(path.join(issuePath, 'meta.yaml')), 'meta.yaml should be created');
+        assert(fs.existsSync(path.join(issuePath, 'description.md')), 'description.md should be created');
 
         const foundPath = findIssueByExternalId(externalId, testDir);
         assert(foundPath === issuePath, 'Should find issue by external ID');

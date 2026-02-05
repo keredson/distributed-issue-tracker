@@ -87,12 +87,14 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
             
             setIssuePath(fullPath);
             checkDirty(fullPath);
-            const issueYamlPath = path.join(fullPath, 'issue.yaml');
+            const issueYamlPath = path.join(fullPath, 'meta.yaml');
+            const descriptionPath = path.join(fullPath, 'description.md');
             try {
                 if (fs.existsSync(issueYamlPath)) {
                     const yamlContent = fs.readFileSync(issueYamlPath, 'utf8');
                     const loadedData = yaml.load(yamlContent) as any;
-                    setMeta(loadedData);
+                    const description = fs.existsSync(descriptionPath) ? fs.readFileSync(descriptionPath, 'utf8') : '';
+                    setMeta({...loadedData, body: description});
                     setTempTitle(loadedData.title || '');
                     setTempAssignee(loadedData.assignee || '');
                     setTempLabels((loadedData.labels || []).join(', '));
@@ -109,10 +111,9 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
                         severity: 'medium',
                         assignee: '',
                         author: currentUser?.username || '',
-                        body: '',
                         labels: []
                     };
-                    setMeta(newMeta);
+                    setMeta({...newMeta, body: ''});
                     setTempTitle(newMeta.title);
                     setTempAssignee('');
                     setTempLabels('');
@@ -141,8 +142,11 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
             if (onSave) {
                 onSave(updatedMeta);
             } else {
-                const issueYamlPath = path.join(issuePath, 'issue.yaml');
-                fs.writeFileSync(issueYamlPath, yaml.dump(updatedMeta, {lineWidth: -1, styles: {'!!str': 'literal'}}));
+                const issueYamlPath = path.join(issuePath, 'meta.yaml');
+                const descriptionPath = path.join(issuePath, 'description.md');
+                const { body, ...metaOnly } = updatedMeta;
+                fs.writeFileSync(issueYamlPath, yaml.dump(metaOnly, {lineWidth: -1, styles: {'!!str': 'literal'}}));
+                fs.writeFileSync(descriptionPath, (body || '').trim() + '\n');
                 onBack();
             }
         } catch (err: any) {
@@ -384,7 +388,7 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
             {mode === 'confirm-revert' && (
                 <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="red" paddingX={1}>
                     <Text bold color="red">Are you sure you want to revert all changes to this issue folder?</Text>
-                    <Text>This will undo all uncommitted edits to issue.yaml.</Text>
+                    <Text>This will undo all uncommitted edits to meta.yaml and description.md.</Text>
                     <Box marginTop={1}>
                         <Text bold>Y: Yes, revert | N: No, cancel</Text>
                     </Box>

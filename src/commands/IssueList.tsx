@@ -47,7 +47,7 @@ export default function IssueList({flags}: {flags: any}) {
                 const loadedIssues: Issue[] = [];
 
                 for (const dir of dirs) {
-                    const issueYamlPath = path.join(issuesDir, dir, 'issue.yaml');
+                    const issueYamlPath = path.join(issuesDir, dir, 'meta.yaml');
                     const content = fs.readFileSync(issueYamlPath, 'utf8');
                     const meta = yaml.load(content) as any;
                     

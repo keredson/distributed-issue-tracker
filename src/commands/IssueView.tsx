@@ -62,12 +62,14 @@ export default function IssueView({id, onBack}: Props) {
 
         const fullPath = path.join(issuesDir, issueDirName);
         setIssuePath(fullPath);
-        const issueYamlPath = path.join(fullPath, 'issue.yaml');
+        const issueYamlPath = path.join(fullPath, 'meta.yaml');
+        const descriptionPath = path.join(fullPath, 'description.md');
         try {
             const yamlContent = fs.readFileSync(issueYamlPath, 'utf8');
             const data = yaml.load(yamlContent) as any;
             setMeta(data);
-            setContent(data.body || '');
+            const description = fs.existsSync(descriptionPath) ? fs.readFileSync(descriptionPath, 'utf8') : '';
+            setContent(description || '');
 
             // Load comments
             const getAllFilesRecursive = (dir: string): string[] => {
