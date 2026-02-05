@@ -2,8 +2,11 @@ import React, {useState, useEffect} from 'react';
 import {Text, Box, useApp, useInput} from 'ink';
 import {Octokit} from '@octokit/rest';
 import {execa} from 'execa';
+import fs from 'node:fs';
+import path from 'node:path';
+import yaml from 'js-yaml';
 import {generateUniqueId} from '../utils/id.js';
-import {saveIssue, saveComment, findIssueByExternalId, findCommentByExternalId, getCommentCountForIssue} from '../utils/issues.js';
+import {saveIssue, saveComment, findCommentByExternalId, getCommentCountForIssue, getAllIssueDirs} from '../utils/issues.js';
 import {createUser, getLocalUsers, saveProfilePic, saveExternalMetadata} from '../utils/user.js';
 
 type Props = {
@@ -40,6 +43,53 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
         }
     };
     const ditVersion = getDitVersion();
+
+    const buildExternalIndex = (issuesDir: string): Map<string, { dir: string; importAt?: number }> => {
+        const index = new Map<string, { dir: string; importAt?: number }>();
+        const dirs = getAllIssueDirs(issuesDir);
+        for (const dir of dirs) {
+            const metaPath = path.join(issuesDir, dir, 'meta.yaml');
+            if (!fs.existsSync(metaPath)) continue;
+            try {
+                const content = fs.readFileSync(metaPath, 'utf8');
+                const meta = yaml.load(content) as any;
+                if (!meta || !meta.external_id) continue;
+                const rawAt = meta.import?.at;
+                const parsedAt = rawAt ? Date.parse(rawAt) : NaN;
+                const importAt = Number.isFinite(parsedAt) ? parsedAt : undefined;
+                index.set(String(meta.external_id), { dir: path.join(issuesDir, dir), importAt });
+            } catch (e) {
+                // Ignore parse errors
+            }
+        }
+        return index;
+    };
+
+    const updateIssueImport = async (issueDirPath: string, externalId: string, importedAt: string) => {
+        const metaPath = path.join(issueDirPath, 'meta.yaml');
+        if (!fs.existsSync(metaPath)) return;
+        try {
+            const content = fs.readFileSync(metaPath, 'utf8');
+            const meta = (yaml.load(content) as any) || {};
+            meta.external_id = externalId;
+            meta.import = {
+                src: 'github.com',
+                at: importedAt,
+                dit_version: ditVersion,
+                external_id: externalId
+            };
+            fs.writeFileSync(metaPath, yaml.dump(meta, {lineWidth: -1, styles: {'!!str': 'literal'}}));
+            if (!skipAdd) {
+                try {
+                    await execa('git', ['add', metaPath]);
+                } catch (e) {
+                    // Ignore
+                }
+            }
+        } catch (e) {
+            // Ignore write errors
+        }
+    };
 
     useEffect(() => {
         const detectUrl = async () => {
@@ -153,23 +203,32 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
                 per_page: 100,
             });
 
-            addLog(`Found ${issues.length} issues/PRs. ${usersOnly ? 'Syncing users...' : 'Importing...'}`);
+            const issuesDir = path.join('.dit', 'issues');
+            const externalIndex = buildExternalIndex(issuesDir);
+            const issueItems = issues
+                .filter(issue => !issue.pull_request)
+                .map(issue => {
+                    const externalId = `${owner}/${repo}#${issue.number}`;
+                    const existing = externalIndex.get(externalId);
+                    const importAt = Number.isFinite(existing?.importAt) ? (existing?.importAt as number) : 0;
+                    const isNew = !existing;
+                    return { issue, externalId, isNew, importAt };
+                })
+                .sort((a, b) => {
+                    if (a.isNew !== b.isNew) return a.isNew ? -1 : 1;
+                    return a.importAt - b.importAt;
+                });
 
-            for (const issue of issues) {
-                // Skip PRs if they are returned (GitHub API returns PRs in issues list)
-                if (issue.pull_request) {
-                    if (verbose) addLog(`Skipping PR #${issue.number}`);
-                    continue;
-                }
+            addLog(`Found ${issues.length} issues/PRs (${issueItems.length} issues). ${usersOnly ? 'Syncing users...' : 'Importing...'} (prioritized new and stale)`);
 
+            for (const { issue, externalId, isNew } of issueItems) {
                 if (usersOnly) {
                     await syncUser(issue.assignee);
                     await syncUser(issue.user);
                 } else {
-                    const externalId = `${owner}/${repo}#${issue.number}`;
                     const importedAt = new Date().toISOString();
                     
-                    let issueDirPath = findIssueByExternalId(externalId);
+                    let issueDirPath = isNew ? null : externalIndex.get(externalId)?.dir || null;
                     
                     if (!issueDirPath) {
                         addLog(`Processing issue #${issue.number}: ${issue.title}...`);
@@ -200,8 +259,12 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
                         
                         issueDirPath = await saveIssue(issueData, skipAdd);
                         if (verbose) addLog(`Saved issue #${issue.number} to ${issueDirPath}`);
+                        externalIndex.set(externalId, { dir: issueDirPath, importAt: Date.parse(importedAt) });
                     } else {
                         if (verbose) addLog(`Issue #${issue.number} already exists, checking for comments...`);
+                    }
+                    if (issueDirPath) {
+                        await updateIssueImport(issueDirPath, externalId, importedAt);
                     }
 
                     // Import comments
