@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import crypto from 'node:crypto';
 import { getAllIssues, getIssueById, saveComment, saveIssue, findIssueDirById, getAllIssueDirs, getFileHistory, getFileContentAtCommit, getDiff, getUserActivity } from '../utils/issues.js';
 import { loadIssueWorkflow, getDefaultIssueStatus, isTransitionAllowed, normalizeStatus } from '../utils/workflow.js';
 import { getLocalUsers, getCurrentLocalUser, saveProfilePicData, deleteProfilePic } from '../utils/user.js';
@@ -11,6 +12,27 @@ import { execSync } from 'child_process';
 import yaml from 'js-yaml';
 import { customAlphabet } from 'nanoid';
 import { execa } from 'execa';
+
+const WEB_TOKEN_COOKIE = 'dit_web_token';
+const WEB_TOKEN = process.env.DIT_WEB_TOKEN || crypto.randomBytes(24).toString('hex');
+let webTokenLogged = false;
+
+const parseCookies = (header: string | undefined): Record<string, string> => {
+  if (!header) return {};
+  const cookies: Record<string, string> = {};
+  for (const part of header.split(';')) {
+    const [name, ...valueParts] = part.trim().split('=');
+    if (!name) continue;
+    cookies[name] = decodeURIComponent(valueParts.join('=') || '');
+  }
+  return cookies;
+};
+
+const buildAuthCookie = (token: string, isSecure: boolean): string => {
+  const parts = [`${WEB_TOKEN_COOKIE}=${encodeURIComponent(token)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax'];
+  if (isSecure) parts.push('Secure');
+  return parts.join('; ');
+};
 
 // Helper to parse body (Connect middleware doesn't parse JSON by default)
 const bodyParser = async (req: any) => {
@@ -80,10 +102,152 @@ export default defineConfig({
     {
       name: 'dit-api',
       configureServer(server) {
+        if (!webTokenLogged) {
+          webTokenLogged = true;
+          console.log(`Web UI auth token: ${WEB_TOKEN}`);
+          console.log('Open the UI with ?token=... once to set the cookie.');
+        }
+
         const issuesDir = path.join(process.cwd(), '.dit', 'issues');
 
         server.middlewares.use(async (req, res, next) => {
           if (!req.url) return next();
+
+          const authUrl = new URL(req.url, 'http://localhost');
+          const cookies = parseCookies(req.headers.cookie as string | undefined);
+          const cookieToken = cookies[WEB_TOKEN_COOKIE];
+          const tokenParam = authUrl.searchParams.get('token');
+
+          if (cookieToken !== WEB_TOKEN) {
+            if (tokenParam && tokenParam === WEB_TOKEN) {
+              const isSecure = req.headers['x-forwarded-proto'] === 'https' || (req.socket as any)?.encrypted === true;
+              res.setHeader('Set-Cookie', buildAuthCookie(WEB_TOKEN, isSecure));
+              authUrl.searchParams.delete('token');
+              const cleanQuery = authUrl.searchParams.toString();
+              const cleanPath = authUrl.pathname + (cleanQuery ? `?${cleanQuery}` : '');
+              res.statusCode = 302;
+              res.setHeader('Location', cleanPath);
+              res.end();
+              return;
+            }
+
+            res.statusCode = 401;
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.end(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DIT Web UI - Unauthorized</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f2ea;
+      --panel: #fffaf2;
+      --ink: #1b1b1b;
+      --muted: #6a6258;
+      --accent: #0f766e;
+      --accent-2: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(60% 60% at 10% 10%, rgba(15,118,110,0.12), transparent 60%),
+        radial-gradient(40% 40% at 90% 20%, rgba(245,158,11,0.14), transparent 60%),
+        radial-gradient(30% 30% at 80% 90%, rgba(15,118,110,0.10), transparent 60%),
+        var(--bg);
+      color: var(--ink);
+      font: 16px/1.5 "Fraunces", "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+    }
+    .card {
+      width: min(680px, 92vw);
+      background: var(--panel);
+      border: 1px solid rgba(27,27,27,0.08);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow:
+        0 12px 30px rgba(0,0,0,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.6);
+    }
+    .label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(15,118,110,0.1);
+      color: var(--accent);
+      font: 600 12px/1 "system-ui", sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 16px 0 8px;
+      font-size: 32px;
+      line-height: 1.15;
+    }
+    p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font: 500 16px/1.6 "system-ui", sans-serif;
+    }
+    .steps {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 14px;
+      background: #fff;
+      border: 1px dashed rgba(27,27,27,0.15);
+      font: 500 15px/1.6 "system-ui", sans-serif;
+    }
+    code {
+      background: rgba(27,27,27,0.06);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-family: "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.95em;
+    }
+    .footer {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font: 500 13px/1.4 "system-ui", sans-serif;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent-2);
+      box-shadow: 0 0 0 4px rgba(245,158,11,0.2);
+    }
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <span class="label">Unauthorized</span>
+    <h1>Access requires a token cookie</h1>
+    <p>
+      This Web UI is locked. Open it once with a token to set the cookie, then refresh.
+    </p>
+    <div class="steps">
+      1. Find the token in the server output.<br/>
+      2. Open: <code>http://localhost:1337/?token=YOUR_TOKEN</code><br/>
+      3. You will be redirected automatically once the cookie is set.
+    </div>
+    <div class="footer">
+      <span class="dot"></span>
+      Server is running. You just need the token.
+    </div>
+  </main>
+</body>
+</html>`);
+            return;
+          }
 
           // GET /api/activity
           const activityMatch = req.url.match(/^\/api\/activity(\?.*)?$/);

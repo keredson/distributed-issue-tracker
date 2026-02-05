@@ -4,6 +4,8 @@ import { spawn, ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
+import open from 'open';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +18,19 @@ export default function Web() {
     useEffect(() => {
         let viteProcess: ChildProcess | null = null;
 
+        let openedBrowser = false;
+
+        const openBrowser = async (url: string) => {
+            if (openedBrowser) return;
+            openedBrowser = true;
+            try {
+                await open(url, { wait: false });
+            } catch (err) {
+                openedBrowser = false;
+                setStatus(`Server running at http://localhost:1337 (failed to open browser)`);
+            }
+        };
+
         const startVite = () => {
             const webPath = path.join(projectRoot, 'src/web');
             
@@ -25,10 +40,14 @@ export default function Web() {
             }
 
             const args = [webPath, '--port', '1337'];
+            const webToken = crypto.randomBytes(24).toString('hex');
             
             const env = { ...process.env };
             const localBin = path.join(projectRoot, 'node_modules/.bin');
             env.PATH = `${localBin}${path.delimiter}${env.PATH}`;
+            env.DIT_WEB_TOKEN = env.DIT_WEB_TOKEN || webToken;
+            const tokenUrl = `http://localhost:1337/?token=${env.DIT_WEB_TOKEN}`;
+            setServerLogs(prev => [...prev.slice(-15), `[Auth] Token URL: ${tokenUrl}`]);
 
             viteProcess = spawn('vite', args, {
                 stdio: ['ignore', 'pipe', 'pipe'],
@@ -49,6 +68,9 @@ export default function Web() {
                     
                     if (line.includes('Local:') || line.includes('http://localhost:1337')) {
                         setStatus('Server running at http://localhost:1337');
+                        if (env.DIT_WEB_TOKEN && !env.DIT_WEB_TOKEN.startsWith('$')) {
+                            void openBrowser(`http://localhost:1337/?token=${env.DIT_WEB_TOKEN}`);
+                        }
                     }
                 }
             };
