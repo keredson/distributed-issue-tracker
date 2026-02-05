@@ -11,7 +11,8 @@ import wrapAnsi from 'wrap-ansi';
 import IssueEdit from './IssueEdit.js';
 import IssueComment from './IssueComment.js';
 import {threadComments, Comment} from '../utils/comments.js';
-import {findIssueDirById} from '../utils/issues.js';
+import {findIssueDirById, getCommentsForIssueAcrossBranches, getDirtyPaths, getFilesWithHistory} from '../utils/issues.js';
+import {loadIssueWorkflow, getStatusInkColor, formatStatusLabel, normalizeStatus} from '../utils/workflow.js';
 
 // Configure marked to use terminal renderer
 marked.setOptions({
@@ -38,6 +39,7 @@ export default function IssueView({id, onBack}: Props) {
     const [isDirty, setIsDirty] = useState(false);
     const [scrollTop, setScrollTop] = useState(0);
     const {exit} = useApp();
+    const workflow = useMemo(() => loadIssueWorkflow(), []);
     const {stdout} = useStdout();
 
     const threadedComments = useMemo(() => {
@@ -67,51 +69,15 @@ export default function IssueView({id, onBack}: Props) {
         try {
             const yamlContent = fs.readFileSync(issueYamlPath, 'utf8');
             const data = yaml.load(yamlContent) as any;
-            setMeta(data);
+            const normalizedStatus = normalizeStatus(data.status || '', workflow);
+            setMeta({...data, status: normalizedStatus || data.status});
             const description = fs.existsSync(descriptionPath) ? fs.readFileSync(descriptionPath, 'utf8') : '';
             setContent(description || '');
 
-            // Load comments
-            const getAllFilesRecursive = (dir: string): string[] => {
-                let results: string[] = [];
-                const list = fs.readdirSync(dir);
-                list.forEach(file => {
-                    const fullPath = path.join(dir, file);
-                    const stat = fs.statSync(fullPath);
-                    if (stat && stat.isDirectory()) {
-                        results = results.concat(getAllFilesRecursive(fullPath));
-                    } else {
-                        results.push(fullPath);
-                    }
-                });
-                return results;
-            };
-
-            const allFiles = getAllFilesRecursive(fullPath);
-            const commentFiles = allFiles.filter(f => {
-                const base = path.basename(f);
-                return f.endsWith('.yaml') && (base.startsWith('comment-') || f.includes(`${path.sep}comments${path.sep}`));
-            });
-            
-            // Get dirty status for all files in the issue directory at once
-            const {stdout: gitStatus} = await execa('git', ['status', '--porcelain', fullPath]);
-            const dirtyFiles = new Set(
-                gitStatus.split('\n')
-                    .map(line => line.slice(3).trim())
-                    .map(p => path.resolve(p))
-            );
-
-            const loadedComments = commentFiles.map(f => {
-                const commentContent = fs.readFileSync(f, 'utf8');
-                const commentData = yaml.load(commentContent) as any;
-                return {
-                    ...commentData,
-                    date: commentData.date || commentData.created,
-                    isDirty: dirtyFiles.has(path.resolve(f))
-                };
-            });
-            // Sort comments by date
-            loadedComments.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            // Load comments across all branches with origin branch metadata
+            const dirtyPaths = await getDirtyPaths(issuesDir);
+            const historyPaths = await getFilesWithHistory(path.resolve(fullPath));
+            const loadedComments = await getCommentsForIssueAcrossBranches(fullPath, dirtyPaths, historyPaths);
             setComments(loadedComments);
 
             // Derive author from meta or git
@@ -197,7 +163,8 @@ export default function IssueView({id, onBack}: Props) {
                     headerPrefix = '└─ ';
                 }
                 
-                const header = `\x1b[1m${comment.author}\x1b[22m \x1b[2m(${dateStr})\x1b[22m${dirtyIndicator}`;
+                const branchLabel = comment.branch ? ` \x1b[2mfrom ${comment.branch}\x1b[22m` : '';
+                const header = `\x1b[1m${comment.author}\x1b[22m \x1b[2m(${dateStr})\x1b[22m${branchLabel}${dirtyIndicator}`;
                 
                 // Header line with basePadding
                 lines.push({
@@ -345,11 +312,9 @@ export default function IssueView({id, onBack}: Props) {
                 </Box>
                 <Box marginRight={2}>
                     <Text color="dim">Status: </Text>
-                    <Text color={
-                        meta.status === 'open' ? 'green' : 
-                        meta.status === 'assigned' ? 'blue' :
-                        meta.status === 'in-progress' ? 'yellow' : 'gray'
-                    }>{meta.status}</Text>
+                    <Text color={getStatusInkColor(meta.status, workflow)}>
+                        {formatStatusLabel(meta.status)}
+                    </Text>
                 </Box>
                 <Box marginRight={2}>
                     <Text color="dim">Severity: </Text>

@@ -13,7 +13,7 @@ const badgeVariants = cva(
                 closed: 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400',
                 bug: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
                 feature: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-                assigned: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
+                active: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
                 'in-progress': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
             }
         },

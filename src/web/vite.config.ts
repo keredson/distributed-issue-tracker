@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { getAllIssues, getIssueById, saveComment, saveIssue, findIssueDirById, getAllIssueDirs, getFileHistory, getFileContentAtCommit, getDiff, getUserActivity } from '../utils/issues.js';
+import { loadIssueWorkflow, getDefaultIssueStatus, isTransitionAllowed, normalizeStatus } from '../utils/workflow.js';
 import { getLocalUsers, getCurrentLocalUser, saveProfilePicData, deleteProfilePic } from '../utils/user.js';
 import { generateUniqueId } from '../utils/id.js';
 import { execSync } from 'child_process';
@@ -126,6 +127,14 @@ export default defineConfig({
             const issues = await getAllIssues(issuesDir);
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify(issues));
+            return;
+          }
+
+          // GET /api/workflows/issue
+          if (req.method === 'GET' && req.url === '/api/workflows/issue') {
+            const workflow = loadIssueWorkflow();
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(workflow));
             return;
           }
 
@@ -377,6 +386,9 @@ export default defineConfig({
                       return;
                   }
 
+                  const workflow = loadIssueWorkflow();
+                  const defaultStatus = getDefaultIssueStatus(workflow);
+
                   const currentUser = await getCurrentLocalUser();
                   const id = body.id || generateUniqueId();
                   const newIssue = {
@@ -384,7 +396,7 @@ export default defineConfig({
                       title: body.title,
                       body: body.body || '',
                       created: body.created || new Date().toISOString(),
-                      status: 'open',
+                      status: defaultStatus,
                       severity: body.severity || 'medium',
                       assignee: body.assignee || '',
                       author: currentUser?.username || 'unknown',
@@ -433,6 +445,18 @@ export default defineConfig({
                       res.statusCode = 404;
                       res.end(JSON.stringify({ error: 'Issue not found' }));
                       return;
+                  }
+
+                  if (typeof body.status === 'string') {
+                      const workflow = loadIssueWorkflow();
+                      const currentStatus = normalizeStatus(issue.status || '', workflow);
+                      const nextStatus = normalizeStatus(body.status, workflow);
+                      body.status = nextStatus;
+                      if (nextStatus !== currentStatus && !isTransitionAllowed(currentStatus, nextStatus, workflow)) {
+                          res.statusCode = 400;
+                          res.end(JSON.stringify({ error: `Invalid status transition: ${currentStatus || '(none)'} -> ${nextStatus}` }));
+                          return;
+                      }
                   }
 
                   const issuePath = path.join(issuesDir, issue.dir, 'meta.yaml');

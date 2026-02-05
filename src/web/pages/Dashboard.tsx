@@ -10,14 +10,19 @@ import {
         CheckCircle,
         ListTodo,
         Activity
-    } from 'lucide-react';import { Card, Badge, Avatar } from '../components/Common.js';
+    } from 'lucide-react';
+import { Card, Badge, Avatar } from '../components/Common.js';
 import { ActivityGrid } from '../components/ActivityGrid.js';
+import { IssueWorkflow, getDefaultWorkflow, getOpenStates, getClosedStates, getStatusStyle, formatStatusLabel, normalizeStatus } from '../utils/workflow.js';
 
 export const Dashboard = () => {
     const [issues, setIssues] = useState<any[]>([]);
     const [activity, setActivity] = useState<{[key: string]: number}>({});
     const [me, setMe] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [workflow, setWorkflow] = useState<IssueWorkflow>(getDefaultWorkflow());
+    const openStates = useMemo(() => new Set(getOpenStates(workflow)), [workflow]);
+    const closedStates = useMemo(() => new Set(getClosedStates(workflow)), [workflow]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -45,16 +50,23 @@ export const Dashboard = () => {
         fetchData();
     }, []);
 
+    useEffect(() => {
+        fetch('/api/workflows/issue')
+            .then(res => res.json())
+            .then(data => setWorkflow(data))
+            .catch(() => setWorkflow(getDefaultWorkflow()));
+    }, []);
+
     const stats = useMemo(() => {
         if (!me) return null;
         
         const assignedToMe = issues.filter(i => i.assignee === me.username);
         const createdByMe = issues.filter(i => i.author === me.username);
         
-        const openAssigned = assignedToMe.filter(i => i.status !== 'closed');
-        const closedAssigned = assignedToMe.filter(i => i.status === 'closed');
+        const openAssigned = assignedToMe.filter(i => openStates.has(normalizeStatus(i.status || '', workflow)));
+        const closedAssigned = assignedToMe.filter(i => closedStates.has(normalizeStatus(i.status || '', workflow)));
         
-        const openCreated = createdByMe.filter(i => i.status !== 'closed');
+        const openCreated = createdByMe.filter(i => openStates.has(normalizeStatus(i.status || '', workflow)));
         
         return {
             assignedToMe,
@@ -62,9 +74,9 @@ export const Dashboard = () => {
             openAssigned,
             closedAssigned,
             openCreated,
-            totalOpen: issues.filter(i => i.status !== 'closed').length
+            totalOpen: issues.filter(i => openStates.has(normalizeStatus(i.status || '', workflow))).length
         };
-    }, [issues, me]);
+    }, [issues, me, openStates, closedStates, workflow]);
 
     if (loading) return <div className="flex justify-center p-12"><div className="animate-spin h-8 w-8 border-4 border-slate-900 border-t-transparent rounded-full"></div></div>;
     
@@ -149,7 +161,7 @@ export const Dashboard = () => {
                             <User className="w-5 h-5 text-blue-500" />
                             Assigned to Me
                         </h3>
-                        <Link to={`/issues?q=assignee:${me.username}+is:open`} className="text-sm text-blue-600 hover:underline">View all</Link>
+                        <Link to={`/issues?q=assignee:${me.username}+state:${(workflow.initial || workflow.states[0] || 'open').toLowerCase()}`} className="text-sm text-blue-600 hover:underline">View all</Link>
                     </div>
                     <Card className="divide-y divide-slate-100 dark:divide-slate-800">
                         {stats?.openAssigned.length === 0 ? (
@@ -158,7 +170,7 @@ export const Dashboard = () => {
                             </div>
                         ) : (
                             stats?.openAssigned.slice(0, 5).map(issue => (
-                                <IssueRow key={issue.id} issue={issue} />
+                                <IssueRow key={issue.id} issue={issue} workflow={workflow} />
                             ))
                         )}
                     </Card>
@@ -179,7 +191,7 @@ export const Dashboard = () => {
                             </div>
                         ) : (
                             stats?.createdByMe.slice(0, 5).map(issue => (
-                                <IssueRow key={issue.id} issue={issue} />
+                                <IssueRow key={issue.id} issue={issue} workflow={workflow} />
                             ))
                         )}
                     </Card>
@@ -189,21 +201,24 @@ export const Dashboard = () => {
     );
 };
 
-const IssueRow = ({ issue }: { issue: any }) => (
+const IssueRow = ({ issue, workflow }: { issue: any; workflow: IssueWorkflow }) => {
+    const normalizedStatus = normalizeStatus(issue.status || '', workflow);
+    const iconColor = getStatusStyle(normalizedStatus, workflow)?.borderColor;
+    return (
     <Link 
         to={"/issue/" + issue.dir}
         className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 flex items-center justify-between no-underline group transition-colors"
     >
         <div className="flex items-start gap-3 overflow-hidden">
             <div className="mt-1 flex-shrink-0">
-                {issue.status === 'open' ? (
-                    <CircleDot className="w-4 h-4 text-green-600" />
-                ) : issue.status === 'assigned' ? (
-                    <User className="w-4 h-4 text-indigo-600" />
-                ) : issue.status === 'in-progress' ? (
-                    <Clock className="w-4 h-4 text-yellow-600" />
+                {normalizedStatus === 'open' ? (
+                    <CircleDot className="w-4 h-4" style={{ color: iconColor }} />
+                ) : normalizedStatus === 'active' ? (
+                    <Clock className="w-4 h-4" style={{ color: iconColor }} />
+                ) : normalizedStatus === 'closed' ? (
+                    <CheckCircle2 className="w-4 h-4" style={{ color: iconColor }} />
                 ) : (
-                    <CheckCircle2 className="w-4 h-4 text-purple-600" />
+                    <CircleDot className="w-4 h-4 text-slate-400" />
                 )}
             </div>
             <div className="overflow-hidden">
@@ -218,11 +233,14 @@ const IssueRow = ({ issue }: { issue: any }) => (
             </div>
         </div>
         <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-            <Badge variant={issue.status}>{issue.status}</Badge>
+            <Badge variant={normalizedStatus} style={getStatusStyle(normalizedStatus, workflow)}>
+                {formatStatusLabel(normalizedStatus)}
+            </Badge>
             <div className="flex items-center gap-1 text-slate-400">
                 <MessageSquare className="w-3 h-3" />
                 <span className="text-[10px] font-bold">{issue.comments_count || 0}</span>
             </div>
         </div>
     </Link>
-);
+    );
+};

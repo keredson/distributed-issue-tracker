@@ -14,6 +14,7 @@ import NewIssue from './NewIssue.js';
 import IssueComment from './IssueComment.js';
 
 import {getAllIssueDirs} from '../utils/issues.js';
+import {loadIssueWorkflow, getStatusOrder, getDefaultIssueStatus, getStatusInkColor, formatStatusLabel, normalizeStatus} from '../utils/workflow.js';
 
 type Issue = {
     id: string;
@@ -33,8 +34,10 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
     const [filteredIssues, setFilteredIssues] = useState<Issue[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedIndex, setSelectedIndex] = useState(0);
-    const [searchQuery, setSearchQuery] = useState('state:open ');
-    const [prevSearchQuery, setPrevSearchQuery] = useState('state:open ');
+    const workflow = useMemo(() => loadIssueWorkflow(), []);
+    const defaultStateQuery = `state:${getDefaultIssueStatus(workflow)} `;
+    const [searchQuery, setSearchQuery] = useState(defaultStateQuery);
+    const [prevSearchQuery, setPrevSearchQuery] = useState(defaultStateQuery);
     const [viewingIssueId, setViewingIssueId] = useState<string | null>(null);
     const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
     const [commentingIssueId, setCommentingIssueId] = useState<string | null>(null);
@@ -45,6 +48,7 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const [sortSelectedIndex, setSortSelectedIndex] = useState(0);
     const {exit} = useApp();
+    const statusOrderList = useMemo(() => getStatusOrder(workflow), [workflow]);
 
     const index = useMemo(() => new (FlexSearch as any).Document({
         document: {
@@ -151,7 +155,8 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
     }, []);
 
     useEffect(() => {
-        const terms = searchQuery.split(/\s+/);
+        const normalizedSearchQuery = searchQuery.replace(/\bis:([^\s]+)/gi, 'state:$1');
+        const terms = normalizedSearchQuery.split(/\s+/);
         const filters: Record<string, string[]> = {};
         const textTerms: string[] = [];
 
@@ -188,10 +193,7 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
             // Check filters
             for (const [key, values] of Object.entries(filters)) {
                 if (key === 'state' || key === 'is') {
-                    if (!values.some(v => {
-                        if (v === 'open') return issue.status === 'open' || issue.status === 'assigned' || issue.status === 'in-progress';
-                        return issue.status === v;
-                    })) return false;
+                    if (!values.some(v => issue.status === v)) return false;
                 } else if (key === 'severity') {
                     if (!values.includes(issue.severity)) return false;
                 } else if (key === 'assignee') {
@@ -209,7 +211,10 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
         });
 
         const severityOrder: Record<string, number> = {critical: 0, high: 1, medium: 2, low: 3};
-        const statusOrder: Record<string, number> = {open: 0, assigned: 1, 'in-progress': 2, closed: 3};
+        const statusOrder: Record<string, number> = {};
+        statusOrderList.forEach((status, index) => {
+            statusOrder[status] = index;
+        });
 
         result.sort((a, b) => {
             let valA: any = a[sortBy];
@@ -290,7 +295,7 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
                 loadedIssues.push({
                     id: meta.id,
                     title: meta.title,
-                    status: meta.status || 'open',
+                    status: normalizeStatus(meta.status || 'open', workflow) || 'open',
                     severity: meta.severity || 'medium',
                     assignee: meta.assignee || 'Unassigned',
                     author: author,
@@ -491,12 +496,8 @@ export default function InteractiveDashboard({flags}: {flags: any}) {
                             </Text>
                         </Box>
                         <Box width={12}>
-                            <Text color={
-                                issue.status === 'open' ? 'green' : 
-                                issue.status === 'assigned' ? 'blue' :
-                                issue.status === 'in-progress' ? 'yellow' : 'gray'
-                            }>
-                                {issue.status}
+                            <Text color={getStatusInkColor(issue.status, workflow)}>
+                                {formatStatusLabel(issue.status)}
                             </Text>
                         </Box>
                         <Box width={12}>

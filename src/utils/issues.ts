@@ -331,7 +331,7 @@ export async function getIssueById(issuesDir: string, id: string): Promise<any |
             delete content.tags;
         }
 
-        const comments = getCommentsForIssue(path.join(issuesDir, actualDir), dirtyPaths, historyPaths);
+        const comments = await getCommentsForIssueAcrossBranches(path.join(issuesDir, actualDir), dirtyPaths, historyPaths);
         
         let author = content.author;
         if (!author) {
@@ -423,6 +423,201 @@ export function getCommentsForIssue(issuePath: string, dirtyPaths?: Set<string>,
         }
     }
     return comments.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
+
+const COMMENT_ROOT_RE = /^comment-.*\.yaml$/;
+const COMMENT_NESTED_RE = /^comments\/.+\.yaml$/;
+
+const listAllBranches = async (): Promise<string[]> => {
+    try {
+        const { stdout } = await execa('git', [
+            'for-each-ref',
+            '--format=%(refname:short)',
+            'refs/heads',
+            'refs/remotes'
+        ]);
+        return stdout
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean)
+            .filter(ref => !ref.endsWith('/HEAD'));
+    } catch (e) {
+        return [];
+    }
+};
+
+const getCurrentBranchName = async (): Promise<string> => {
+    try {
+        const { stdout } = await execa('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
+        return stdout.trim() || 'unknown';
+    } catch (e) {
+        return 'unknown';
+    }
+};
+
+const inferOriginalBranchForPath = async (relativePath: string): Promise<string | null> => {
+    try {
+        const { stdout: firstCommit } = await execa('git', [
+            'log',
+            '--all',
+            '--reverse',
+            '-n',
+            '1',
+            '--format=%H',
+            '--',
+            relativePath
+        ]);
+        const commit = firstCommit.trim();
+        if (!commit) return null;
+
+        const { stdout: containingRefs } = await execa('git', [
+            'for-each-ref',
+            '--contains',
+            commit,
+            '--format=%(refname:short)',
+            'refs/heads',
+            'refs/remotes'
+        ]);
+        const refs = containingRefs
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean)
+            .filter(ref => !ref.endsWith('/HEAD'));
+        return refs.length > 0 ? refs[0] : null;
+    } catch (e) {
+        return null;
+    }
+};
+
+export async function getCommentsForIssueAcrossBranches(issuePath: string, dirtyPaths?: Set<string>, historyPaths?: Set<string>): Promise<any[]> {
+    if (!fs.existsSync(issuePath)) return [];
+
+    const commentsById = new Map<string, any>();
+    const originCache = new Map<string, string | null>();
+
+    const { stdout: repoRootStdout } = await execa('git', ['rev-parse', '--show-toplevel']);
+    const repoRoot = repoRootStdout.trim();
+    const relativeIssueDir = path.relative(repoRoot, issuePath).replace(/\\/g, '/');
+
+    const currentBranch = await getCurrentBranchName();
+
+    const addComment = (comment: any) => {
+        if (!comment?.id) return;
+        const existing = commentsById.get(comment.id);
+        if (existing) {
+            if (!existing.branch && comment.branch) {
+                existing.branch = comment.branch;
+            }
+            return;
+        }
+        commentsById.set(comment.id, comment);
+    };
+
+    const workingTreeComments = getCommentsForIssue(issuePath, dirtyPaths, historyPaths);
+    for (const comment of workingTreeComments) {
+        if (!comment.branch) {
+            const relativePath = path.join(relativeIssueDir, comment.file || '').replace(/\\/g, '/');
+            let origin = originCache.get(relativePath);
+            if (origin === undefined) {
+                origin = await inferOriginalBranchForPath(relativePath);
+                originCache.set(relativePath, origin);
+            }
+            comment.branch = origin || currentBranch;
+        }
+        addComment(comment);
+    }
+
+    const branches = await listAllBranches();
+    const commentEntries: { branch: string; filePath: string; relWithinIssue: string }[] = [];
+
+    for (const branch of branches) {
+        let stdout = '';
+        try {
+            const result = await execa('git', ['ls-tree', '-r', '--name-only', branch, '--', relativeIssueDir]);
+            stdout = result.stdout;
+        } catch (e) {
+            continue;
+        }
+
+        const files = stdout
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean);
+
+        for (const filePath of files) {
+            const relWithinIssue = filePath.startsWith(`${relativeIssueDir}/`)
+                ? filePath.slice(relativeIssueDir.length + 1)
+                : '';
+            if (!relWithinIssue) continue;
+            if (!COMMENT_ROOT_RE.test(relWithinIssue) && !COMMENT_NESTED_RE.test(relWithinIssue)) continue;
+            commentEntries.push({ branch, filePath, relWithinIssue });
+        }
+    }
+
+    if (commentEntries.length > 0) {
+        let batchOutput: Buffer;
+        try {
+            const input = commentEntries.map(entry => `${entry.branch}:${entry.filePath}`).join('\n') + '\n';
+            const { stdout } = await execa('git', ['cat-file', '--batch'], { input, encoding: 'buffer' as any });
+            batchOutput = stdout as Buffer;
+        } catch (e) {
+            batchOutput = Buffer.from('');
+        }
+
+        let offset = 0;
+        const readLine = (): string | null => {
+            const lineEnd = batchOutput.indexOf(0x0a, offset);
+            if (lineEnd === -1) return null;
+            const line = batchOutput.slice(offset, lineEnd).toString('utf8');
+            offset = lineEnd + 1;
+            return line;
+        };
+
+        for (const entry of commentEntries) {
+            const header = readLine();
+            if (!header) break;
+            if (header.endsWith(' missing')) {
+                continue;
+            }
+
+            const headerParts = header.split(' ');
+            const sizeStr = headerParts[2] || '0';
+            const size = Number.parseInt(sizeStr, 10);
+            if (!Number.isFinite(size) || size <= 0) {
+                continue;
+            }
+
+            const contentBuf = batchOutput.slice(offset, offset + size);
+            offset += size;
+            if (batchOutput[offset] === 0x0a) offset += 1;
+
+            let content: any;
+            try {
+                content = yaml.load(contentBuf.toString('utf8')) as any;
+            } catch (e) {
+                continue;
+            }
+            if (!content?.id) continue;
+            content.date = content.date || content.created;
+            content.isDirty = false;
+            content.hasHistory = false;
+            content.file = entry.relWithinIssue;
+
+            if (!content.branch) {
+                let origin = originCache.get(entry.filePath);
+                if (origin === undefined) {
+                    origin = await inferOriginalBranchForPath(entry.filePath);
+                    originCache.set(entry.filePath, origin);
+                }
+                content.branch = origin || entry.branch;
+            }
+
+            addComment(content);
+        }
+    }
+
+    return Array.from(commentsById.values())
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 export async function getFileHistory(filePath: string): Promise<any[]> {

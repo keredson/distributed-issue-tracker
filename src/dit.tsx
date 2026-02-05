@@ -15,6 +15,7 @@ const cli = meow(`
 	  edit      Edit an issue
 	  comment   Add a comment to an issue
 	  import    Import issues from GitHub
+	  init      Initialize dit defaults
 	  web       Launch the web interface (subcommand: passkey)
 
 	For more details on a specific command, run:

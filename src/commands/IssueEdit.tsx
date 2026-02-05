@@ -11,6 +11,7 @@ import {findIssueDirById} from '../utils/issues.js';
 import {Worker} from 'node:worker_threads';
 import {fileURLToPath} from 'node:url';
 import {getLocalUsers, LocalUser, getCurrentLocalUser} from '../utils/user.js';
+import {loadIssueWorkflow, getAllowedStatusOptions, getDefaultIssueStatus, isTransitionAllowed, IssueWorkflow, formatStatusLabel, normalizeStatus} from '../utils/workflow.js';
 
 type Props = {
     id: string;
@@ -21,7 +22,6 @@ type Props = {
     showRevert?: boolean;
 };
 
-const STATUSES = ['open', 'assigned', 'in-progress', 'closed'];
 const SEVERITIES = ['low', 'medium', 'high', 'critical'];
 
 export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, saveLabel = 'Save Changes', showRevert = true}: Props) {
@@ -42,6 +42,11 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
     const [localUsers, setLocalUsers] = useState<LocalUser[]>([]);
     const [assigneeSuggestions, setAssigneeSuggestions] = useState<LocalUser[]>([]);
     const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
+    const [workflow, setWorkflow] = useState<IssueWorkflow>(() => loadIssueWorkflow());
+    const [statusOptions, setStatusOptions] = useState<string[]>(() => {
+        const wf = loadIssueWorkflow();
+        return wf.states.length ? wf.states : ['open', 'active', 'closed'];
+    });
     const {exit} = useApp();
 
     useEffect(() => {
@@ -87,27 +92,34 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
             
             setIssuePath(fullPath);
             checkDirty(fullPath);
+            const wf = loadIssueWorkflow();
+            setWorkflow(wf);
             const issueYamlPath = path.join(fullPath, 'meta.yaml');
             const descriptionPath = path.join(fullPath, 'description.md');
             try {
                 if (fs.existsSync(issueYamlPath)) {
                     const yamlContent = fs.readFileSync(issueYamlPath, 'utf8');
                     const loadedData = yaml.load(yamlContent) as any;
+                    const normalizedStatus = normalizeStatus(loadedData.status || '', wf);
                     const description = fs.existsSync(descriptionPath) ? fs.readFileSync(descriptionPath, 'utf8') : '';
-                    setMeta({...loadedData, body: description});
+                    setMeta({...loadedData, status: normalizedStatus || loadedData.status, body: description});
                     setTempTitle(loadedData.title || '');
                     setTempAssignee(loadedData.assignee || '');
                     setTempLabels((loadedData.labels || []).join(', '));
-                    setTempStatusIndex(STATUSES.indexOf(loadedData.status || 'open'));
+                    const currentStatus = normalizedStatus || getDefaultIssueStatus(wf);
+                    const options = getAllowedStatusOptions(currentStatus, wf);
+                    setStatusOptions(options);
+                    setTempStatusIndex(Math.max(0, options.indexOf(currentStatus)));
                     setTempSeverityIndex(SEVERITIES.indexOf(loadedData.severity || 'medium'));
                 } else {
                     // Initialize meta if file doesn't exist (for new issues)
                     const currentUser = await getCurrentLocalUser();
+                    const defaultStatus = getDefaultIssueStatus(wf);
                     const newMeta = {
                         id,
                         title: 'New Issue',
                         created: new Date().toISOString(),
-                        status: 'open',
+                        status: defaultStatus,
                         severity: 'medium',
                         assignee: '',
                         author: currentUser?.username || '',
@@ -117,7 +129,9 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
                     setTempTitle(newMeta.title);
                     setTempAssignee('');
                     setTempLabels('');
-                    setTempStatusIndex(0);
+                    const options = getAllowedStatusOptions(defaultStatus, wf);
+                    setStatusOptions(options);
+                    setTempStatusIndex(Math.max(0, options.indexOf(defaultStatus)));
                     setTempSeverityIndex(1);
                 }
             } catch (err: any) {
@@ -198,7 +212,10 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
                 const selectedItem = menuItems[selectedIndex];
                 if (selectedIndex === 0) setMode('edit-title');
                 if (selectedIndex === 1) {
-                    setTempStatusIndex(STATUSES.indexOf(meta.status || 'open'));
+                    const currentStatus = meta.status || getDefaultIssueStatus(workflow);
+                    const options = getAllowedStatusOptions(currentStatus, workflow);
+                    setStatusOptions(options);
+                    setTempStatusIndex(Math.max(0, options.indexOf(currentStatus)));
                     setMode('select-status');
                 }
                 if (selectedIndex === 2) {
@@ -242,9 +259,12 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
         } else if (mode === 'select-status') {
             if (key.escape) setMode('menu');
             if (key.upArrow) setTempStatusIndex(prev => Math.max(0, prev - 1));
-            if (key.downArrow) setTempStatusIndex(prev => Math.min(STATUSES.length - 1, prev + 1));
+            if (key.downArrow) setTempStatusIndex(prev => Math.min(statusOptions.length - 1, prev + 1));
             if (key.return) {
-                setMeta({...meta, status: STATUSES[tempStatusIndex]});
+                const nextStatus = statusOptions[tempStatusIndex];
+                if (nextStatus) {
+                    setMeta({...meta, status: nextStatus});
+                }
                 setMode('menu');
             }
         } else if (mode === 'select-severity') {
@@ -277,7 +297,7 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
 
     const menuItems = [
         {label: 'Title', value: meta.title},
-        {label: 'Status', value: meta.status || 'open'},
+        {label: 'Status', value: formatStatusLabel(meta.status || 'open')},
         {label: 'Severity', value: meta.severity || 'medium'},
         {label: 'Assignee', value: meta.assignee || 'Unassigned'},
         {label: 'Labels', value: (meta.labels || []).join(', ') || '(None)'},
@@ -325,8 +345,8 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
                                             if (assigneeSuggestions.length > 0) {
                                                 const selected = assigneeSuggestions[selectedSuggestionIndex].username;
                                                 const newMeta = {...meta, assignee: selected};
-                                                if (selected && meta.status === 'open') {
-                                                    newMeta.status = 'assigned';
+                                                if (selected && isTransitionAllowed(meta.status || '', 'active', workflow)) {
+                                                    newMeta.status = 'active';
                                                 }
                                                 setMeta(newMeta);
                                                 setMode('menu');
@@ -366,9 +386,9 @@ export default function IssueEdit({id, issuePath: providedPath, onBack, onSave, 
             {mode === 'select-status' && (
                 <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="blue" paddingX={1}>
                     <Text bold underline>Select Status:</Text>
-                    {STATUSES.map((status, index) => (
+                    {statusOptions.map((status, index) => (
                         <Text key={status} color={tempStatusIndex === index ? 'blue' : undefined}>
-                            {tempStatusIndex === index ? '❯ ' : '  '}{status}
+                            {tempStatusIndex === index ? '❯ ' : '  '}{formatStatusLabel(status)}
                         </Text>
                     ))}
                 </Box>

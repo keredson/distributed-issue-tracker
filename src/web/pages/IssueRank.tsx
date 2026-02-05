@@ -5,6 +5,7 @@ import { Badge, Card, Avatar, Modal } from '../components/Common.js';
 import { Markdown } from '../components/Markdown.js';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert.js';
 import { Button } from '../components/ui/button.js';
+import { IssueWorkflow, getDefaultWorkflow, getOpenStates, getStatusStyle, formatStatusLabel, normalizeStatus } from '../utils/workflow.js';
 
 export const IssueRank = () => {
     const navigate = useNavigate();
@@ -24,6 +25,8 @@ export const IssueRank = () => {
     const [fallbackIssues, setFallbackIssues] = useState<any[]>([]);
     const [fallbackLoading, setFallbackLoading] = useState(false);
     const [fallbackError, setFallbackError] = useState<string | null>(null);
+    const [workflow, setWorkflow] = useState<IssueWorkflow>(getDefaultWorkflow());
+    const openStates = useMemo(() => new Set(getOpenStates(workflow)), [workflow]);
 
     const rankState = location.state as {
         issues?: any[];
@@ -67,8 +70,8 @@ export const IssueRank = () => {
                 if (cancelled) return;
                 const issues = Array.isArray(data) ? data : [];
                 const openIssues = issues.filter(issue => {
-                    const status = (issue.status || '').toLowerCase();
-                    return status === 'open' || status === 'assigned' || status === 'in-progress';
+                    const status = normalizeStatus(issue.status || '', workflow);
+                    return openStates.has(status);
                 });
                 const selection = shuffleIssues(openIssues).slice(0, 10);
                 setFallbackIssues(selection);
@@ -86,7 +89,14 @@ export const IssueRank = () => {
         return () => {
             cancelled = true;
         };
-    }, [hasProvidedIssues, shuffleIssues]);
+    }, [hasProvidedIssues, shuffleIssues, openStates, workflow]);
+
+    useEffect(() => {
+        fetch('/api/workflows/issue')
+            .then(res => res.json())
+            .then(data => setWorkflow(data))
+            .catch(() => setWorkflow(getDefaultWorkflow()));
+    }, []);
 
     useEffect(() => {
         setUnrankedIssues(shuffleIssues(baseIssues));
@@ -356,7 +366,14 @@ export const IssueRank = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <Badge variant={issue.status}>{issue.status}</Badge>
+                                            {(() => {
+                                                const normalizedStatus = normalizeStatus(issue.status || '', workflow);
+                                                return (
+                                                    <Badge variant={normalizedStatus} style={getStatusStyle(normalizedStatus, workflow)}>
+                                                        {formatStatusLabel(normalizedStatus)}
+                                                    </Badge>
+                                                );
+                                            })()}
                                             {issue.assignee && (
                                                 <div className="flex items-center gap-1 text-xs text-slate-500">
                                                     <Avatar username={issue.assignee} size="xs" />
@@ -424,7 +441,14 @@ export const IssueRank = () => {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-3">
-                                                <Badge variant={issue.status}>{issue.status}</Badge>
+                                                {(() => {
+                                                    const normalizedStatus = normalizeStatus(issue.status || '', workflow);
+                                                    return (
+                                                        <Badge variant={normalizedStatus} style={getStatusStyle(normalizedStatus, workflow)}>
+                                                            {formatStatusLabel(normalizedStatus)}
+                                                        </Badge>
+                                                    );
+                                                })()}
                                                 {issue.assignee && (
                                                     <div className="flex items-center gap-1 text-xs text-slate-500">
                                                         <Avatar username={issue.assignee} size="xs" />
@@ -489,7 +513,14 @@ export const IssueRank = () => {
                                     <div>
                                         <div className="text-xl font-bold text-slate-900 dark:text-white">{previewIssue.title}</div>
                                         <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                            <Badge variant={previewIssue.status}>{previewIssue.status}</Badge>
+                                            {(() => {
+                                                const normalizedStatus = normalizeStatus(previewIssue.status || '', workflow);
+                                                return (
+                                                    <Badge variant={normalizedStatus} style={getStatusStyle(normalizedStatus, workflow)}>
+                                                        {formatStatusLabel(normalizedStatus)}
+                                                    </Badge>
+                                                );
+                                            })()}
                                             <span>opened {new Date(previewIssue.created).toLocaleDateString()}</span>
                                             <span>by</span>
                                             <Avatar username={previewIssue.author} size="xs" />
@@ -521,6 +552,11 @@ export const IssueRank = () => {
                                                         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2">
                                                             <Avatar username={comment.author} size="xs" />
                                                             <span className="font-medium">{comment.author}</span>
+                                                            {comment.branch && (
+                                                                <span className="px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-[10px] font-semibold">
+                                                                    from {comment.branch}
+                                                                </span>
+                                                            )}
                                                             <span>•</span>
                                                             <span>{new Date(comment.date).toLocaleString()}</span>
                                                         </div>

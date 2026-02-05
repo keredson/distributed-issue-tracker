@@ -9,6 +9,7 @@ import yaml from 'js-yaml';
 import {execa} from 'execa';
 import IssueEdit from './IssueEdit.js';
 import { getCurrentLocalUser } from '../utils/user.js';
+import { loadIssueWorkflow, getDefaultIssueStatus } from '../utils/workflow.js';
 
 export default function NewIssue({skipAdd, onBack}: {skipAdd?: boolean; onBack?: () => void}) {
     const [issueId] = useState(() => generateUniqueId());
@@ -73,6 +74,8 @@ export default function NewIssue({skipAdd, onBack}: {skipAdd?: boolean; onBack?:
         }
         
         const currentUser = await getCurrentLocalUser();
+        const workflow = loadIssueWorkflow();
+        const defaultStatus = getDefaultIssueStatus(workflow);
         
         const tp = path.join(issuesDir, `.tmp-${issueId}`);
         try {
@@ -84,7 +87,7 @@ export default function NewIssue({skipAdd, onBack}: {skipAdd?: boolean; onBack?:
                     id: issueId,
                     title: 'New Issue',
                     created: new Date().toISOString(),
-                    status: 'open',
+                    status: defaultStatus,
                     severity: 'medium',
                     assignee: '',
                     author: currentUser?.username || '',

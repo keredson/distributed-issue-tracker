@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, X, CircleDot, User, Clock, Check, CheckCircle2, MessageSquare, ListOrdered, ChevronDown, Check as CheckIcon } from 'lucide-react';
+import { Search, X, CircleDot, Clock, Check, CheckCircle2, MessageSquare, ListOrdered, ChevronDown, Check as CheckIcon } from 'lucide-react';
 import { Card, Badge, Avatar, Pagination } from '../components/Common.js';
 import { FilterDropdown } from '../components/FilterDropdown.js';
 import { computeRatings } from '../utils/rankings.js';
 import { getPriorityDisplay } from '../utils/priority.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
+import { IssueWorkflow, getDefaultWorkflow, formatStatusLabel, getStatusStyle, getStatusIconColor, normalizeStatus } from '../utils/workflow.js';
 
 export const Issues = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -15,10 +16,12 @@ export const Issues = () => {
     const [loading, setLoading] = useState(true);
     const [rankings, setRankings] = useState<any[]>([]);
     const [sortOpen, setSortOpen] = useState(false);
+    const [workflow, setWorkflow] = useState<IssueWorkflow>(getDefaultWorkflow());
     const searchInputRef = useRef<HTMLInputElement>(null);
     const sortRef = useRef<HTMLDivElement>(null);
     
-    const searchQuery = searchParams.get('q') ?? "is:open ";
+    const defaultQuery = `state:${(workflow.initial || workflow.states[0] || 'open').toLowerCase()} `;
+    const searchQuery = searchParams.get('q') ?? defaultQuery;
     const rawSort = searchParams.get('sort') ?? "Created";
     const rawOrder = searchParams.get('order') ?? "Desc";
     const currentPage = parseInt(searchParams.get('page') ?? "1", 10);
@@ -83,7 +86,22 @@ export const Issues = () => {
             });
     }, []);
 
+    useEffect(() => {
+        fetch('/api/workflows/issue')
+            .then(res => res.json())
+            .then(data => setWorkflow(data))
+            .catch(() => setWorkflow(getDefaultWorkflow()));
+    }, []);
+
     const ratingMap = useMemo(() => computeRatings(rankings), [rankings]);
+    const statusCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+        issues.forEach(issue => {
+            const status = normalizeStatus(issue.status || '', workflow);
+            counts[status] = (counts[status] || 0) + 1;
+        });
+        return counts;
+    }, [issues, workflow]);
 
     const updateParams = (updates: Record<string, string | number | null>) => {
         const newParams = new URLSearchParams(searchParams);
@@ -127,13 +145,26 @@ export const Issues = () => {
         return filters;
     }, [searchQuery]);
 
+    const normalizedSearchQuery = useMemo(() => {
+        return searchQuery.replace(/\bis:([^\s]+)/gi, 'state:$1');
+    }, [searchQuery]);
+
+    const stateLabels = useMemo(() => workflow.states.map(formatStatusLabel), [workflow]);
+    const stateLabelToValue = useMemo(() => {
+        const map = new Map<string, string>();
+        workflow.states.forEach(state => map.set(formatStatusLabel(state), state));
+        return map;
+    }, [workflow]);
+    const currentStateFilter = currentFilters.state || currentFilters.is;
+    const currentStateLabel = currentStateFilter ? formatStatusLabel(currentStateFilter) : undefined;
+
     const getFilteredIssuesExcept = (excludeKey: string) => {
         let result = [...issues];
         const filters: {[key: string]: string[]} = {};
         const textTerms: string[] = [];
         const regex = /([a-zA-Z]+):("[^"]+"|[^\s]+)|("[^"]+"|[^\s]+)/gi;
         let match;
-        while ((match = regex.exec(searchQuery)) !== null) {
+        while ((match = regex.exec(normalizedSearchQuery)) !== null) {
             if (match[1]) {
                 const key = match[1].toLowerCase();
                 if (key === excludeKey) continue;
@@ -156,9 +187,7 @@ export const Issues = () => {
             for (const [key, values] of Object.entries(filters)) {
                 if (key === 'state' || key === 'is') {
                     if (!values.some(v => {
-                        if (v === 'open') return issue.status === 'open' || issue.status === 'assigned' || issue.status === 'in-progress';
-                        if (v === 'closed') return issue.status === 'closed';
-                        return (issue.status || "").toLowerCase() === v;
+                        return normalizeStatus(issue.status || "", workflow) === v;
                     })) return false;
                 } else if (key === 'severity') {
                     if (!values.includes((issue.severity || "").toLowerCase())) return false;
@@ -202,7 +231,7 @@ export const Issues = () => {
         const textTerms: string[] = [];
         const regex = /([a-zA-Z]+):("[^"]+"|[^\s]+)|("[^"]+"|[^\s]+)/gi;
         let match;
-        while ((match = regex.exec(searchQuery)) !== null) {
+        while ((match = regex.exec(normalizedSearchQuery)) !== null) {
             if (match[1]) {
                 const key = match[1].toLowerCase();
                 let value = match[2];
@@ -234,9 +263,7 @@ export const Issues = () => {
             for (const [key, values] of Object.entries(filters)) {
                 if (key === 'state' || key === 'is') {
                     if (!values.some(v => {
-                        if (v === 'open') return issue.status === 'open' || issue.status === 'assigned' || issue.status === 'in-progress';
-                        if (v === 'closed') return issue.status === 'closed';
-                        return (issue.status || "").toLowerCase() === v;
+                        return normalizeStatus(issue.status || "", workflow) === v;
                     })) return false;
                 } else if (key === 'severity') {
                     if (!values.includes((issue.severity || "").toLowerCase())) return false;
@@ -344,61 +371,50 @@ export const Issues = () => {
             <Card className="border-slate-200 dark:border-slate-800">
                 <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center rounded-t-xl">
                     <div className="flex items-center gap-4">
-                        <Button
-                            type="button"
-                            variant="unstyled"
-                            onClick={() => {
-                                let newQuery = searchQuery.replace(/(is|state):[^\s]+/gi, '').trim();
-                                newQuery = 'is:open ' + newQuery;
-                                setSearchQuery(newQuery.trim() + ' ');
-                            }}
-                            className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${currentFilters.is === 'open' || currentFilters.state === 'open' ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                        >
-                            <CircleDot className="w-4 h-4" />
-                            {issues.filter(i => i.status === 'open').length} Open
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="unstyled"
-                            onClick={() => {
-                                let newQuery = searchQuery.replace(/(is|state):[^\s]+/gi, '').trim();
-                                newQuery = 'is:assigned ' + newQuery;
-                                setSearchQuery(newQuery.trim() + ' ');
-                            }}
-                            className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${currentFilters.is === 'assigned' || currentFilters.state === 'assigned' ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                        >
-                            <User className="w-4 h-4" />
-                            {issues.filter(i => i.status === 'assigned').length} Assigned
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="unstyled"
-                            onClick={() => {
-                                let newQuery = searchQuery.replace(/(is|state):[^\s]+/gi, '').trim();
-                                newQuery = 'is:in-progress ' + newQuery;
-                                setSearchQuery(newQuery.trim() + ' ');
-                            }}
-                            className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${currentFilters.is === 'in-progress' || currentFilters.state === 'in-progress' ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                        >
-                            <Clock className="w-4 h-4" />
-                            {issues.filter(i => i.status === 'in-progress').length} In Progress
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="unstyled"
-                            onClick={() => {
-                                let newQuery = searchQuery.replace(/(is|state):[^\s]+/gi, '').trim();
-                                newQuery = 'is:closed ' + newQuery;
-                                setSearchQuery(newQuery.trim() + ' ');
-                            }}
-                            className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${currentFilters.is === 'closed' || currentFilters.state === 'closed' ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                        >
-                            <Check className="w-4 h-4" />
-                            {issues.filter(i => i.status === 'closed').length} Closed
-                        </Button>
+                        {workflow.states.map((status) => {
+                            const lower = status.toLowerCase();
+                            const isActive = currentFilters.is === lower || currentFilters.state === lower;
+                            const icon = lower === 'open'
+                                ? CircleDot
+                                : lower === 'active'
+                                    ? Clock
+                                    : lower === 'closed'
+                                        ? Check
+                                        : CircleDot;
+                            const Icon = icon;
+                            return (
+                                <Button
+                                    key={status}
+                                    type="button"
+                                    variant="unstyled"
+                                    onClick={() => {
+                                        let newQuery = searchQuery.replace(/(is|state):[^\s]+/gi, '').trim();
+                                        newQuery = `state:${lower} ` + newQuery;
+                                        setSearchQuery(newQuery.trim() + ' ');
+                                    }}
+                                    className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${isActive ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                                >
+                                    <Icon className="w-4 h-4" style={{ color: getStatusIconColor(lower, workflow) || undefined }} />
+                                    {(statusCounts[lower] || 0)} {formatStatusLabel(status)}
+                                </Button>
+                            );
+                        })}
                     </div>
                     
                     <div className="flex items-center gap-2">
+                        <FilterDropdown 
+                            label="State"
+                            items={stateLabels}
+                            value={currentStateLabel}
+                            onChange={(val) => {
+                                let newQuery = searchQuery.replace(/(is|state):("[^"]+"|[^\s]+)/gi, '').trim();
+                                if (val) {
+                                    const raw = stateLabelToValue.get(val) || val.toLowerCase();
+                                    newQuery += ` state:${raw}`;
+                                }
+                                setSearchQuery(newQuery.trim() + ' ');
+                            }}
+                        />
                         <FilterDropdown 
                             label="Author" 
                             items={authors} 
@@ -508,7 +524,9 @@ export const Issues = () => {
                             {searchQuery ? "No issues match your search." : "No issues found."}
                         </div>
                     ) : (
-                        paginatedIssues.map(issue => (
+                        paginatedIssues.map(issue => {
+                            const normalizedStatus = normalizeStatus(issue.status || '', workflow);
+                            return (
                             <Link 
                                 key={issue.id} 
                                 to={"/issue/" + issue.dir}
@@ -516,14 +534,14 @@ export const Issues = () => {
                             >
                                 <div className="flex items-start gap-4">
                                     <div className="mt-1">
-                                        {issue.status === 'open' ? (
-                                            <CircleDot className="w-5 h-5 text-green-600 dark:text-green-500" />
-                                        ) : issue.status === 'assigned' ? (
-                                            <User className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                                        ) : issue.status === 'in-progress' ? (
-                                            <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-500" />
+                                        {normalizedStatus === 'open' ? (
+                                            <CircleDot className="w-5 h-5" style={{ color: getStatusIconColor(normalizedStatus, workflow) || undefined }} />
+                                        ) : normalizedStatus === 'active' ? (
+                                            <Clock className="w-5 h-5" style={{ color: getStatusIconColor(normalizedStatus, workflow) || undefined }} />
+                                        ) : normalizedStatus === 'closed' ? (
+                                            <CheckCircle2 className="w-5 h-5" style={{ color: getStatusIconColor(normalizedStatus, workflow) || undefined }} />
                                         ) : (
-                                            <CheckCircle2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                            <CircleDot className="w-5 h-5 text-slate-400" />
                                         )}
                                     </div>
                                     <div>
@@ -551,7 +569,7 @@ export const Issues = () => {
                                 </div>
                                 <div className="flex flex-col items-end gap-2">
                                     <div className="flex items-center gap-4">
-                                        <Badge variant={issue.status}>{issue.status}</Badge>
+                                        <Badge variant={normalizedStatus} style={getStatusStyle(normalizedStatus, workflow)}>{formatStatusLabel(normalizedStatus)}</Badge>
                                         <div className="flex items-center gap-1 text-slate-400">
                                             <MessageSquare className="w-4 h-4" />
                                             <span className="text-xs font-bold">{issue.comments_count || 0}</span>
@@ -577,7 +595,8 @@ export const Issues = () => {
                                     )}
                                 </div>
                             </Link>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             </Card>

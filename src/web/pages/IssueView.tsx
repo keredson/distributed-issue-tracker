@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, CircleDot, MessageSquare, GitBranch } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { Card, Badge, Avatar, LabelInput, Modal } from '../components/Common.js';
 import { Markdown, MarkdownEditor } from '../components/Markdown.js';
 import { UserSelect, User } from '../components/UserSelect.js';
@@ -10,6 +11,7 @@ import { getPriorityDisplay } from '../utils/priority.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert.js';
+import { IssueWorkflow, getAllowedStatusOptions, formatStatusLabel, getDefaultWorkflow, getStatusOrder, getStatusStyle, normalizeStatus, getTransitionLabel, getStateIconName } from '../utils/workflow.js';
 
 export const IssueView = () => {
     const params = useParams();
@@ -30,6 +32,9 @@ export const IssueView = () => {
     const [editAssignee, setEditAssignee] = useState("");
     const [editLabels, setEditLabels] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
+    const [statusUpdating, setStatusUpdating] = useState(false);
+    const [statusError, setStatusError] = useState("");
+    const [workflow, setWorkflow] = useState<IssueWorkflow>(getDefaultWorkflow());
 
     const [copyOpen, setCopyOpen] = useState(false);
     const [branches, setBranches] = useState<{ name: string; kind: 'local' | 'remote' }[]>([]);
@@ -47,6 +52,23 @@ export const IssueView = () => {
     const [branchDetailsOpen, setBranchDetailsOpen] = useState(false);
     const selectAllRef = useRef<HTMLInputElement | null>(null);
 
+    const statusOptions = useMemo(() => {
+        const currentRaw = issue?.status || workflow?.initial || workflow?.states?.[0] || '';
+        const current = normalizeStatus(currentRaw, workflow);
+        if (!current) return ['open', 'active', 'closed'];
+        return getAllowedStatusOptions(current, workflow);
+    }, [issue?.status, workflow]);
+
+    const getIconComponent = (iconName: string | null) => {
+        if (!iconName) return null;
+        const pascal = iconName
+            .split('-')
+            .map(segment => segment.charAt(0).toUpperCase() + segment.slice(1))
+            .join('');
+        const Icon = (LucideIcons as any)[pascal] as React.ComponentType<{ className?: string }>;
+        return Icon || null;
+    };
+
     const fetchIssue = () => {
         fetch("/api/issues/details/" + splat)
             .then(res => {
@@ -54,10 +76,11 @@ export const IssueView = () => {
                 return res.json();
             })
             .then(data => {
+                const normalizedStatus = normalizeStatus(data.status || '', workflow);
                 setIssue(data);
                 setEditTitle(data.title);
                 setEditBody(data.body);
-                setEditStatus(data.status);
+                setEditStatus(normalizedStatus);
                 setEditSeverity(data.severity);
                 setEditAssignee(data.assignee || "");
                 setEditLabels(data.labels || []);
@@ -82,6 +105,10 @@ export const IssueView = () => {
                 console.error('Failed to fetch rankings', err);
                 setRankings([]);
             });
+        fetch("/api/workflows/issue")
+            .then(res => res.json())
+            .then(data => setWorkflow(data))
+            .catch(() => setWorkflow(getDefaultWorkflow()));
     }, [splat]);
 
     useEffect(() => {
@@ -201,10 +228,10 @@ export const IssueView = () => {
                 missing += 1;
                 continue;
             }
-            const status = (info.status || 'open').trim() || 'open';
+            const status = normalizeStatus((info.status || 'open').trim() || 'open', workflow);
             counts[status] = (counts[status] || 0) + 1;
         }
-        const statusOrder = ['open', 'assigned', 'in-progress', 'closed'];
+        const statusOrder = getStatusOrder(workflow);
         const ordered = [
             ...statusOrder.filter(status => counts[status]),
             ...Object.keys(counts).filter(status => !statusOrder.includes(status)).sort()
@@ -226,7 +253,7 @@ export const IssueView = () => {
                 missing.push(name);
                 continue;
             }
-            const status = (info.status || 'open').trim() || 'open';
+            const status = normalizeStatus((info.status || 'open').trim() || 'open', workflow);
             present.push({ branch: name, status });
         }
         const grouped = present.reduce((acc, item) => {
@@ -321,6 +348,29 @@ export const IssueView = () => {
             alert("Failed to save changes");
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleQuickStatusChange = async (nextStatus: string) => {
+        if (!issue || statusUpdating) return;
+        setStatusUpdating(true);
+        setStatusError("");
+        try {
+            const res = await fetch("/api/issues/" + issue.id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: nextStatus })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data?.error || 'Failed to update status');
+            }
+            setIssue({ ...issue, ...data });
+            setEditStatus(nextStatus);
+        } catch (err: any) {
+            setStatusError(err.message || 'Failed to update status');
+        } finally {
+            setStatusUpdating(false);
         }
     };
 
@@ -590,10 +640,11 @@ export const IssueView = () => {
                                     onChange={e => setEditStatus(e.target.value)}
                                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-100 focus:border-transparent outline-none transition-all dark:text-slate-100"
                                 >
-                                    <option value="open">Open</option>
-                                    <option value="assigned">Assigned</option>
-                                    <option value="in-progress">In Progress</option>
-                                    <option value="closed">Closed</option>
+                                    {statusOptions.map(status => (
+                                        <option key={status} value={status}>
+                                            {formatStatusLabel(status)}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div>
@@ -664,7 +715,14 @@ export const IssueView = () => {
                 <>
                     <div className="mb-8">
                         <div className="flex items-center gap-3 mb-4">
-                            <Badge variant={issue.status}>{issue.status}</Badge>
+                            {(() => {
+                                const normalizedStatus = normalizeStatus(issue.status || '', workflow);
+                                return (
+                                    <Badge variant={normalizedStatus} style={getStatusStyle(normalizedStatus, workflow)}>
+                                        {formatStatusLabel(normalizedStatus)}
+                                    </Badge>
+                                );
+                            })()}
                             {issue.labels && issue.labels.map((label: string) => (
                                 <span key={label} className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold border border-blue-100 dark:border-blue-900/30">
                                     {label.toUpperCase()}
@@ -704,7 +762,7 @@ export const IssueView = () => {
                                         {otherBranchSummary.statuses.map(({ status }) => (
                                             <React.Fragment key={status}>
                                                 <span className="inline-flex items-center">
-                                                    <Badge variant={status}>{status}</Badge>
+                                                    <Badge variant={status} style={getStatusStyle(status, workflow)}>{formatStatusLabel(status)}</Badge>
                                                 </span>
                                             </React.Fragment>
                                         ))}
@@ -730,7 +788,7 @@ export const IssueView = () => {
                                 <div className="grid grid-cols-1 gap-2 text-xs text-slate-600 dark:text-slate-300">
                                     {Object.entries(otherBranchDetails.grouped).map(([status, branches]) => (
                                         <div key={status} className="flex items-baseline gap-2">
-                                            <Badge variant={status}>{status}</Badge>
+                                            <Badge variant={status} style={getStatusStyle(status, workflow)}>{formatStatusLabel(status)}</Badge>
                                             <span className="text-[11px] text-slate-500 dark:text-slate-400">
                                                 {branches.join(', ')}
                                             </span>
@@ -762,6 +820,41 @@ export const IssueView = () => {
                                     </Link>
                                 </span>
                             )}
+                            {(() => {
+                                const currentStatus = normalizeStatus(issue.status || '', workflow);
+                                const nextStatuses = statusOptions.filter(status => status !== currentStatus);
+                                return nextStatuses.length > 0 ? (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {nextStatuses.map(status => (
+                                            <Button
+                                                key={status}
+                                                type="button"
+                                                variant="unstyled"
+                                                onClick={() => handleQuickStatusChange(status)}
+                                                disabled={statusUpdating}
+                                                className="inline-flex items-center gap-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+                                                title={`Change state to ${formatStatusLabel(status)}`}
+                                            >
+                                            {(() => {
+                                                const iconName = getStateIconName(status, workflow);
+                                                const Icon = getIconComponent(iconName);
+                                                return Icon ? <Icon className="w-4 h-4" /> : null;
+                                            })()}
+                                            {(() => {
+                                                const label = getTransitionLabel(currentStatus, status, workflow) || `Move to ${formatStatusLabel(status)}`;
+                                                return label.charAt(0).toUpperCase() + label.slice(1);
+                                            })()}
+                                        </Button>
+                                    ))}
+                                        {statusUpdating && (
+                                            <span className="text-xs text-slate-500">Updating…</span>
+                                        )}
+                                        {statusError && (
+                                            <span className="text-xs text-red-600 dark:text-red-400">{statusError}</span>
+                                        )}
+                                    </div>
+                                ) : null;
+                            })()}
                         </div>
                     </div>
 
@@ -798,6 +891,11 @@ export const IssueView = () => {
                                     <div className="flex items-center gap-2">
                                         {comment.hasHistory && (
                                             <HistoryView issueId={issue.id} commentId={comment.id} />
+                                        )}
+                                        {comment.branch && (
+                                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                                from {comment.branch}
+                                            </span>
                                         )}
                                         <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{new Date(comment.date).toLocaleString()}</span>
                                     </div>

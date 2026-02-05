@@ -6,6 +6,7 @@ import yaml from 'js-yaml';
 import {execa} from 'execa';
 
 import {getAllIssueDirs} from '../utils/issues.js';
+import {loadIssueWorkflow, getClosedStates, getStatusInkColor, formatStatusLabel, normalizeStatus} from '../utils/workflow.js';
 
 type Issue = {
     id: string;
@@ -24,10 +25,14 @@ export default function IssueList({flags}: {flags: any}) {
     const [issues, setIssues] = useState<Issue[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [workflow, setWorkflow] = useState(() => loadIssueWorkflow());
 
     useEffect(() => {
         async function loadIssues() {
             try {
+                const workflow = loadIssueWorkflow();
+                setWorkflow(workflow);
+                const closedStates = new Set(getClosedStates(workflow));
                 const issuesDir = path.join('.dit', 'issues');
                 if (!fs.existsSync(issuesDir)) {
                     setIssues([]);
@@ -51,10 +56,10 @@ export default function IssueList({flags}: {flags: any}) {
                     const content = fs.readFileSync(issueYamlPath, 'utf8');
                     const meta = yaml.load(content) as any;
                     
-                    const status = meta.status || 'open';
+                    const status = normalizeStatus(meta.status || 'open', workflow) || 'open';
                     
                     // Filter by status
-                    if (!flags.all && status === 'closed') continue;
+                    if (!flags.all && closedStates.has(status)) continue;
 
                     // Filter by label
                     const filterLabelsStr = flags.label;
@@ -89,7 +94,7 @@ export default function IssueList({flags}: {flags: any}) {
                     loadedIssues.push({
                         id: meta.id,
                         title: meta.title,
-                        status: meta.status || 'open',
+                        status,
                         severity: meta.severity || 'medium',
                         assignee: meta.assignee || 'Unassigned',
                         author: author,
@@ -143,12 +148,8 @@ export default function IssueList({flags}: {flags: any}) {
                     <Box width={10}><Text color="dim">{issue.id}</Text></Box>
                     <Box width={30}><Text wrap="truncate-end">{issue.title}</Text></Box>
                     <Box width={12}>
-                        <Text color={
-                            issue.status === 'open' ? 'green' : 
-                            issue.status === 'assigned' ? 'blue' :
-                            issue.status === 'in-progress' ? 'yellow' : 'gray'
-                        }>
-                            {issue.status}
+                        <Text color={getStatusInkColor(issue.status, workflow)}>
+                            {formatStatusLabel(issue.status)}
                         </Text>
                     </Box>
                     <Box width={12}>

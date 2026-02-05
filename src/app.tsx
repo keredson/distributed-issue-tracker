@@ -11,6 +11,7 @@ import InteractiveDashboard from './commands/InteractiveDashboard.js';
 import Import from './commands/Import.js';
 import Web from './commands/Web.js';
 import WebPasskey from './commands/WebPasskey.js';
+import Init from './commands/Init.js';
 import { getGitConfig, getLocalUsers, createUser, GitUser } from './utils/user.js';
 
 type Props = {
@@ -141,9 +142,20 @@ export default function App({command, input, flags, showHelp}: Props) {
                 </Text>
             );
         }
+        if (command === 'init') {
+            return (
+                <Text>
+                    {`Usage\n  $ dit init\n\nInitialize dit defaults (includes a default issue workflow).`}
+                </Text>
+            );
+        }
 		showHelp();
 		return null;
 	}
+
+    if (command === 'init') {
+        return <Init />;
+    }
 
     if (!userVerified) {
         return <UserOnboarding onComplete={() => setUserVerified(true)} />;
