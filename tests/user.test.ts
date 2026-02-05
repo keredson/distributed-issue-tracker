@@ -23,7 +23,7 @@ async function runTests() {
         await createUser(testUsername, gitUser);
         
         assert(await fs.access(userDir).then(() => true).catch(() => false), 'User directory should be created');
-        const infoContent = await fs.readFile(path.join(userDir, 'info.yaml'), 'utf8');
+        const infoContent = await fs.readFile(path.join(userDir, 'meta.yaml'), 'utf8');
         const info = yaml.load(infoContent) as any;
         assert(info.name === 'Test User', 'Name should match');
         assert(info.email === 'test@example.com', 'Email should match');
@@ -33,38 +33,29 @@ async function runTests() {
         await createUser(noEmailUsername, { name: 'No Email User' });
         const noEmailDir = path.join(USERS_DIR, noEmailUsername);
         assert(await fs.access(noEmailDir).then(() => true).catch(() => false), 'No-email user directory should be created');
-        const noEmailInfoContent = await fs.readFile(path.join(noEmailDir, 'info.yaml'), 'utf8');
+        const noEmailInfoContent = await fs.readFile(path.join(noEmailDir, 'meta.yaml'), 'utf8');
         const noEmailInfo = yaml.load(noEmailInfoContent) as any;
         assert(noEmailInfo.name === 'No Email User', 'Name should match');
         assert(noEmailInfo.email === undefined, 'Email should be undefined');
         await fs.rm(noEmailDir, { recursive: true, force: true });
 
         // Test saveExternalMetadata
-        const githubData = {
-            login: testUsername,
-            id: 12345,
-            bio: 'Hello world',
-            public_repos: 10
-        };
-        
-        await saveExternalMetadata(testUsername, 'github', githubData);
-        
-        const githubYamlPath = path.join(userDir, 'github.yaml');
-        assert(await fs.access(githubYamlPath).then(() => true).catch(() => false), 'github.yaml should be created');
-        
-        const githubContent = await fs.readFile(githubYamlPath, 'utf8');
-        const savedData = yaml.load(githubContent) as any;
-        assert(savedData.login === testUsername, 'Saved github login should match');
-        assert(savedData.bio === 'Hello world', 'Saved github bio should match');
-        assert(savedData.public_repos === 10, 'Saved github public_repos should match');
+        await saveExternalMetadata(testUsername, {
+            src: 'github.com',
+            at: '2026-02-05T12:00:00Z',
+            dit_version: '0.1.0'
+        });
 
-        // Test getLocalUsers loads github metadata
+        const metaContent = await fs.readFile(path.join(userDir, 'meta.yaml'), 'utf8');
+        const meta = yaml.load(metaContent) as any;
+        assert(meta.import?.src === 'github.com', 'Import src should match');
+        assert(meta.import?.at === '2026-02-05T12:00:00Z', 'Import at should match');
+        assert(meta.import?.dit_version === '0.1.0', 'Import dit_version should match');
+
+        // Test getLocalUsers loads user metadata
         const users = await getLocalUsers();
         const testUser = users.find(u => u.username === testUsername);
         assert(!!testUser, 'User should be found in getLocalUsers');
-        assert(!!testUser?.github, 'User should have github metadata');
-        assert(testUser?.github.login === testUsername, 'Loaded github login should match');
-        assert(testUser?.github.bio === 'Hello world', 'Loaded github bio should match');
 
         console.log('User utility tests passed!');
     } catch (error) {

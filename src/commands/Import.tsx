@@ -29,6 +29,18 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
         setStatus(msg);
     };
 
+    const getDitVersion = (): string => {
+        try {
+            const pkgPath = path.join(process.cwd(), 'package.json');
+            const raw = fs.readFileSync(pkgPath, 'utf8');
+            const pkg = JSON.parse(raw);
+            return typeof pkg.version === 'string' ? pkg.version : 'unknown';
+        } catch (e) {
+            return 'unknown';
+        }
+    };
+    const ditVersion = getDitVersion();
+
     useEffect(() => {
         const detectUrl = async () => {
             if (!repoUrl) {
@@ -93,7 +105,11 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
         }
         
         // Save full GitHub metadata
-        await saveExternalMetadata(username, 'github', githubUser);
+        await saveExternalMetadata(username, {
+            src: 'github.com',
+            at: new Date().toISOString(),
+            dit_version: ditVersion
+        });
         
         return username;
     };
@@ -150,6 +166,7 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
                     await syncUser(issue.user);
                 } else {
                     const externalId = `github:${owner}/${repo}#${issue.number}`;
+                    const importedAt = new Date().toISOString();
                     
                     let issueDirPath = findIssueByExternalId(externalId);
                     
@@ -168,7 +185,12 @@ export default function Import({url: initialUrl, skipAdd, verbose, all, users: u
                             assignee: assignee || '',
                             body: issue.body || '',
                             github_url: issue.html_url,
-                            labels: issue.labels.map((l: any) => typeof l === 'string' ? l : l.name)
+                            labels: issue.labels.map((l: any) => typeof l === 'string' ? l : l.name),
+                            import: {
+                                src: 'github.com',
+                                at: importedAt,
+                                dit_version: ditVersion
+                            }
                         };
                         
                         // Also ensure the author exists

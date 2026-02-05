@@ -18,7 +18,6 @@ export interface LocalUser {
     email?: string;
     profilePic?: string;
     passkeys?: any[];
-    github?: any;
 }
 
 export async function getGitConfig(): Promise<GitUser> {
@@ -43,7 +42,7 @@ export async function getLocalUsers(): Promise<LocalUser[]> {
 
     for (const entry of entries) {
         if (entry.isDirectory()) {
-            const infoPath = path.join(USERS_DIR, entry.name, 'info.yaml');
+            const infoPath = path.join(USERS_DIR, entry.name, 'meta.yaml');
             try {
                 const content = await fs.readFile(infoPath, 'utf8');
                 const parsed = yaml.load(content) as any;
@@ -73,26 +72,16 @@ export async function getLocalUsers(): Promise<LocalUser[]> {
                         } catch {}
                     }
 
-                    let github: any = undefined;
-                    try {
-                        const githubPath = path.join(USERS_DIR, entry.name, 'github.yaml');
-                        const githubContent = await fs.readFile(githubPath, 'utf8');
-                        github = yaml.load(githubContent);
-                    } catch (e) {
-                        // github.yaml might not exist
-                    }
-
                     users.push({
                         username: entry.name,
                         name: parsed.name,
                         email: parsed.email,
                         profilePic: profilePic,
-                        passkeys: passkeys,
-                        github: github
+                        passkeys: passkeys
                     });
                 }
             } catch (e) {
-                // Ignore invalid or missing info.yaml
+                // Ignore invalid or missing meta.yaml
             }
         }
     }
@@ -127,7 +116,7 @@ export async function createUser(username: string, gitUser: GitUser, profilePicU
         email: gitUser.email,
     };
     
-    const infoPath = path.join(userDir, 'info.yaml');
+    const infoPath = path.join(userDir, 'meta.yaml');
     await fs.writeFile(infoPath, yaml.dump(info));
     
     try {
@@ -141,15 +130,28 @@ export async function createUser(username: string, gitUser: GitUser, profilePicU
     }
 }
 
-export async function saveExternalMetadata(username: string, platform: string, data: any): Promise<void> {
+export async function saveExternalMetadata(
+    username: string,
+    importInfo: { src: string; at: string; dit_version: string }
+): Promise<void> {
     const userDir = path.join(USERS_DIR, username);
     await fs.mkdir(userDir, { recursive: true });
 
-    const filePath = path.join(userDir, `${platform}.yaml`);
-    await fs.writeFile(filePath, yaml.dump(data));
-    
+    const metaPath = path.join(userDir, 'meta.yaml');
+    let meta: any = {};
     try {
-        await execa('git', ['add', filePath]);
+        const content = await fs.readFile(metaPath, 'utf8');
+        meta = (yaml.load(content) as any) || {};
+    } catch (e) {
+        // Ignore missing meta.yaml
+    }
+
+    meta.import = importInfo;
+
+    await fs.writeFile(metaPath, yaml.dump(meta));
+
+    try {
+        await execa('git', ['add', metaPath]);
     } catch (e) {
         // Ignore
     }
